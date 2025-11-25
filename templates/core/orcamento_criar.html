@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}Novo Orçamento - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Novo Orçamento{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-text"></i> Criar Novo Orçamento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Cliente -->
+                        <div class="mb-4">
+                            <label class="form-label required">
+                                <i class="bi bi-person"></i> Cliente
+                            </label>
+                            <select name="cliente_id" class="form-select" required>
+                                <option value="">Selecione o cliente...</option>
+                                {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}">
+                                    {{ cliente.nome }} 
+                                    {% if cliente.cpf_cnpj %}({{ cliente.cpf_cnpj }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">
+                                Ou <a href="/admin/clientes/cliente/add/" target="_blank">cadastre um novo cliente</a>
+                            </small>
+                        </div>
+
+                        <!-- Veículo do Cliente (Opcional) -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="bi bi-car-front"></i> Veículo do Cliente (opcional)
+                            </label>
+                            
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small">Montadora</label>
+                                    <select id="montadora-select" class="form-select">
+                                        <option value="">Selecione a montadora...</option>
+                                        {% for montadora in montadoras %}
+                                        <option value="{{ montadora.id }}">{{ montadora.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label small">Modelo</label>
+                                    <select id="modelo-select" name="veiculo_modelo_id" class="form-select" disabled>
+                                        <option value="">Selecione a montadora primeiro...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <small class="text-muted d-block mt-2">
+                                Informar o veículo ajuda na busca de peças compatíveis
+                            </small>
+                        </div>
+
+                        <!-- Forma de Pagamento -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                <i class="bi bi-credit-card"></i> Forma de Pagamento Prevista
+                            </label>
+                            <select name="forma_pagamento" class="form-select">
+                                <option value="DINHEIRO">Dinheiro/PIX</option>
+                                <option value="DEBITO">Cartão Débito</option>
+                                <option value="CREDITO">Cartão Crédito</option>
+                                <option value="ATACADO">Atacado</option>
+                            </select>
+                            <small class="text-muted">
+                                Os preços dos produtos serão calculados de acordo com esta forma
+                            </small>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Próximo passo:</strong> Após criar o orçamento, você poderá adicionar produtos usando a busca rápida com filtros de veículo.
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'lista_orcamentos' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> Criar Orçamento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Cards Informativos -->
+            <div class="row mt-4">
+                <div class="col-md-4">
+                    <div class="info-card">
+                        <div class="icon-circle bg-primary">
+                            <i class="bi bi-search"></i>
+                        </div>
+                        <h6>Busca Rápida</h6>
+                        <p>Encontre produtos por montadora e modelo do veículo</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-card">
+                        <div class="icon-circle bg-success">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <h6>Verificação de Estoque</h6>
+                        <p>Sistema verifica disponibilidade automaticamente</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-card">
+                        <div class="icon-circle bg-info">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </div>
+                        <h6>Conversão Fácil</h6>
+                        <p>Converta orçamento aprovado em venda com 1 clique</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required:after {
+    content: " *";
+    color: red;
+}
+
+.info-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: 100%;
+}
+
+.icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 15px;
+    color: white;
+    font-size: 24px;
+}
+
+.info-card h6 {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2d3748;
+}
+
+.info-card p {
+    font-size: 14px;
+    color: #718096;
+    margin: 0;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.form-label {
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.form-select:focus,
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+</style>
+
+<script>
+// Buscar modelos quando seleciona montadora
+document.getElementById('montadora-select').addEventListener('change', function() {
+    const montadoraId = this.value;
+    const modeloSelect = document.getElementById('modelo-select');
+    
+    if (!montadoraId) {
+        modeloSelect.innerHTML = '<option value="">Selecione a montadora primeiro...</option>';
+        modeloSelect.disabled = true;
+        return;
+    }
+    
+    // Mostrar loading
+    modeloSelect.innerHTML = '<option value="">Carregando modelos...</option>';
+    modeloSelect.disabled = true;
+    
+    // Buscar modelos
+    fetch(`/api/buscar-modelos/?montadora_id=${montadoraId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.modelos.length > 0) {
+                modeloSelect.innerHTML = '<option value="">Selecione o modelo...</option>';
+                
+                data.modelos.forEach(modelo => {
+                    const option = document.createElement('option');
+                    option.value = modelo.id;
+                    option.textContent = modelo.descricao;
+                    
+                    // Destacar modelos populares
+                    if (modelo.popular) {
+                        option.textContent = '⭐ ' + option.textContent;
+                    }
+                    
+                    modeloSelect.appendChild(option);
+                });
+                
+                modeloSelect.disabled = false;
+            } else {
+                modeloSelect.innerHTML = '<option value="">Nenhum modelo disponível</option>';
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao buscar modelos:', error);
+            modeloSelect.innerHTML = '<option value="">Erro ao carregar modelos</option>';
+        });
+});
+
+// Adicionar busca ao select de clientes
+document.addEventListener('DOMContentLoaded', function() {
+    const clienteSelect = document.querySelector('select[name="cliente_id"]');
+    
+    // Tornar o select pesquisável (opcional, mas melhora UX)
+    clienteSelect.addEventListener('keyup', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const options = Array.from(this.options);
+        
+        options.forEach(option => {
+            const text = option.textContent.toLowerCase();
+            if (text.includes(searchTerm) || option.value === '') {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

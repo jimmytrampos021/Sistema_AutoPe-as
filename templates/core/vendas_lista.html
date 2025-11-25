@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+
+{% block title %}Vendas - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Gestão de Vendas{% endblock %}
+
+{% block content %}
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="stat-card primary">
+            <div class="icon"><i class="bi bi-receipt"></i></div>
+            <div>
+                <h3>{{ stats.total_vendas }}</h3>
+                <p>Total de Vendas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card success">
+            <div class="icon"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <h3>R$ {{ stats.valor_total|floatformat:2 }}</h3>
+                <p>Valor Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-card info">
+            <div class="icon"><i class="bi bi-graph-up"></i></div>
+            <div>
+                <h3>R$ {{ stats.ticket_medio|floatformat:2 }}</h3>
+                <p>Ticket Médio</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="table-card">
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Data Início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Data Fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="F" {% if status_selecionado == 'F' %}selected{% endif %}>Finalizada</option>
+                    <option value="A" {% if status_selecionado == 'A' %}selected{% endif %}>Aberta</option>
+                    <option value="C" {% if status_selecionado == 'C' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+        </div>
+        {% if data_inicio or data_fim or status_selecionado %}
+        <div class="mt-2">
+            <a href="{% url 'lista_vendas' %}" class="btn btn-secondary btn-sm">
+                <i class="bi bi-x-circle"></i> Limpar Filtros
+            </a>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Lista de Vendas</h5>
+        <a href="{% url 'pdv' %}" class="btn btn-success">
+            <i class="bi bi-cart3"></i> Nova Venda (PDV)
+        </a>
+    </div>
+
+    <!-- Tabela de Vendas -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Forma Pagamento</th>
+                    <th>Total</th>
+                    <th>Desconto</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venda in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'detalhe_venda' venda.id %}">
+                            <strong>#{{ venda.numero }}</strong>
+                        </a>
+                    </td>
+                    <td>{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                    <td>{{ venda.cliente.nome|truncatewords:3 }}</td>
+                    <td>
+                        {% if venda.forma_pagamento == 'DI' %}
+                        <span class="badge bg-success">Dinheiro</span>
+                        {% elif venda.forma_pagamento == 'CA' %}
+                        <span class="badge bg-primary">Cartão</span>
+                        {% elif venda.forma_pagamento == 'PI' %}
+                        <span class="badge bg-info">PIX</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ venda.get_forma_pagamento_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td><strong class="text-success">R$ {{ venda.total|floatformat:2 }}</strong></td>
+                    <td>
+                        {% if venda.desconto > 0 %}
+                        <span class="text-warning">R$ {{ venda.desconto|floatformat:2 }}</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if venda.status == 'F' %}
+                        <span class="badge bg-success">Finalizada</span>
+                        {% elif venda.status == 'A' %}
+                        <span class="badge bg-warning">Aberta</span>
+                        {% else %}
+                        <span class="badge bg-danger">Cancelada</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'detalhe_venda' venda.id %}" class="btn btn-sm btn-outline-primary" title="Ver Detalhes">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="/admin/vendas/venda/{{ venda.id }}/change/" class="btn btn-sm btn-outline-warning" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">Nenhuma venda encontrada</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginação -->
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Navegação de página">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Primeira</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Anterior</a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Próxima</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+}
+
+.stat-card .icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.stat-card.primary .icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.success .icon {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.stat-card.info .icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.stat-card p {
+    margin: 0;
+    color: #718096;
+    font-size: 13px;
+}
+
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f7fafc;
+}
+</style>
+{% endblock %}

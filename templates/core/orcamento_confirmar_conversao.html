@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}Converter Orçamento - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Converter Orçamento em Venda{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cart-check"></i> Confirmar Conversão de Orçamento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Atenção:</strong> Esta ação irá converter o orçamento em uma venda definitiva.
+                    </div>
+
+                    <!-- Resumo do Orçamento -->
+                    <h6 class="mb-3">Resumo do Orçamento</h6>
+                    
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="30%">Número:</th>
+                            <td>{{ orcamento.numero }}</td>
+                        </tr>
+                        <tr>
+                            <th>Cliente:</th>
+                            <td>{{ orcamento.cliente.nome }}</td>
+                        </tr>
+                        {% if orcamento.veiculo_modelo %}
+                        <tr>
+                            <th>Veículo:</th>
+                            <td>
+                                {{ orcamento.veiculo_modelo.montadora.nome }} 
+                                {{ orcamento.veiculo_modelo.nome }}
+                                {% if orcamento.veiculo_ano %} - {{ orcamento.veiculo_ano }}{% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <th>Total de Itens:</th>
+                            <td>{{ orcamento.itens.count }}</td>
+                        </tr>
+                        <tr>
+                            <th>Forma de Pagamento:</th>
+                            <td>{{ orcamento.get_forma_pagamento_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>Subtotal:</th>
+                            <td>R$ {{ orcamento.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% if orcamento.desconto > 0 %}
+                        <tr>
+                            <th>Desconto:</th>
+                            <td class="text-danger">- R$ {{ orcamento.desconto|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="table-primary">
+                            <th>TOTAL:</th>
+                            <td><strong class="text-success">R$ {{ orcamento.total|floatformat:2 }}</strong></td>
+                        </tr>
+                    </table>
+
+                    <!-- Verificação de Estoque -->
+                    <h6 class="mb-3 mt-4">Verificação de Estoque</h6>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Produto</th>
+                                    <th class="text-center">Qtd Pedido</th>
+                                    <th class="text-center">Estoque</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in orcamento.itens.all %}
+                                <tr>
+                                    <td>{{ item.produto.codigo }}</td>
+                                    <td>{{ item.produto.descricao }}</td>
+                                    <td class="text-center">{{ item.quantidade }}</td>
+                                    <td class="text-center">{{ item.produto.estoque_disponivel }}</td>
+                                    <td class="text-center">
+                                        {% if item.tem_estoque %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> OK
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> Insuficiente
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- O que vai acontecer -->
+                    <div class="alert alert-warning mt-4">
+                        <h6><i class="bi bi-exclamation-triangle"></i> O que vai acontecer:</h6>
+                        <ul class="mb-0">
+                            <li>Uma nova venda será criada com status "Aberta"</li>
+                            <li>Todos os itens serão transferidos para a venda</li>
+                            <li>O orçamento será marcado como "CONVERTIDO"</li>
+                            <li>Você será redirecionado para a tela da venda</li>
+                        </ul>
+                    </div>
+
+                    <!-- Formulário de Confirmação -->
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'detalhe_orcamento' orcamento.id %}" class="btn btn-secondary btn-lg">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> Confirmar e Converter em Venda
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.table th {
+    background-color: #f7fafc;
+}
+</style>
+{% endblock %}

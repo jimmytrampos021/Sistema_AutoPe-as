@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Ordem de Serviço #{{ ordem.numero }} - Detalhes{% endblock %}
+
+{% block page_title %}Detalhes da OS #{{ ordem.numero }}{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho da OS -->
+<div class="table-card mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div class="w-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Ordem de Serviço #{{ ordem.numero }}</h2>
+                <div>
+                    {% if ordem.status == 'AB' %}
+                    <span class="badge bg-info badge-lg">Aberta</span>
+                    {% elif ordem.status == 'EA' %}
+                    <span class="badge bg-primary badge-lg">Em Andamento</span>
+                    {% elif ordem.status == 'AG' %}
+                    <span class="badge bg-warning badge-lg">Aguard. Peças</span>
+                    {% elif ordem.status == 'FI' %}
+                    <span class="badge bg-success badge-lg">Finalizada</span>
+                    {% else %}
+                    <span class="badge bg-danger badge-lg">Cancelada</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5 class="text-primary mb-3"><i class="bi bi-person"></i> Informações do Cliente</h5>
+                    <p><strong>Nome:</strong> 
+                        <a href="{% url 'detalhe_cliente' ordem.cliente.id %}">{{ ordem.cliente.nome }}</a>
+                    </p>
+                    <p><strong>Telefone:</strong> {{ ordem.cliente.telefone }}</p>
+                    <p><strong>Email:</strong> {{ ordem.cliente.email|default:"-" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <h5 class="text-success mb-3"><i class="bi bi-car-front"></i> Informações do Veículo</h5>
+                    <p><strong>Placa:</strong> <span class="badge bg-dark">{{ ordem.veiculo.placa }}</span></p>
+                    <p><strong>Modelo:</strong> {{ ordem.veiculo.marca }} {{ ordem.veiculo.modelo }}</p>
+                    <p><strong>Ano:</strong> {{ ordem.veiculo.ano }}</p>
+                    <p><strong>Cor:</strong> {{ ordem.veiculo.cor|default:"-" }}</p>
+                </div>
+            </div>
+            
+            <hr>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-calendar"></i> Data de Entrada:</strong> {{ ordem.data_entrada|date:"d/m/Y H:i" }}</p>
+                    {% if ordem.data_saida %}
+                    <p><strong><i class="bi bi-calendar-check"></i> Data de Saída:</strong> {{ ordem.data_saida|date:"d/m/Y H:i" }}</p>
+                    {% endif %}
+                    <p><strong><i class="bi bi-person-gear"></i> Mecânico:</strong> {{ ordem.mecanico }}</p>
+                </div>
+                <div class="col-md-6">
+                    {% if ordem.observacoes %}
+                    <p><strong><i class="bi bi-chat-left-text"></i> Observações:</strong></p>
+                    <div class="alert alert-info">{{ ordem.observacoes }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="ms-3">
+            <a href="{% url 'lista_ordens_servico' %}" class="btn btn-secondary mb-2">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+            <a href="/admin/vendas/ordemservico/{{ ordem.id }}/change/" class="btn btn-warning mb-2">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Peças e Serviços -->
+<div class="row">
+    <div class="col-md-6">
+        <!-- Peças -->
+        <div class="table-card mb-4">
+            <h5 class="mb-3"><i class="bi bi-gear"></i> Peças Utilizadas</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Qtd</th>
+                            <th>Valor Unit.</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for peca in pecas %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'detalhe_produto' peca.produto.id %}">
+                                    <strong>{{ peca.produto.codigo }}</strong>
+                                </a>
+                                <br><small>{{ peca.produto.descricao|truncatewords:5 }}</small>
+                            </td>
+                            <td>{{ peca.quantidade }}</td>
+                            <td>R$ {{ peca.valor_unitario|floatformat:2 }}</td>
+                            <td><strong>R$ {{ peca.total|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Nenhuma peça utilizada</td>
+                        </tr>
+                        {% endfor %}
+                        {% if pecas %}
+                        <tr class="table-light">
+                            <td colspan="3" class="text-end"><strong>Subtotal Peças:</strong></td>
+                            <td><strong>R$ {{ ordem.valor_pecas|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <!-- Serviços -->
+        <div class="table-card mb-4">
+            <h5 class="mb-3"><i class="bi bi-tools"></i> Serviços Realizados</h5>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for servico in servicos %}
+                        <tr>
+                            <td>{{ servico.descricao }}</td>
+                            <td><strong>R$ {{ servico.valor|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="2" class="text-center text-muted">Nenhum serviço realizado</td>
+                        </tr>
+                        {% endfor %}
+                        {% if servicos %}
+                        <tr class="table-light">
+                            <td class="text-end"><strong>Subtotal Serviços:</strong></td>
+                            <td><strong>R$ {{ ordem.valor_servicos|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumo Financeiro -->
+<div class="row">
+    <div class="col-md-6 offset-md-6">
+        <div class="table-card">
+            <h5 class="mb-3"><i class="bi bi-calculator"></i> Resumo Financeiro</h5>
+            <table class="table">
+                <tr>
+                    <td><strong>Valor das Peças:</strong></td>
+                    <td class="text-end">R$ {{ ordem.valor_pecas|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Valor dos Serviços:</strong></td>
+                    <td class="text-end">R$ {{ ordem.valor_servicos|floatformat:2 }}</td>
+                </tr>
+                {% if ordem.desconto > 0 %}
+                <tr>
+                    <td><strong>Desconto:</strong></td>
+                    <td class="text-end text-warning">- R$ {{ ordem.desconto|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="table-success">
+                    <td><strong style="font-size: 1.3rem;">TOTAL:</strong></td>
+                    <td class="text-end"><strong style="font-size: 1.3rem;">R$ {{ ordem.total|floatformat:2 }}</strong></td>
+                </tr>
+            </table>
+            
+            {% if ordem.status != 'FI' and ordem.status != 'CA' %}
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i> Esta OS ainda não foi finalizada
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge-lg {
+    font-size: 1rem;
+    padding: 8px 16px;
+}
+
+.table thead th {
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f7fafc;
+}
+
+h5 i {
+    margin-right: 8px;
+}
+</style>
+{% endblock %}

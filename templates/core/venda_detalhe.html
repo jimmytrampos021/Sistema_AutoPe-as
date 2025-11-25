@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Venda #{{ venda.numero }} - Detalhes{% endblock %}
+
+{% block page_title %}Detalhes da Venda #{{ venda.numero }}{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho da Venda -->
+<div class="table-card mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h2 class="mb-3">Venda #{{ venda.numero }}</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-calendar"></i> Data:</strong> {{ venda.data_venda|date:"d/m/Y H:i" }}</p>
+                    <p><strong><i class="bi bi-person"></i> Cliente:</strong> 
+                        <a href="{% url 'detalhe_cliente' venda.cliente.id %}">{{ venda.cliente.nome }}</a>
+                    </p>
+                    <p><strong><i class="bi bi-cash"></i> Forma de Pagamento:</strong> {{ venda.get_forma_pagamento_display }}</p>
+                </div>
+                <div class="col-md-6">
+                    {% if venda.usuario %}
+                    <p><strong><i class="bi bi-person-badge"></i> Vendedor:</strong> {{ venda.usuario.get_full_name|default:venda.usuario.username }}</p>
+                    {% endif %}
+                    <p><strong><i class="bi bi-tag"></i> Status:</strong> 
+                        {% if venda.status == 'F' %}
+                        <span class="badge bg-success">Finalizada</span>
+                        {% elif venda.status == 'A' %}
+                        <span class="badge bg-warning">Aberta</span>
+                        {% else %}
+                        <span class="badge bg-danger">Cancelada</span>
+                        {% endif %}
+                    </p>
+                    {% if venda.observacoes %}
+                    <p><strong><i class="bi bi-chat-left-text"></i> Observações:</strong> {{ venda.observacoes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'lista_vendas' %}" class="btn btn-secondary mb-2">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+            <a href="/admin/vendas/venda/{{ venda.id }}/change/" class="btn btn-warning mb-2">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Itens da Venda -->
+<div class="table-card mb-4">
+    <h5 class="mb-3"><i class="bi bi-cart"></i> Itens da Venda</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Produto</th>
+                    <th>Quantidade</th>
+                    <th>Valor Unitário</th>
+                    <th>Desconto</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itens %}
+                <tr>
+                    <td><strong>{{ item.produto.codigo }}</strong></td>
+                    <td>
+                        <a href="{% url 'detalhe_produto' item.produto.id %}">
+                            {{ item.produto.descricao }}
+                        </a>
+                    </td>
+                    <td>{{ item.quantidade }}</td>
+                    <td>R$ {{ item.valor_unitario|floatformat:2 }}</td>
+                    <td>
+                        {% if item.desconto > 0 %}
+                        <span class="text-warning">R$ {{ item.desconto|floatformat:2 }}</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td><strong>R$ {{ item.total|floatformat:2 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Nenhum item na venda</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Resumo Financeiro -->
+<div class="row">
+    <div class="col-md-6 offset-md-6">
+        <div class="table-card">
+            <h5 class="mb-3"><i class="bi bi-calculator"></i> Resumo Financeiro</h5>
+            <table class="table">
+                <tr>
+                    <td><strong>Subtotal:</strong></td>
+                    <td class="text-end">R$ {{ venda.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% if venda.desconto > 0 %}
+                <tr>
+                    <td><strong>Desconto:</strong></td>
+                    <td class="text-end text-warning">- R$ {{ venda.desconto|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr class="table-success">
+                    <td><strong style="font-size: 1.2rem;">TOTAL:</strong></td>
+                    <td class="text-end"><strong style="font-size: 1.2rem;">R$ {{ venda.total|floatformat:2 }}</strong></td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f7fafc;
+}
+</style>
+{% endblock %}

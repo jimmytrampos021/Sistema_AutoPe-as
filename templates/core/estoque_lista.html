@@ -1,0 +1,681 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestão de Estoque - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Gestão de Estoque{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ===== VARIÁVEIS ===== */
+    .estoque-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --bg-tertiary: #edf2f7;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .estoque-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --bg-tertiary: #404040;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* ===== CARDS DE ESTATÍSTICAS ===== */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card-new {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.2s;
+    }
+    
+    .stat-card-new:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .stat-icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .stat-icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .stat-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .stat-icon.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .stat-icon.cyan { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    
+    body.dark-mode .stat-icon.blue { background: rgba(59, 130, 246, 0.25); }
+    body.dark-mode .stat-icon.green { background: rgba(34, 197, 94, 0.25); }
+    body.dark-mode .stat-icon.yellow { background: rgba(234, 179, 8, 0.25); }
+    body.dark-mode .stat-icon.red { background: rgba(239, 68, 68, 0.25); }
+    body.dark-mode .stat-icon.purple { background: rgba(168, 85, 247, 0.25); }
+    body.dark-mode .stat-icon.cyan { background: rgba(6, 182, 212, 0.25); }
+    
+    .stat-info h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+        line-height: 1;
+    }
+    
+    .stat-info p {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 4px 0 0 0;
+    }
+
+    /* ===== CARD PRINCIPAL ===== */
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    /* ===== FILTROS ===== */
+    .filtros-section {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .filtros-section .form-control,
+    .filtros-section .form-select {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 10px 14px;
+    }
+    
+    .filtros-section .form-control:focus,
+    .filtros-section .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .filtros-section .form-control::placeholder {
+        color: var(--text-muted);
+    }
+    
+    .btn-filtrar {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .btn-filtrar:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        color: white;
+    }
+    
+    .btn-limpar {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 500;
+        padding: 8px 16px;
+        border-radius: 8px;
+    }
+    
+    .btn-limpar:hover {
+        background: var(--card-border);
+        color: var(--text-primary);
+    }
+
+    /* ===== CABEÇALHO DA TABELA ===== */
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .table-header h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .table-header .badge {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+        border-radius: 20px;
+    }
+    
+    .btn-novo {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+        transition: all 0.2s;
+    }
+    
+    .btn-novo:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        color: white;
+    }
+
+    /* ===== TABELA ===== */
+    .tabela-estoque {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .tabela-estoque thead th {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        padding: 14px 12px;
+        border-bottom: 2px solid var(--card-border);
+        position: sticky;
+        top: 0;
+    }
+    
+    .tabela-estoque tbody td {
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+    
+    .tabela-estoque tbody tr {
+        transition: background 0.15s;
+    }
+    
+    .tabela-estoque tbody tr:hover {
+        background: var(--bg-secondary);
+    }
+    
+    .produto-codigo {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    
+    body.dark-mode .produto-codigo {
+        background: rgba(59, 130, 246, 0.2);
+    }
+    
+    .produto-nome {
+        font-weight: 600;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: color 0.15s;
+    }
+    
+    .produto-nome:hover {
+        color: #3b82f6;
+    }
+    
+    .produto-ref {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+    
+    .estoque-badge {
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.9rem;
+    }
+    
+    .estoque-badge.critico { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .estoque-badge.baixo { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .estoque-badge.normal { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    
+    body.dark-mode .estoque-badge.critico { background: rgba(239, 68, 68, 0.25); }
+    body.dark-mode .estoque-badge.baixo { background: rgba(234, 179, 8, 0.25); color: #eab308; }
+    body.dark-mode .estoque-badge.normal { background: rgba(34, 197, 94, 0.25); }
+    
+    .estoque-min {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
+    .preco-valor {
+        font-weight: 600;
+        color: #22c55e;
+    }
+    
+    .situacao-badge {
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .btn-acao {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.15s;
+    }
+    
+    .btn-acao:hover {
+        transform: scale(1.1);
+    }
+
+    /* ===== PAGINAÇÃO ===== */
+    .paginacao-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+    
+    .paginacao-container .pagination {
+        gap: 4px;
+    }
+    
+    .paginacao-container .page-link {
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-weight: 500;
+    }
+    
+    .paginacao-container .page-link:hover {
+        background: var(--bg-secondary);
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+    
+    .paginacao-container .page-item.active .page-link {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-color: transparent;
+        color: white;
+    }
+
+    /* ===== VAZIO ===== */
+    .tabela-vazia {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+    
+    .tabela-vazia i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 16px;
+    }
+    
+    .tabela-vazia p {
+        font-size: 1.1rem;
+        margin-bottom: 8px;
+    }
+
+    /* ===== FILTROS ATIVOS ===== */
+    .filtros-ativos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .filtro-tag {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    body.dark-mode .filtro-tag {
+        background: rgba(59, 130, 246, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="estoque-container">
+    <!-- Estatísticas -->
+    <div class="stats-row">
+        <div class="stat-card-new">
+            <div class="stat-icon blue">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.total_produtos }}</h3>
+                <p>Produtos Ativos</p>
+            </div>
+        </div>
+        
+        <div class="stat-card-new">
+            <div class="stat-icon cyan">
+                <i class="bi bi-boxes"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.total_itens|default:0 }}</h3>
+                <p>Itens em Estoque</p>
+            </div>
+        </div>
+        
+        
+        <div class="stat-card-new">
+            <div class="stat-icon yellow">
+                <i class="bi bi-exclamation-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.total_estoque_baixo }}</h3>
+                <p>Estoque Baixo</p>
+            </div>
+        </div>
+        
+        <div class="stat-card-new">
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ stats.total_estoque_critico }}</h3>
+                <p>Estoque Crítico</p>
+            </div>
+        </div>
+        
+        <div class="stat-card-new">
+            <div class="stat-icon purple">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.valor_custo_estoque|floatformat:0|default:0 }}</h3>
+                <p>Valor Custo (Estoque)</p>
+            </div>
+        </div>
+
+         <div class="stat-card-new">
+            <div class="stat-icon green">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.valor_venda_estoque|floatformat:0|default:0 }}</h3>
+                <p>Valor Venda (Estoque)</p>
+            </div>
+        </div> 
+    </div>
+
+    <!-- Card Principal -->
+    <div class="main-card">
+        <!-- Filtros -->
+        <div class="filtros-section">
+            <form method="get" id="form-filtros">
+                <div class="row g-3">
+                    <div class="col-lg-4">
+                        <div class="input-group">
+                            <span class="input-group-text" style="background: var(--card-bg); border: 1px solid var(--card-border); border-right: none;">
+                                <i class="bi bi-search" style="color: var(--text-muted);"></i>
+                            </span>
+                            <input type="text" name="busca" class="form-control" 
+                                   placeholder="Buscar por código, descrição, SKU..." 
+                                   value="{{ busca }}" style="border-left: none;">
+                        </div>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="categoria" class="form-select">
+                            <option value="">Todas Categorias</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cat.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="situacao" class="form-select">
+                            <option value="">Todas Situações</option>
+                            <option value="normal" {% if situacao == 'normal' %}selected{% endif %}>✅ Normal</option>
+                            <option value="baixo" {% if situacao == 'baixo' %}selected{% endif %}>⚠️ Baixo</option>
+                            <option value="critico" {% if situacao == 'critico' %}selected{% endif %}>🔴 Crítico</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="montadoras" class="form-select" multiple style="display:none;" id="select-montadoras">
+                            {% for m in montadoras %}
+                            <option value="{{ m.id }}" {% if m.id|stringformat:"s" in montadoras_selecionadas %}selected{% endif %}>{{ m.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="form-select" id="montadora-visual">
+                            <option value="">Todas Montadoras</option>
+                            {% for m in montadoras %}
+                            <option value="{{ m.id }}" {% if m.id|stringformat:"s" in montadoras_selecionadas %}selected{% endif %}>{{ m.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <button type="submit" class="btn btn-filtrar w-100">
+                            <i class="bi bi-funnel"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+                
+                {% if busca or categoria_selecionada or situacao or montadoras_selecionadas %}
+                <div class="filtros-ativos">
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">Filtros ativos:</span>
+                    {% if busca %}<span class="filtro-tag"><i class="bi bi-search"></i> "{{ busca }}"</span>{% endif %}
+                    {% if categoria_selecionada %}<span class="filtro-tag"><i class="bi bi-tag"></i> Categoria</span>{% endif %}
+                    {% if situacao %}<span class="filtro-tag"><i class="bi bi-funnel"></i> {{ situacao|title }}</span>{% endif %}
+                    {% if montadoras_selecionadas %}<span class="filtro-tag"><i class="bi bi-car-front"></i> Montadora</span>{% endif %}
+                    <a href="{% url 'lista_estoque' %}" class="btn-limpar btn-sm">
+                        <i class="bi bi-x-circle"></i> Limpar
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- Cabeçalho da Tabela -->
+        <div class="table-header">
+            <h5>
+                <i class="bi bi-list-ul"></i> Lista de Produtos
+                <span class="badge bg-primary">{{ total_produtos }} encontrado{{ total_produtos|pluralize:"s" }}</span>
+            </h5>
+            <a href="{% url 'criar_produto' %}" class="btn btn-novo">
+                <i class="bi bi-plus-lg"></i> Novo Produto
+            </a>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-responsive">
+            <table class="tabela-estoque">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Fabricante</th>
+                        <th>Estoque</th>
+                        <th>Preço</th>
+                        <th>Situação</th>
+                        <th style="width: 100px;">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in page_obj %}
+                    <tr>
+                        <td>
+                            <span class="produto-codigo">{{ produto.codigo }}</span>
+                        </td>
+                        <td>
+                            <a href="{% url 'detalhe_produto' produto.id %}" class="produto-nome">
+                                {{ produto.descricao|truncatewords:8 }}
+                            </a>
+                            {% if produto.referencia_fabricante %}
+                            <div class="produto-ref">Ref: {{ produto.referencia_fabricante }}</div>
+                            {% endif %}
+                        </td>
+                        <td>{{ produto.categoria.nome|default:"-" }}</td>
+                        <td>{{ produto.fabricante.nome|default:"-"|truncatewords:2 }}</td>
+                        <td>
+                            <span class="estoque-badge {% if produto.estoque_atual <= produto.estoque_minimo %}critico{% elif produto.estoque_atual <= produto.estoque_minimo|add:produto.estoque_minimo %}baixo{% else %}normal{% endif %}">
+                                {{ produto.estoque_atual }}
+                            </span>
+                            <span class="estoque-min">/ {{ produto.estoque_minimo }} mín</span>
+                        </td>
+                        <td>
+                            <span class="preco-valor">R$ {{ produto.preco_venda_dinheiro|floatformat:2|default:"0,00" }}</span>
+                        </td>
+                        <td>
+                            {% if produto.estoque_atual <= produto.estoque_minimo %}
+                            <span class="situacao-badge bg-danger text-white">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Crítico
+                            </span>
+                            {% elif produto.estoque_atual <= produto.estoque_minimo|add:produto.estoque_minimo %}
+                            <span class="situacao-badge bg-warning text-dark">
+                                <i class="bi bi-exclamation-circle-fill"></i> Baixo
+                            </span>
+                            {% else %}
+                            <span class="situacao-badge bg-success text-white">
+                                <i class="bi bi-check-circle-fill"></i> Normal
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalhe_produto' produto.id %}" class="btn btn-acao btn-outline-primary" title="Ver Detalhes">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'editar_produto' produto.id %}" class="btn btn-acao btn-outline-warning" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="tabela-vazia">
+                                <i class="bi bi-inbox d-block"></i>
+                                <p>Nenhum produto encontrado</p>
+                                <span style="font-size: 0.9rem;">Tente ajustar os filtros ou adicione um novo produto</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <div class="paginacao-container">
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Sincronizar select visual com select real (para montadoras)
+document.getElementById('montadora-visual').addEventListener('change', function() {
+    const selectReal = document.getElementById('select-montadoras');
+    const valor = this.value;
+    
+    // Limpar seleções anteriores
+    for (let option of selectReal.options) {
+        option.selected = false;
+    }
+    
+    // Selecionar o valor escolhido
+    if (valor) {
+        for (let option of selectReal.options) {
+            if (option.value === valor) {
+                option.selected = true;
+                break;
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

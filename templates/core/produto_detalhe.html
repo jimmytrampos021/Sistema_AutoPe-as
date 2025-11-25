@@ -1,0 +1,818 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ produto.descricao }} - Detalhes{% endblock %}
+
+{% block page_title %}Detalhes do Produto{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ===== VARIÁVEIS ===== */
+    .detalhe-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --bg-tertiary: #edf2f7;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .detalhe-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --bg-tertiary: #404040;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* ===== CABEÇALHO ===== */
+    .produto-header {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+    
+    .produto-titulo {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+    }
+    
+    .codigo-principal {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-right: 12px;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    }
+    
+    .codigo-secundario {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--bg-tertiary);
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--text-primary);
+        margin-right: 8px;
+        margin-bottom: 6px;
+    }
+    
+    .status-ativo {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+
+    /* ===== CARDS ===== */
+    .info-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        height: 100%;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+    
+    .card-header-custom {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--card-border);
+    }
+    
+    .card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+    
+    .card-icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .card-icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .card-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .card-icon.cyan { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    .card-icon.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .card-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    
+    body.dark-mode .card-icon.green { background: rgba(34, 197, 94, 0.25); }
+    body.dark-mode .card-icon.yellow { background: rgba(234, 179, 8, 0.25); }
+    body.dark-mode .card-icon.blue { background: rgba(59, 130, 246, 0.25); }
+    body.dark-mode .card-icon.cyan { background: rgba(6, 182, 212, 0.25); }
+    body.dark-mode .card-icon.purple { background: rgba(168, 85, 247, 0.25); }
+    body.dark-mode .card-icon.red { background: rgba(239, 68, 68, 0.25); }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--card-border);
+    }
+    
+    .info-row:last-child { border-bottom: none; }
+    
+    .info-label {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    /* ===== ESTOQUE ===== */
+    .estoque-destaque {
+        text-align: center;
+        padding: 16px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .estoque-destaque.critico { background: rgba(239, 68, 68, 0.12); }
+    .estoque-destaque.baixo { background: rgba(234, 179, 8, 0.12); }
+    .estoque-destaque.normal { background: rgba(34, 197, 94, 0.12); }
+    
+    body.dark-mode .estoque-destaque.critico { background: rgba(239, 68, 68, 0.2); }
+    body.dark-mode .estoque-destaque.baixo { background: rgba(234, 179, 8, 0.2); }
+    body.dark-mode .estoque-destaque.normal { background: rgba(34, 197, 94, 0.2); }
+    
+    .estoque-numero {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+    
+    .estoque-numero.critico { color: #ef4444; }
+    .estoque-numero.baixo { color: #eab308; }
+    .estoque-numero.normal { color: #22c55e; }
+
+    /* ===== LOCALIZAÇÃO ===== */
+    .localizacao-box {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+        color: white;
+        padding: 10px 16px;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    /* ===== PREÇOS E FINANCEIRO ===== */
+    .preco-principal-box {
+        text-align: center;
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        border: 2px solid rgba(34, 197, 94, 0.2);
+    }
+    
+    body.dark-mode .preco-principal-box {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+    }
+    
+    .preco-valor-grande {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #22c55e;
+    }
+    
+    .indicador-box {
+        display: flex;
+        justify-content: space-around;
+        gap: 10px;
+        margin: 16px 0;
+        flex-wrap: wrap;
+    }
+    
+    .indicador-item {
+        text-align: center;
+        padding: 12px 16px;
+        border-radius: 10px;
+        flex: 1;
+        min-width: 80px;
+    }
+    
+    .indicador-item.lucro { background: rgba(34, 197, 94, 0.1); }
+    .indicador-item.margem { background: rgba(59, 130, 246, 0.1); }
+    .indicador-item.markup { background: rgba(168, 85, 247, 0.1); }
+    
+    body.dark-mode .indicador-item.lucro { background: rgba(34, 197, 94, 0.2); }
+    body.dark-mode .indicador-item.margem { background: rgba(59, 130, 246, 0.2); }
+    body.dark-mode .indicador-item.markup { background: rgba(168, 85, 247, 0.2); }
+    
+    .indicador-valor {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    
+    .indicador-valor.lucro { color: #22c55e; }
+    .indicador-valor.margem { color: #3b82f6; }
+    .indicador-valor.markup { color: #a855f7; }
+    
+    .indicador-label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* ===== TABELA DE TAXAS ===== */
+    .tabela-taxas {
+        width: 100%;
+        font-size: 0.85rem;
+    }
+    
+    .tabela-taxas th {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        padding: 10px 8px;
+        text-align: center;
+        border-bottom: 2px solid var(--card-border);
+    }
+    
+    .tabela-taxas td {
+        padding: 8px;
+        text-align: center;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-primary);
+    }
+    
+    .tabela-taxas tr:hover {
+        background: var(--bg-secondary);
+    }
+    
+    .tabela-taxas .forma-pagamento {
+        text-align: left;
+        font-weight: 600;
+    }
+    
+    .taxa-valor { color: #ef4444; font-weight: 600; }
+    .lucro-valor { color: #22c55e; font-weight: 600; }
+    .margem-valor { color: #3b82f6; font-weight: 600; }
+
+    /* ===== APLICAÇÕES ===== */
+    .aplicacao-item {
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 10px;
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .aplicacao-montadora { font-weight: 700; color: #3b82f6; font-size: 0.9rem; }
+    .aplicacao-modelo { font-weight: 600; color: var(--text-primary); }
+    .aplicacao-versao { color: var(--text-secondary); font-size: 0.85rem; }
+    
+    .aplicacao-anos {
+        background: var(--card-bg);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        border: 1px solid var(--card-border);
+    }
+
+    /* ===== TABELA MOVIMENTAÇÕES ===== */
+    .mov-table {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .mov-table thead th {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        padding: 12px;
+        border-bottom: 2px solid var(--card-border);
+    }
+    
+    .mov-table tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-primary);
+        font-size: 0.85rem;
+    }
+    
+    .mov-table tbody tr:hover {
+        background: var(--bg-secondary);
+    }
+
+    /* ===== OUTROS ===== */
+    .sem-dados {
+        text-align: center;
+        padding: 30px 20px;
+        color: var(--text-muted);
+    }
+    
+    .sem-dados i {
+        font-size: 2.5rem;
+        opacity: 0.4;
+        margin-bottom: 12px;
+    }
+    
+    .obs-box {
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        padding: 16px;
+        border-left: 4px solid #06b6d4;
+        color: var(--text-primary);
+    }
+    
+    .btn-editar {
+        background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        border: none;
+        color: #1a1a1a;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+    
+    .btn-voltar {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+    
+    .produto-imagem {
+        max-width: 120px;
+        max-height: 120px;
+        object-fit: contain;
+        border-radius: 10px;
+        border: 2px solid var(--card-border);
+        background: var(--bg-secondary);
+        padding: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="detalhe-container">
+    <!-- Cabeçalho -->
+    <div class="produto-header">
+        <div class="row align-items-center">
+            <div class="col-lg-{% if produto.imagem %}8{% else %}9{% endif %}">
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+                    <span class="codigo-principal">
+                        <i class="bi bi-upc-scan"></i> {{ produto.codigo }}
+                    </span>
+                    {% if not produto.ativo %}
+                    <span class="status-ativo bg-danger text-white"><i class="bi bi-x-circle-fill"></i> INATIVO</span>
+                    {% else %}
+                    <span class="status-ativo bg-success text-white"><i class="bi bi-check-circle-fill"></i> ATIVO</span>
+                    {% endif %}
+                    {% if produto.destaque %}<span class="status-ativo bg-warning text-dark"><i class="bi bi-star-fill"></i> Destaque</span>{% endif %}
+                    {% if produto.promocao %}<span class="status-ativo bg-danger text-white"><i class="bi bi-tag-fill"></i> Promoção</span>{% endif %}
+                </div>
+                
+                <h1 class="produto-titulo">{{ produto.descricao }}</h1>
+                
+                <div class="mt-2">
+                    {% if produto.codigo_sku %}<span class="codigo-secundario"><i class="bi bi-hash"></i> SKU: {{ produto.codigo_sku }}</span>{% endif %}
+                    {% if produto.codigo_barras %}<span class="codigo-secundario"><i class="bi bi-barcode"></i> {{ produto.codigo_barras }}</span>{% endif %}
+                    {% if produto.referencia_fabricante %}<span class="codigo-secundario"><i class="bi bi-tag"></i> Ref: {{ produto.referencia_fabricante }}</span>{% endif %}
+                </div>
+            </div>
+            {% if produto.imagem %}
+            <div class="col-lg-1 text-center my-3 my-lg-0">
+                <img src="{{ produto.imagem.url }}" alt="{{ produto.descricao }}" class="produto-imagem">
+            </div>
+            {% endif %}
+            <div class="col-lg-3 text-lg-end mt-3 mt-lg-0">
+                <a href="{% url 'editar_produto' produto.id %}" class="btn btn-editar me-2"><i class="bi bi-pencil"></i> Editar</a>
+                <a href="{% url 'lista_estoque' %}" class="btn btn-voltar"><i class="bi bi-arrow-left"></i> Voltar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha 1: Estoque, Preços/Financeiro, Informações -->
+    <div class="row g-3 mb-3">
+        <!-- Estoque -->
+        <div class="col-lg-3">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon green"><i class="bi bi-box-seam"></i></div>
+                    <h5 class="card-title">Estoque</h5>
+                </div>
+                <div class="estoque-destaque {% if produto.estoque_atual <= produto.estoque_minimo %}critico{% elif produto.estoque_atual <= produto.estoque_minimo|add:produto.estoque_minimo %}baixo{% else %}normal{% endif %}">
+                    <div class="estoque-numero {% if produto.estoque_atual <= produto.estoque_minimo %}critico{% elif produto.estoque_atual <= produto.estoque_minimo|add:produto.estoque_minimo %}baixo{% else %}normal{% endif %}">
+                        {{ produto.estoque_atual }}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">{{ produto.unidade_medida|default:"UN" }} disponíveis</div>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Mínimo</span>
+                    <span class="info-value">{{ produto.estoque_minimo }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Máximo</span>
+                    <span class="info-value">{{ produto.estoque_maximo|default:"-" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Reservado</span>
+                    <span class="info-value">{{ produto.estoque_reservado|default:0 }}</span>
+                </div>
+                {% if produto.loja or produto.setor or produto.prateleira %}
+                <div class="text-center mt-3 pt-3" style="border-top: 1px solid var(--card-border);">
+                    <span class="localizacao-box">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        {% if produto.loja %}{{ produto.loja }}{% endif %}{% if produto.setor %}/{{ produto.setor }}{% endif %}{% if produto.prateleira %}/{{ produto.prateleira }}{% endif %}{% if produto.divisao_prateleira %}-{{ produto.divisao_prateleira }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Preços e Indicadores Financeiros -->
+        <div class="col-lg-5">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon yellow"><i class="bi bi-currency-dollar"></i></div>
+                    <h5 class="card-title">Preços e Indicadores</h5>
+                </div>
+                
+                <!-- Preço Principal (Dinheiro/PIX) -->
+                <div class="preco-principal-box">
+                    <div class="preco-valor-grande">R$ {{ produto.preco_venda_dinheiro|default:0|floatformat:2 }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Dinheiro / PIX</div>
+                    
+                    {% if indicadores.dinheiro %}
+                    <div class="indicador-box">
+                        <div class="indicador-item lucro">
+                            <div class="indicador-valor lucro">R$ {{ indicadores.dinheiro.lucro_liquido|floatformat:2 }}</div>
+                            <div class="indicador-label">Lucro</div>
+                        </div>
+                        <div class="indicador-item margem">
+                            <div class="indicador-valor margem">{{ indicadores.dinheiro.margem_liquida|floatformat:1 }}%</div>
+                            <div class="indicador-label">Margem</div>
+                        </div>
+                        <div class="indicador-item markup">
+                            <div class="indicador-valor markup">{{ indicadores.dinheiro.markup|floatformat:1 }}%</div>
+                            <div class="indicador-label">Markup</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Outros Preços -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="info-row">
+                            <span class="info-label"><i class="bi bi-credit-card me-1"></i> Débito</span>
+                            <span class="info-value" style="color: #3b82f6;">R$ {{ produto.preco_venda_debito|default:0|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="info-row">
+                            <span class="info-label"><i class="bi bi-credit-card-2-front me-1"></i> Crédito</span>
+                            <span class="info-value" style="color: #06b6d4;">R$ {{ produto.preco_venda_credito|default:0|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-row" style="background: var(--bg-secondary); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                    <span class="info-label"><i class="bi bi-cart me-1"></i> Custo</span>
+                    <span class="info-value">R$ {{ produto.preco_custo|default:0|floatformat:2 }}</span>
+                </div>
+                
+                {% if produto.preco_atacado %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-boxes me-1"></i> Atacado</span>
+                    <span class="info-value" style="color: #a855f7;">R$ {{ produto.preco_atacado|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Informações -->
+        <div class="col-lg-4">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon blue"><i class="bi bi-info-circle"></i></div>
+                    <h5 class="card-title">Informações</h5>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Categoria</span>
+                    <span class="info-value">{{ produto.categoria.nome|default:"-" }}</span>
+                </div>
+                {% if produto.subcategoria %}
+                <div class="info-row">
+                    <span class="info-label">Subcategoria</span>
+                    <span class="info-value">{{ produto.subcategoria.nome }}</span>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <span class="info-label">Fabricante</span>
+                    <span class="info-value">{{ produto.fabricante.nome|default:"-" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Fornecedor</span>
+                    <span class="info-value">{{ produto.fornecedor_principal.nome_fantasia|default:"-" }}</span>
+                </div>
+                {% if produto.ncm %}
+                <div class="info-row">
+                    <span class="info-label">NCM</span>
+                    <span class="info-value"><code>{{ produto.ncm }}</code></span>
+                </div>
+                {% endif %}
+                {% if produto.garantia_meses %}
+                <div class="info-row">
+                    <span class="info-label">Garantia</span>
+                    <span class="info-value">{{ produto.garantia_meses }} meses</span>
+                </div>
+                {% endif %}
+                <div class="info-row">
+                    <span class="info-label">Cadastro</span>
+                    <span class="info-value">{{ produto.data_cadastro|date:"d/m/Y" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha 2: Tabela de Taxas por Forma de Pagamento -->
+    {% if indicadores.debito or indicadores.credito %}
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon red"><i class="bi bi-percent"></i></div>
+                    <h5 class="card-title">Análise por Forma de Pagamento</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="tabela-taxas">
+                        <thead>
+                            <tr>
+                                <th style="text-align: left;">Forma de Pagamento</th>
+                                <th>Preço</th>
+                                <th>Taxa</th>
+                                <th>Valor Taxa</th>
+                                <th>Lucro Líquido</th>
+                                <th>Margem Líquida</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Dinheiro -->
+                            {% if indicadores.dinheiro %}
+                            <tr>
+                                <td class="forma-pagamento"><i class="bi bi-cash text-success me-2"></i> Dinheiro</td>
+                                <td>R$ {{ indicadores.dinheiro.preco|floatformat:2 }}</td>
+                                <td class="taxa-valor">0,00%</td>
+                                <td>R$ 0,00</td>
+                                <td class="lucro-valor">R$ {{ indicadores.dinheiro.lucro_liquido|floatformat:2 }}</td>
+                                <td class="margem-valor">{{ indicadores.dinheiro.margem_liquida|floatformat:1 }}%</td>
+                            </tr>
+                            {% endif %}
+                            
+                            <!-- PIX -->
+                            {% if indicadores.pix %}
+                            <tr>
+                                <td class="forma-pagamento"><i class="bi bi-qr-code text-success me-2"></i> PIX</td>
+                                <td>R$ {{ indicadores.pix.preco_venda|floatformat:2 }}</td>
+                                <td class="taxa-valor">{{ indicadores.pix.taxa_percentual|floatformat:2 }}%</td>
+                                <td>R$ {{ indicadores.pix.valor_taxa|floatformat:2 }}</td>
+                                <td class="lucro-valor">R$ {{ indicadores.pix.lucro_liquido|floatformat:2 }}</td>
+                                <td class="margem-valor">{{ indicadores.pix.margem_liquida|floatformat:1 }}%</td>
+                            </tr>
+                            {% endif %}
+                            
+                            <!-- Débito -->
+                            {% if indicadores.debito %}
+                            <tr>
+                                <td class="forma-pagamento"><i class="bi bi-credit-card text-primary me-2"></i> Débito</td>
+                                <td>R$ {{ indicadores.debito.preco_venda|floatformat:2 }}</td>
+                                <td class="taxa-valor">{{ indicadores.debito.taxa_percentual|floatformat:2 }}%</td>
+                                <td>R$ {{ indicadores.debito.valor_taxa|floatformat:2 }}</td>
+                                <td class="lucro-valor">R$ {{ indicadores.debito.lucro_liquido|floatformat:2 }}</td>
+                                <td class="margem-valor">{{ indicadores.debito.margem_liquida|floatformat:1 }}%</td>
+                            </tr>
+                            {% endif %}
+                            
+                            <!-- Crédito -->
+                            {% for parcela, dados in indicadores.credito.items %}
+                            <tr>
+                                <td class="forma-pagamento">
+                                    <i class="bi bi-credit-card-2-front text-info me-2"></i> 
+                                    Crédito {{ parcela }}x
+                                </td>
+                                <td>R$ {{ dados.preco_venda|floatformat:2 }}</td>
+                                <td class="taxa-valor">{{ dados.taxa_percentual|floatformat:2 }}%</td>
+                                <td>R$ {{ dados.valor_taxa|floatformat:2 }}</td>
+                                <td class="lucro-valor">R$ {{ dados.lucro_liquido|floatformat:2 }}</td>
+                                <td class="margem-valor">{{ dados.margem_liquida|floatformat:1 }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Linha 3: Veículos Compatíveis -->
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon cyan"><i class="bi bi-car-front"></i></div>
+                    <h5 class="card-title">Veículos Compatíveis</h5>
+                </div>
+                {% if produto.versoes_compativeis.all %}
+                <div class="row">
+                    {% for versao in produto.versoes_compativeis.all %}
+                    <div class="col-md-6 col-lg-4">
+                        <div class="aplicacao-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="aplicacao-montadora">{{ versao.modelo.montadora.nome }}</div>
+                                    <div class="aplicacao-modelo">{{ versao.modelo.nome }} {{ versao.nome }}</div>
+                                    <div class="aplicacao-versao">{{ versao.motorizacoes }}</div>
+                                </div>
+                                <span class="aplicacao-anos">{{ versao.ano_inicial }}{% if versao.ano_final %}-{{ versao.ano_final }}{% else %}+{% endif %}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="sem-dados">
+                    <i class="bi bi-car-front d-block"></i>
+                    <p class="mb-2">Nenhuma aplicação cadastrada</p>
+                    <a href="{% url 'editar_produto' produto.id %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus"></i> Adicionar</a>
+                </div>
+                {% endif %}
+                {% if produto.aplicacao_generica %}
+                <div class="mt-3 pt-3" style="border-top: 1px solid var(--card-border);">
+                    <strong class="text-muted"><i class="bi bi-card-text me-1"></i> Aplicação Genérica:</strong>
+                    <p class="mb-0 mt-2" style="color: var(--text-primary);">{{ produto.aplicacao_generica }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Linha 4: Descrição Detalhada e Observações -->
+    {% if produto.descricao_detalhada or produto.observacoes %}
+    <div class="row g-3 mb-3">
+        {% if produto.descricao_detalhada %}
+        <div class="col-md-{% if produto.observacoes %}6{% else %}12{% endif %}">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon purple"><i class="bi bi-file-text"></i></div>
+                    <h5 class="card-title">Descrição Detalhada</h5>
+                </div>
+                <div class="obs-box">{{ produto.descricao_detalhada|linebreaks }}</div>
+            </div>
+        </div>
+        {% endif %}
+        {% if produto.observacoes %}
+        <div class="col-md-{% if produto.descricao_detalhada %}6{% else %}12{% endif %}">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon cyan"><i class="bi bi-chat-left-text"></i></div>
+                    <h5 class="card-title">Observações</h5>
+                </div>
+                <div class="obs-box">{{ produto.observacoes|linebreaks }}</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Estatísticas de Vendas -->
+    {% if vendas_stats.total_vendido %}
+    <div class="row g-3 mb-3">
+        <div class="col-12">
+            <div class="info-card">
+                <div class="card-header-custom">
+                    <div class="card-icon green"><i class="bi bi-graph-up"></i></div>
+                    <h5 class="card-title">Estatísticas de Vendas</h5>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="indicador-item lucro" style="padding: 20px;">
+                            <div class="indicador-valor lucro" style="font-size: 1.5rem;">{{ vendas_stats.total_vendido }}</div>
+                            <div class="indicador-label">Unidades Vendidas</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="indicador-item margem" style="padding: 20px;">
+                            <div class="indicador-valor margem" style="font-size: 1.5rem;">R$ {{ vendas_stats.valor_total|floatformat:2 }}</div>
+                            <div class="indicador-label">Valor Total</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="indicador-item markup" style="padding: 20px;">
+                            {% widthratio vendas_stats.valor_total vendas_stats.total_vendido 1 as ticket %}
+                            <div class="indicador-valor markup" style="font-size: 1.5rem;">R$ {{ ticket|default:"0" }},00</div>
+                            <div class="indicador-label">Ticket Médio</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Movimentações de Estoque -->
+    <div class="row">
+        <div class="col-12">
+            <div class="info-card" style="padding: 0; overflow: hidden;">
+                <div class="card-header-custom" style="padding: 20px; margin: 0;">
+                    <div class="card-icon red"><i class="bi bi-arrow-left-right"></i></div>
+                    <h5 class="card-title">Últimas Movimentações</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="mov-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Qtd</th>
+                                <th>Documento</th>
+                                <th>Responsável</th>
+                                <th>Obs</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mov in movimentacoes %}
+                            <tr>
+                                <td>{{ mov.data_movimentacao|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if mov.tipo == 'E' %}<span class="badge bg-success">Entrada</span>
+                                    {% elif mov.tipo == 'S' %}<span class="badge bg-danger">Saída</span>
+                                    {% elif mov.tipo == 'A' %}<span class="badge bg-warning text-dark">Ajuste</span>
+                                    {% else %}<span class="badge bg-info">{{ mov.get_tipo_display }}</span>{% endif %}
+                                </td>
+                                <td>
+                                    <strong class="{% if mov.tipo == 'E' %}text-success{% elif mov.tipo == 'S' %}text-danger{% else %}text-warning{% endif %}">
+                                        {% if mov.tipo == 'E' %}+{% elif mov.tipo == 'S' %}-{% endif %}{{ mov.quantidade }}
+                                    </strong>
+                                </td>
+                                <td>{{ mov.documento|default:"-" }}</td>
+                                <td>{{ mov.usuario }}</td>
+                                <td>{{ mov.observacoes|default:"-"|truncatewords:6 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="sem-dados">
+                                    <i class="bi bi-inbox d-block"></i>
+                                    <p class="mb-0">Nenhuma movimentação</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

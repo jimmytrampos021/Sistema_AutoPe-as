@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block title %}Fornecedores - Sistema Autopeças{% endblock %}
+
+{% block page_title %}Gestão de Fornecedores{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fornecedor-card {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+        border-left: 4px solid #0d6efd;
+        position: relative;
+    }
+    
+    .fornecedor-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+    
+    .fornecedor-card.inativo {
+        opacity: 0.6;
+        border-left-color: #dc3545;
+    }
+    
+    .fornecedor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 15px;
+    }
+    
+    .fornecedor-nome {
+        font-size: 20px;
+        font-weight: 600;
+        color: #1e3a8a;
+        margin-bottom: 5px;
+    }
+    
+    .fornecedor-razao {
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .status-badge.ativo {
+        background: #d1f4e0;
+        color: #198754;
+    }
+    
+    .status-badge.inativo {
+        background: #f8d7da;
+        color: #dc3545;
+    }
+    
+    .fornecedor-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        font-size: 13px;
+        color: #495057;
+    }
+    
+    .info-item i {
+        margin-right: 8px;
+        color: #0d6efd;
+        width: 16px;
+    }
+    
+    .fornecedor-stats {
+        display: flex;
+        gap: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e9ecef;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .stat-numero {
+        font-size: 24px;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #6c757d;
+        text-transform: uppercase;
+    }
+    
+    .classificacao {
+        display: flex;
+        gap: 3px;
+        margin-top: 5px;
+    }
+    
+    .estrela {
+        color: #ffc107;
+        font-size: 14px;
+    }
+    
+    .estrela.vazia {
+        color: #e9ecef;
+    }
+    
+    .actions-card {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .btn-action {
+        flex: 1;
+        padding: 8px 15px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .filtros-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .stat-box.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+    
+    .stat-box.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stat-box.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stat-box h3 {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .stat-box p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 14px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .empty-state i {
+        font-size: 80px;
+        color: #e9ecef;
+        margin-bottom: 20px;
+    }
+    
+    .pagination-custom {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 30px;
+    }
+    
+    .pagination-custom .page-link {
+        border-radius: 8px;
+        padding: 8px 15px;
+        border: 1px solid #dee2e6;
+        color: #0d6efd;
+    }
+    
+    .pagination-custom .page-link.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Estatísticas -->
+<div class="stats-grid">
+    <div class="stat-box success">
+        <h3>{{ stats.total_fornecedores }}</h3>
+        <p><i class="bi bi-check-circle"></i> Fornecedores Ativos</p>
+    </div>
+    
+    <div class="stat-box info">
+        <h3>{{ stats.total_cotacoes }}</h3>
+        <p><i class="bi bi-clipboard-data"></i> Cotações Ativas</p>
+    </div>
+    
+    <div class="stat-box warning">
+        <h3>{{ stats.fornecedores_sem_cotacao }}</h3>
+        <p><i class="bi bi-exclamation-triangle"></i> Sem Cotações</p>
+    </div>
+    
+    <div class="stat-box">
+        <h3>{{ stats.total_inativos }}</h3>
+        <p><i class="bi bi-x-circle"></i> Fornecedores Inativos</p>
+    </div>
+</div>
+
+<!-- Filtros e Busca -->
+<div class="filtros-section">
+    <div class="row">
+        <div class="col-md-5">
+            <form method="GET" class="d-flex gap-2">
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           name="busca" 
+                           value="{{ busca }}"
+                           placeholder="Buscar por nome, CNPJ, telefone ou email...">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </form>
+        </div>
+        
+        <div class="col-md-3">
+            <form method="GET">
+                <select class="form-select" name="ativo" onchange="this.form.submit()">
+                    <option value="">Todos os Status</option>
+                    <option value="sim" {% if filtro_ativo == 'sim' %}selected{% endif %}>Apenas Ativos</option>
+                    <option value="nao" {% if filtro_ativo == 'nao' %}selected{% endif %}>Apenas Inativos</option>
+                </select>
+            </form>
+        </div>
+        
+        <div class="col-md-2">
+            <form method="GET">
+                <select class="form-select" name="ordem" onchange="this.form.submit()">
+                    <option value="-total_cotacoes" {% if ordem == '-total_cotacoes' %}selected{% endif %}>Mais Cotações</option>
+                    <option value="nome_fantasia" {% if ordem == 'nome_fantasia' %}selected{% endif %}>Nome A-Z</option>
+                    <option value="-data_cadastro" {% if ordem == '-data_cadastro' %}selected{% endif %}>Mais Recentes</option>
+                    <option value="-classificacao" {% if ordem == '-classificacao' %}selected{% endif %}>Melhor Avaliação</option>
+                </select>
+            </form>
+        </div>
+        
+        <div class="col-md-2 text-end">
+            <a href="{% url 'adicionar_fornecedor' %}" class="btn btn-success w-100">
+                <i class="bi bi-plus-circle"></i> Novo Fornecedor
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Atalho para Comparador de Preços -->
+<div class="alert alert-info d-flex justify-content-between align-items-center">
+    <div>
+        <i class="bi bi-bar-chart-line"></i>
+        <strong>Comparador de Preços:</strong> Compare cotações de diferentes fornecedores
+    </div>
+    <a href="{% url 'comparador_precos_fornecedores' %}" class="btn btn-primary">
+        <i class="bi bi-graph-up"></i> Abrir Comparador
+    </a>
+</div>
+
+<!-- Lista de Fornecedores -->
+{% if fornecedores %}
+<div class="row">
+    {% for fornecedor in fornecedores %}
+    <div class="col-md-6">
+        <div class="fornecedor-card {% if not fornecedor.ativo %}inativo{% endif %}">
+            <!-- Header -->
+            <div class="fornecedor-header">
+                <div>
+                    <div class="fornecedor-nome">
+                        {{ fornecedor.nome_fantasia }}
+                    </div>
+                    <div class="fornecedor-razao">
+                        {{ fornecedor.razao_social }}
+                    </div>
+                    <div class="classificacao">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= fornecedor.classificacao %}
+                                <span class="estrela">★</span>
+                            {% else %}
+                                <span class="estrela vazia">★</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <span class="status-badge {% if fornecedor.ativo %}ativo{% else %}inativo{% endif %}">
+                    {% if fornecedor.ativo %}Ativo{% else %}Inativo{% endif %}
+                </span>
+            </div>
+            
+            <!-- Informações -->
+            <div class="fornecedor-info">
+                <div class="info-item">
+                    <i class="bi bi-card-text"></i>
+                    <span>{{ fornecedor.cnpj }}</span>
+                </div>
+                <div class="info-item">
+                    <i class="bi bi-telephone"></i>
+                    <span>{{ fornecedor.telefone }}</span>
+                </div>
+                <div class="info-item">
+                    <i class="bi bi-envelope"></i>
+                    <span>{{ fornecedor.email|truncatechars:25 }}</span>
+                </div>
+                <div class="info-item">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>{{ fornecedor.cidade }}/{{ fornecedor.estado }}</span>
+                </div>
+            </div>
+            
+            <!-- Estatísticas -->
+            <div class="fornecedor-stats">
+                <div class="stat-item">
+                    <div class="stat-numero">{{ fornecedor.total_cotacoes }}</div>
+                    <div class="stat-label">Cotações</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-numero">
+                        {% if fornecedor.media_preco %}
+                            R$ {{ fornecedor.media_preco|floatformat:2 }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                    <div class="stat-label">Preço Médio</div>
+                </div>
+            </div>
+            
+            <!-- Ações -->
+            <div class="actions-card">
+                <a href="{% url 'detalhes_fornecedor' fornecedor.id %}" 
+                   class="btn btn-primary btn-action">
+                    <i class="bi bi-eye"></i> Detalhes
+                </a>
+                <a href="{% url 'editar_fornecedor' fornecedor.id %}" 
+                   class="btn btn-outline-primary btn-action">
+                    <i class="bi bi-pencil"></i> Editar
+                </a>
+                <a href="{% url 'comparador_precos_fornecedores' %}?fornecedor={{ fornecedor.id }}" 
+                   class="btn btn-outline-success btn-action">
+                    <i class="bi bi-graph-up"></i> Cotações
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Paginação -->
+{% if fornecedores.has_other_pages %}
+<nav>
+    <ul class="pagination pagination-custom">
+        {% if fornecedores.has_previous %}
+        <li>
+            <a class="page-link" href="?page={{ fornecedores.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if filtro_ativo %}&ativo={{ filtro_ativo }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in fornecedores.paginator.page_range %}
+        <li>
+            <a class="page-link {% if fornecedores.number == num %}active{% endif %}" 
+               href="?page={{ num }}{% if busca %}&busca={{ busca }}{% endif %}{% if filtro_ativo %}&ativo={{ filtro_ativo }}{% endif %}">
+                {{ num }}
+            </a>
+        </li>
+        {% endfor %}
+        
+        {% if fornecedores.has_next %}
+        <li>
+            <a class="page-link" href="?page={{ fornecedores.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if filtro_ativo %}&ativo={{ filtro_ativo }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<!-- Estado Vazio -->
+<div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <h4>Nenhum fornecedor encontrado</h4>
+    <p class="text-muted">
+        {% if busca %}
+            Não encontramos fornecedores com o termo "{{ busca }}"
+        {% else %}
+            Comece adicionando seu primeiro fornecedor
+        {% endif %}
+    </p>
+    <a href="{% url 'adicionar_fornecedor' %}" class="btn btn-primary mt-3">
+        <i class="bi bi-plus-circle"></i> Adicionar Primeiro Fornecedor
+    </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Animação nos cards
+    $('.fornecedor-card').hover(
+        function() {
+            $(this).css('transform', 'translateY(-5px)');
+        },
+        function() {
+            $(this).css('transform', 'translateY(0)');
+        }
+    );
+});
+</script>
+{% endblock %}

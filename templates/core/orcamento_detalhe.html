@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+
+{% block title %}Orçamento {{ orcamento.numero }} - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Detalhes do Orçamento{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Cabeçalho -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-0">
+                                <i class="bi bi-file-earmark-text"></i> {{ orcamento.numero }}
+                            </h3>
+                            <p class="text-muted mb-0">
+                                Data: {{ orcamento.data_orcamento|date:"d/m/Y H:i" }} | 
+                                Validade: {{ orcamento.data_validade|date:"d/m/Y" }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge 
+                                {% if orcamento.status == 'ABERTO' %}bg-primary
+                                {% elif orcamento.status == 'ENVIADO' %}bg-info
+                                {% elif orcamento.status == 'APROVADO' %}bg-success
+                                {% elif orcamento.status == 'REJEITADO' %}bg-danger
+                                {% elif orcamento.status == 'CONVERTIDO' %}bg-success
+                                {% else %}bg-secondary{% endif %}"
+                                style="font-size: 16px; padding: 10px 20px;">
+                                {{ orcamento.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Informações do Cliente -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-person"></i> Cliente</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>{{ orcamento.cliente.nome }}</h6>
+                            {% if orcamento.cliente.cpf_cnpj %}
+                            <p class="mb-1">
+                                <strong>CPF/CNPJ:</strong> {{ orcamento.cliente.cpf_cnpj }}
+                            </p>
+                            {% endif %}
+                            {% if orcamento.cliente.telefone %}
+                            <p class="mb-1">
+                                <strong>Telefone:</strong> {{ orcamento.cliente.telefone }}
+                            </p>
+                            {% endif %}
+                            {% if orcamento.cliente.email %}
+                            <p class="mb-0">
+                                <strong>Email:</strong> {{ orcamento.cliente.email }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informações do Veículo -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-car-front"></i> Veículo</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if orcamento.veiculo_modelo %}
+                            <h6>
+                                {{ orcamento.veiculo_modelo.montadora.nome }} 
+                                {{ orcamento.veiculo_modelo.nome }}
+                            </h6>
+                            <p class="mb-1">
+                                <strong>Ano:</strong> {{ orcamento.veiculo_ano|default:"Não informado" }}
+                            </p>
+                            {% if orcamento.veiculo_placa %}
+                            <p class="mb-0">
+                                <strong>Placa:</strong> {{ orcamento.veiculo_placa }}
+                            </p>
+                            {% endif %}
+                            {% else %}
+                            <p class="text-muted">Veículo não informado</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Itens do Orçamento -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-ul"></i> Itens do Orçamento</h5>
+                </div>
+                <div class="card-body">
+                    {% if itens %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-end">Preço Unit.</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Estoque</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in itens %}
+                                <tr>
+                                    <td><strong>{{ item.produto.codigo }}</strong></td>
+                                    <td>
+                                        {{ item.produto.descricao }}
+                                        {% if item.produto.fabricante %}
+                                        <br><small class="text-muted">{{ item.produto.fabricante.nome }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ item.quantidade }}</td>
+                                    <td class="text-end">R$ {{ item.preco_unitario|floatformat:2 }}</td>
+                                    <td class="text-end"><strong>R$ {{ item.total|floatformat:2 }}</strong></td>
+                                    <td class="text-center">
+                                        {% if item.tem_estoque %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> OK
+                                        </span>
+                                        {% elif item.produto.estoque_disponivel > 0 %}
+                                        <span class="badge bg-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> Parcial
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-x-circle"></i> Sem Estoque
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="4" class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end"><strong>R$ {{ orcamento.subtotal|floatformat:2 }}</strong></td>
+                                    <td></td>
+                                </tr>
+                                {% if orcamento.desconto > 0 %}
+                                <tr>
+                                    <td colspan="4" class="text-end">Desconto:</td>
+                                    <td class="text-end text-danger">- R$ {{ orcamento.desconto|floatformat:2 }}</td>
+                                    <td></td>
+                                </tr>
+                                {% endif %}
+                                <tr class="table-primary">
+                                    <td colspan="4" class="text-end"><h5 class="mb-0">TOTAL:</h5></td>
+                                    <td class="text-end"><h5 class="mb-0">R$ {{ orcamento.total|floatformat:2 }}</h5></td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">Nenhum item no orçamento</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Observações -->
+            {% if orcamento.observacoes %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-chat-text"></i> Observações</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ orcamento.observacoes|linebreaks }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Informações Adicionais -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-1">
+                                <strong>Vendedor:</strong> 
+                                {{ orcamento.vendedor.get_full_name|default:orcamento.vendedor.username }}
+                            </p>
+                            <p class="mb-1">
+                                <strong>Forma de Pagamento:</strong> 
+                                {{ orcamento.get_forma_pagamento_display }}
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            {% if orcamento.data_aprovacao %}
+                            <p class="mb-1">
+                                <strong>Aprovado em:</strong> 
+                                {{ orcamento.data_aprovacao|date:"d/m/Y H:i" }}
+                            </p>
+                            {% endif %}
+                            {% if orcamento.data_conversao %}
+                            <p class="mb-1">
+                                <strong>Convertido em:</strong> 
+                                {{ orcamento.data_conversao|date:"d/m/Y H:i" }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ações -->
+            <div class="d-flex justify-content-between mb-4">
+                <a href="{% url 'lista_orcamentos' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar para Lista
+                </a>
+                
+                <div>
+                    {% if orcamento.status == 'ABERTO' or orcamento.status == 'ENVIADO' %}
+                    <a href="{% url 'editar_orcamento' orcamento.id %}" class="btn btn-primary">
+                        <i class="bi bi-pencil"></i> Editar Orçamento
+                    </a>
+                    {% endif %}
+                    
+                    {% if orcamento.status == 'APROVADO' %}
+                    <a href="{% url 'converter_orcamento_venda' orcamento.id %}" class="btn btn-success">
+                        <i class="bi bi-cart-check"></i> Converter em Venda
+                    </a>
+                    {% endif %}
+                    
+                    <button onclick="window.print()" class="btn btn-outline-secondary">
+                        <i class="bi bi-printer"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .nav, .sidebar {
+        display: none !important;
+    }
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.badge {
+    font-size: 14px;
+    padding: 8px 15px;
+}
+</style>
+{% endblock %}

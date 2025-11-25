@@ -1,0 +1,817 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Cabeçalho -->
+            <div class="card mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="bi bi-box-seam"></i> {{ titulo }}
+                        </h4>
+                        <small class="text-muted">Preencha os dados do produto</small>
+                    </div>
+                    <div>
+                        <a href="{% url 'lista_estoque' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulário com Abas -->
+            <form method="post" enctype="multipart/form-data" id="produtoForm">
+                {% csrf_token %}
+                
+                <!-- Mensagens de Erro -->
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {% for error in form.non_field_errors %}
+                    <i class="bi bi-exclamation-triangle"></i> {{ error }}
+                    {% endfor %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+
+                <!-- Navegação por Abas -->
+                <ul class="nav nav-tabs mb-4" id="produtoTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="identificacao-tab" data-bs-toggle="tab" 
+                                data-bs-target="#identificacao" type="button">
+                            <i class="bi bi-tag"></i> Identificação
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="localizacao-tab" data-bs-toggle="tab" 
+                                data-bs-target="#localizacao" type="button">
+                            <i class="bi bi-pin-map"></i> Localização
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="precos-tab" data-bs-toggle="tab" 
+                                data-bs-target="#precos" type="button">
+                            <i class="bi bi-cash-stack"></i> Preços
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="estoque-tab" data-bs-toggle="tab" 
+                                data-bs-target="#estoque" type="button">
+                            <i class="bi bi-boxes"></i> Estoque
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aplicacao-tab" data-bs-toggle="tab" 
+                                data-bs-target="#aplicacao" type="button">
+                            <i class="bi bi-car-front"></i> Aplicação
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="outros-tab" data-bs-toggle="tab" 
+                                data-bs-target="#outros" type="button">
+                            <i class="bi bi-three-dots"></i> Outros
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Conteúdo das Abas -->
+                <div class="tab-content" id="produtoTabContent">
+                    
+                    <!-- ABA 1: IDENTIFICAÇÃO -->
+                    <div class="tab-pane fade show active" id="identificacao" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-tag-fill"></i> Dados de Identificação
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Código Interno</label>
+                                        {{ form.codigo }}
+                                        {% if form.codigo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.codigo.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Código SKU</label>
+                                        {{ form.codigo_sku }}
+                                        {% if form.codigo_sku.errors %}
+                                        <div class="text-danger small mt-1">{{ form.codigo_sku.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Código de Barras (EAN)</label>
+                                        {{ form.codigo_barras }}
+                                        {% if form.codigo_barras.errors %}
+                                        <div class="text-danger small mt-1">{{ form.codigo_barras.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Referência do Fabricante</label>
+                                        {{ form.referencia_fabricante }}
+                                        {% if form.referencia_fabricante.errors %}
+                                        <div class="text-danger small mt-1">{{ form.referencia_fabricante.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label required">Descrição</label>
+                                        {{ form.descricao }}
+                                        {% if form.descricao.errors %}
+                                        <div class="text-danger small mt-1">{{ form.descricao.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label">Descrição Detalhada</label>
+                                        {{ form.descricao_detalhada }}
+                                        {% if form.descricao_detalhada.errors %}
+                                        <div class="text-danger small mt-1">{{ form.descricao_detalhada.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label required">Categoria</label>
+                                        {{ form.categoria }}
+                                        {% if form.categoria.errors %}
+                                        <div class="text-danger small mt-1">{{ form.categoria.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label">Subcategoria</label>
+                                        {{ form.subcategoria }}
+                                        {% if form.subcategoria.errors %}
+                                        <div class="text-danger small mt-1">{{ form.subcategoria.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label required">Fabricante</label>
+                                        {{ form.fabricante }}
+                                        {% if form.fabricante.errors %}
+                                        <div class="text-danger small mt-1">{{ form.fabricante.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-12">
+                                        <label class="form-label">Fornecedor Principal</label>
+                                        {{ form.fornecedor_principal }}
+                                        <small class="text-muted">Fornecedor com melhor preço atual</small>
+                                        {% if form.fornecedor_principal.errors %}
+                                        <div class="text-danger small mt-1">{{ form.fornecedor_principal.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ABA 2: LOCALIZAÇÃO -->
+                    <div class="tab-pane fade" id="localizacao" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-pin-map-fill"></i> Localização no Estoque
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label required">Loja</label>
+                                        {{ form.loja }}
+                                        {% if form.loja.errors %}
+                                        <div class="text-danger small mt-1">{{ form.loja.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Setor</label>
+                                        {{ form.setor }}
+                                        <small class="text-muted d-block">Ex: Motor, Suspensão</small>
+                                        {% if form.setor.errors %}
+                                        <div class="text-danger small mt-1">{{ form.setor.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Prateleira</label>
+                                        {{ form.prateleira }}
+                                        {% if form.prateleira.errors %}
+                                        <div class="text-danger small mt-1">{{ form.prateleira.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Divisão</label>
+                                        {{ form.divisao_prateleira }}
+                                        <small class="text-muted d-block">Ex: A1, B2, C3</small>
+                                        {% if form.divisao_prateleira.errors %}
+                                        <div class="text-danger small mt-1">{{ form.divisao_prateleira.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <i class="bi bi-info-circle"></i>
+                                            <strong>Localização Completa:</strong>
+                                            <span id="localizacao-preview">Será gerada automaticamente</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ABA 3: PREÇOS -->
+                    <div class="tab-pane fade" id="precos" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-cash-stack"></i> Preços e Margens
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Preço de Custo</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_custo }}
+                                        </div>
+                                        {% if form.preco_custo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_custo.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Preço Venda - Dinheiro/PIX</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_venda_dinheiro }}
+                                            <span class="input-group-text" id="margem-dinheiro">0%</span>
+                                        </div>
+                                        {% if form.preco_venda_dinheiro.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_venda_dinheiro.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Preço Venda - Débito</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_venda_debito }}
+                                            <span class="input-group-text" id="margem-debito">0%</span>
+                                        </div>
+                                        {% if form.preco_venda_debito.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_venda_debito.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label required">Preço Venda - Crédito</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_venda_credito }}
+                                            <span class="input-group-text" id="margem-credito">0%</span>
+                                        </div>
+                                        {% if form.preco_venda_credito.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_venda_credito.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Preço Atacado</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_atacado }}
+                                        </div>
+                                        {% if form.preco_atacado.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_atacado.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Quantidade Mínima para Atacado</label>
+                                        {{ form.quantidade_minima_atacado }}
+                                        {% if form.quantidade_minima_atacado.errors %}
+                                        <div class="text-danger small mt-1">{{ form.quantidade_minima_atacado.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            {{ form.promocao }}
+                                            <label class="form-check-label" for="{{ form.promocao.id_for_label }}">
+                                                Produto em promoção
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label class="form-label">Preço Promocional</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">R$</span>
+                                            {{ form.preco_promocional }}
+                                        </div>
+                                        {% if form.preco_promocional.errors %}
+                                        <div class="text-danger small mt-1">{{ form.preco_promocional.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ABA 4: ESTOQUE -->
+                    <div class="tab-pane fade" id="estoque" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-boxes"></i> Controle de Estoque
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label required">Estoque Atual</label>
+                                        {{ form.estoque_atual }}
+                                        {% if form.estoque_atual.errors %}
+                                        <div class="text-danger small mt-1">{{ form.estoque_atual.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label required">Estoque Mínimo</label>
+                                        {{ form.estoque_minimo }}
+                                        <small class="text-muted d-block">Alerta de reposição</small>
+                                        {% if form.estoque_minimo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.estoque_minimo.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label required">Estoque Máximo</label>
+                                        {{ form.estoque_maximo }}
+                                        <small class="text-muted d-block">Limite de estoque</small>
+                                        {% if form.estoque_maximo.errors %}
+                                        <div class="text-danger small mt-1">{{ form.estoque_maximo.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="alert alert-warning">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            <strong>Atenção:</strong> O sistema alertará automaticamente quando o estoque
+                                            atingir o mínimo configurado.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                   <!-- ✅ SEÇÃO DE VEÍCULOS COMPATÍVEIS -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="bi bi-car-front"></i> Veículos Compatíveis</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Montadora -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="id_montadora" class="form-label">Montadora</label>
+                                    <select id="id_montadora" class="form-select">
+                                        <option value="">Selecione a montadora...</option>
+                                        {% for montadora in montadoras %}
+                                        <option value="{{ montadora.id }}">{{ montadora.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Primeiro selecione a montadora</small>
+                                </div>
+                                
+                                <!-- Modelo -->
+                                <div class="col-md-6 mb-3">
+                                    <label for="id_modelo" class="form-label">Modelo</label>
+                                    <select id="id_modelo" class="form-select" disabled>
+                                        <option value="">Selecione a montadora primeiro</option>
+                                    </select>
+                                    <small class="text-muted">Depois selecione o modelo</small>
+                                </div>
+                            </div>
+                            
+                            <!-- Container de Versões (Checkboxes) -->
+                            <div id="versoes-container" class="mt-3">
+                                <!-- Aqui serão carregados os checkboxes dinamicamente -->
+                            </div>
+                            
+                            <!-- Modelos já selecionados -->
+                            <div id="modelos-selecionados" class="mt-4">
+                                <h6>Modelos Compatíveis Selecionados:</h6>
+                                <div id="lista-modelos-selecionados">
+                                    {% if editando and produto.versoes_compativeis.exists %}
+                                        {% for versao in form.instance.versoes_compativeis.all %}
+                                        <span class="badge bg-primary me-2 mb-2">
+                                            {{ versao.modelo.montadora.nome }} {{ versao.modelo.nome }} {{ versao.nome }}
+                                            <input type="hidden" name="versoes_compativeis" value="{{ versao.id }}">
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p class="text-muted">Nenhum modelo selecionado ainda</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ABA 6: OUTROS -->
+                    <div class="tab-pane fade" id="outros" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">
+                                    <i class="bi bi-three-dots"></i> Informações Adicionais
+                                </h5>
+                                
+                                <div class="row g-3">
+                                    <!-- Características Físicas -->
+                                    <div class="col-12">
+                                        <h6 class="border-bottom pb-2">Características Físicas</h6>
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Peso (kg)</label>
+                                        {{ form.peso }}
+                                        {% if form.peso.errors %}
+                                        <div class="text-danger small mt-1">{{ form.peso.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Comprimento (cm)</label>
+                                        {{ form.comprimento }}
+                                        {% if form.comprimento.errors %}
+                                        <div class="text-danger small mt-1">{{ form.comprimento.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Largura (cm)</label>
+                                        {{ form.largura }}
+                                        {% if form.largura.errors %}
+                                        <div class="text-danger small mt-1">{{ form.largura.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-3">
+                                        <label class="form-label">Altura (cm)</label>
+                                        {{ form.altura }}
+                                        {% if form.altura.errors %}
+                                        <div class="text-danger small mt-1">{{ form.altura.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Informações Comerciais -->
+                                    <div class="col-12 mt-4">
+                                        <h6 class="border-bottom pb-2">Informações Comerciais</h6>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label">NCM</label>
+                                        {{ form.ncm }}
+                                        <small class="text-muted d-block">Classificação fiscal</small>
+                                        {% if form.ncm.errors %}
+                                        <div class="text-danger small mt-1">{{ form.ncm.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label">Unidade de Medida</label>
+                                        {{ form.unidade_medida }}
+                                        {% if form.unidade_medida.errors %}
+                                        <div class="text-danger small mt-1">{{ form.unidade_medida.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <label class="form-label">Garantia (meses)</label>
+                                        {{ form.garantia_meses }}
+                                        {% if form.garantia_meses.errors %}
+                                        <div class="text-danger small mt-1">{{ form.garantia_meses.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Status -->
+                                    <div class="col-12 mt-4">
+                                        <h6 class="border-bottom pb-2">Status</h6>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            {{ form.ativo }}
+                                            <label class="form-check-label" for="{{ form.ativo.id_for_label }}">
+                                                Produto ativo
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-4">
+                                        <div class="form-check">
+                                            {{ form.destaque }}
+                                            <label class="form-check-label" for="{{ form.destaque.id_for_label }}">
+                                                Produto em destaque
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Imagem -->
+                                    <div class="col-12 mt-4">
+                                        <h6 class="border-bottom pb-2">Imagem</h6>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label">Imagem do Produto</label>
+                                        {{ form.imagem }}
+                                        {% if form.imagem.errors %}
+                                        <div class="text-danger small mt-1">{{ form.imagem.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Observações -->
+                                    <div class="col-12 mt-4">
+                                        <h6 class="border-bottom pb-2">Observações</h6>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label">Observações</label>
+                                        {{ form.observacoes }}
+                                        {% if form.observacoes.errors %}
+                                        <div class="text-danger small mt-1">{{ form.observacoes.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'lista_estoque' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> Salvar Produto
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.required:after {
+    content: " *";
+    color: red;
+}
+
+.nav-tabs .nav-link {
+    color: #6c757d;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #0d6efd;
+}
+
+.input-group-text {
+    min-width: 50px;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05);
+}
+
+.card-title {
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.form-label {
+    font-weight: 500;
+    color: #4a5568;
+    margin-bottom: 0.5rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+</style>
+
+<script>
+// Calcular margem de lucro automaticamente
+function calcularMargem() {
+    const custo = parseFloat(document.getElementById('id_preco_custo').value) || 0;
+    const dinheiro = parseFloat(document.getElementById('id_preco_venda_dinheiro').value) || 0;
+    const debito = parseFloat(document.getElementById('id_preco_venda_debito').value) || 0;
+    const credito = parseFloat(document.getElementById('id_preco_venda_credito').value) || 0;
+    
+    if (custo > 0) {
+        if (dinheiro > 0) {
+            const margemDinheiro = ((dinheiro - custo) / custo * 100).toFixed(1);
+            document.getElementById('margem-dinheiro').textContent = margemDinheiro + '%';
+            document.getElementById('margem-dinheiro').style.backgroundColor = 
+                margemDinheiro >= 30 ? '#10b981' : '#f59e0b';
+            document.getElementById('margem-dinheiro').style.color = 'white';
+        }
+        
+        if (debito > 0) {
+            const margemDebito = ((debito - custo) / custo * 100).toFixed(1);
+            document.getElementById('margem-debito').textContent = margemDebito + '%';
+            document.getElementById('margem-debito').style.backgroundColor = 
+                margemDebito >= 30 ? '#10b981' : '#f59e0b';
+            document.getElementById('margem-debito').style.color = 'white';
+        }
+        
+        if (credito > 0) {
+            const margemCredito = ((credito - custo) / custo * 100).toFixed(1);
+            document.getElementById('margem-credito').textContent = margemCredito + '%';
+            document.getElementById('margem-credito').style.backgroundColor = 
+                margemCredito >= 30 ? '#10b981' : '#f59e0b';
+            document.getElementById('margem-credito').style.color = 'white';
+        }
+    }
+}
+
+// Atualizar preview de localização
+function atualizarLocalizacao() {
+    const loja = document.getElementById('id_loja').value;
+    const setor = document.getElementById('id_setor').value;
+    const prateleira = document.getElementById('id_prateleira').value;
+    const divisao = document.getElementById('id_divisao_prateleira').value;
+    
+    let partes = [`Loja ${loja}`];
+    if (setor) partes.push(`Setor: ${setor}`);
+    if (prateleira) partes.push(`Prat. ${prateleira}`);
+    if (divisao) partes.push(`Div. ${divisao}`);
+    
+    document.getElementById('localizacao-preview').textContent = partes.join(' | ');
+}
+
+// Adicionar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Margem de lucro
+    ['id_preco_custo', 'id_preco_venda_dinheiro', 'id_preco_venda_debito', 'id_preco_venda_credito'].forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.addEventListener('input', calcularMargem);
+            elem.addEventListener('blur', calcularMargem);
+        }
+    });
+    
+    // Localização
+    ['id_loja', 'id_setor', 'id_prateleira', 'id_divisao_prateleira'].forEach(id => {
+        const elem = document.getElementById(id);
+        if (elem) {
+            elem.addEventListener('change', atualizarLocalizacao);
+            elem.addEventListener('input', atualizarLocalizacao);
+        }
+    });
+    
+    // Calcular inicialmente se houver valores
+    calcularMargem();
+    atualizarLocalizacao();
+});
+</script>
+{% endblock %}
+
+<!-- ✅ ADICIONE ESTE BLOCO AQUI -->
+{% block extra_js %}
+<script>
+// Busca em cascata: Montadora → Modelo → Versões
+$(document).ready(function() {
+    
+    // Quando seleciona montadora
+    $('#id_montadora').change(function() {
+        const montadoraId = $(this).val();
+        const modeloSelect = $('#id_modelo');
+        
+        if (!montadoraId) {
+            modeloSelect.html('<option value="">Selecione a montadora primeiro</option>').prop('disabled', true);
+            $('#versoes-container').html('');
+            return;
+        }
+        
+        // Buscar modelos
+        $.get('/api/modelos/?montadora_id=' + montadoraId, function(data) {
+            if (data.success && data.modelos.length > 0) {
+                let html = '<option value="">Selecione o modelo...</option>';
+                data.modelos.forEach(modelo => {
+                    html += `<option value="${modelo.id}">${modelo.nome} (${modelo.total_versoes} versões)</option>`;
+                });
+                modeloSelect.html(html).prop('disabled', false);
+            }
+        });
+    });
+    
+    // Quando seleciona modelo
+    $('#id_modelo').change(function() {
+        const modeloId = $(this).val();
+        const versoesContainer = $('#versoes-container');
+        
+        if (!modeloId) {
+            versoesContainer.html('');
+            return;
+        }
+        
+        // Buscar versões
+        $.get('/api/versoes/?modelo_id=' + modeloId, function(data) {
+            if (data.success && data.versoes.length > 0) {
+                let html = '<div class="versoes-checklist"><h6>Selecione as versões compatíveis:</h6>';
+                
+                // Botão "Marcar/Desmarcar Todas"
+                html += `
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="toggle-all-versoes">
+                            <i class="bi bi-check-all"></i> Marcar/Desmarcar Todas
+                        </button>
+                    </div>
+                `;
+                
+                data.versoes.forEach(versao => {
+                    html += `
+                        <div class="form-check">
+                            <input class="form-check-input versao-checkbox" type="checkbox" 
+                                   name="versoes_compativeis" value="${versao.id}" 
+                                   id="versao_${versao.id}">
+                            <label class="form-check-label" for="versao_${versao.id}">
+                                <strong>${versao.nome}</strong> (${versao.anos_range}) - ${versao.motorizacoes}
+                            </label>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                
+                versoesContainer.html(html);
+                
+                // Botão toggle all
+                $('#toggle-all-versoes').click(function() {
+                    const checkboxes = $('.versao-checkbox');
+                    const allChecked = checkboxes.filter(':checked').length === checkboxes.length;
+                    checkboxes.prop('checked', !allChecked);
+                });
+            }
+        });
+    });
+});
+</script>
+
+<style>
+.versoes-checklist {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.versoes-checklist h6 {
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+.versoes-checklist .form-check {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.versoes-checklist .form-check:hover {
+    background: #e9ecef;
+}
+
+.versoes-checklist .form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+</style>
+{% endblock %}

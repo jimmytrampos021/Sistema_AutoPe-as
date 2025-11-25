@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorias - Financeiro{% endblock %}
+
+{% block page_title %}Categorias de Despesa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .header-section h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .btn-novo {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .categorias-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+
+    .categoria-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: transform 0.15s;
+    }
+
+    .categoria-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .categoria-card.inativa {
+        opacity: 0.5;
+    }
+
+    .categoria-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+    }
+
+    .categoria-info {
+        flex: 1;
+    }
+
+    .categoria-info h6 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .categoria-info small {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+    }
+
+    .tipo-badge {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .tipo-badge.fixa { background: rgba(111, 66, 193, 0.15); color: #6f42c1; }
+    .tipo-badge.variavel { background: rgba(253, 126, 20, 0.15); color: #fd7e14; }
+    .tipo-badge.ambos { background: rgba(108, 117, 125, 0.15); color: #6c757d; }
+
+    body.dark-mode .tipo-badge.fixa { background: rgba(111, 66, 193, 0.25); }
+    body.dark-mode .tipo-badge.variavel { background: rgba(253, 126, 20, 0.25); }
+    body.dark-mode .tipo-badge.ambos { background: rgba(108, 117, 125, 0.25); }
+
+    .categoria-acoes {
+        display: flex;
+        gap: 6px;
+    }
+
+    .btn-acao {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <div class="main-card">
+        <div class="header-section">
+            <h5><i class="bi bi-tags text-primary me-2"></i> Categorias de Despesa</h5>
+            <a href="{% url 'financeiro:criar_categoria' %}" class="btn btn-novo">
+                <i class="bi bi-plus-lg"></i> Nova Categoria
+            </a>
+        </div>
+
+        <div class="categorias-grid">
+            {% for cat in categorias %}
+            <div class="categoria-card {% if not cat.ativo %}inativa{% endif %}">
+                <div class="categoria-icon" style="background: {{ cat.cor }}20; color: {{ cat.cor }};">
+                    <i class="{{ cat.icone }}"></i>
+                </div>
+                <div class="categoria-info">
+                    <h6>{{ cat.nome }}</h6>
+                    <small>
+                        <span class="tipo-badge {{ cat.tipo|lower }}">{{ cat.get_tipo_display }}</span>
+                        {% if not cat.ativo %}<span class="text-danger ms-2">Inativa</span>{% endif %}
+                    </small>
+                </div>
+                <div class="categoria-acoes">
+                    <a href="{% url 'financeiro:editar_categoria' cat.id %}" class="btn btn-acao btn-outline-warning" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="post" action="{% url 'financeiro:deletar_categoria' cat.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-acao btn-outline-danger" title="Excluir" onclick="return confirm('Excluir/desativar esta categoria?');">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ cliente.nome }} - Detalhes{% endblock %}
+
+{% block page_title %}Detalhes do Cliente{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho do Cliente -->
+<div class="table-card mb-4">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h2 class="mb-3">{{ cliente.nome }}</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-card-text"></i> CPF/CNPJ:</strong> {{ cliente.cpf_cnpj }}</p>
+                    <p><strong><i class="bi bi-telephone"></i> Telefone:</strong> {{ cliente.telefone }}</p>
+                    <p><strong><i class="bi bi-envelope"></i> Email:</strong> {{ cliente.email|default:"-" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-geo-alt"></i> Endereço:</strong> {{ cliente.endereco|default:"-" }}</p>
+                    <p><strong><i class="bi bi-building"></i> Cidade:</strong> {{ cliente.cidade|default:"-" }} - {{ cliente.estado|default:"-" }}</p>
+                    <p><strong><i class="bi bi-mailbox"></i> CEP:</strong> {{ cliente.cep|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'lista_clientes' %}" class="btn btn-secondary mb-2">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+            <a href="/admin/clientes/cliente/{{ cliente.id }}/change/" class="btn btn-warning mb-2">
+                <i class="bi bi-pencil"></i> Editar
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="icon"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <h3>R$ {{ stats.total_compras|floatformat:2 }}</h3>
+                <p>Total em Compras</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card success">
+            <div class="icon"><i class="bi bi-receipt"></i></div>
+            <div>
+                <h3>{{ stats.total_vendas }}</h3>
+                <p>Vendas Realizadas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card warning">
+            <div class="icon"><i class="bi bi-wrench"></i></div>
+            <div>
+                <h3>{{ stats.total_os }}</h3>
+                <p>Ordens de Serviço</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card info">
+            <div class="icon"><i class="bi bi-car-front"></i></div>
+            <div>
+                <h3>{{ stats.total_veiculos }}</h3>
+                <p>Veículos Cadastrados</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs de Conteúdo -->
+<ul class="nav nav-tabs" id="clienteTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="veiculos-tab" data-bs-toggle="tab" data-bs-target="#veiculos" type="button">
+            <i class="bi bi-car-front"></i> Veículos ({{ veiculos.count }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="vendas-tab" data-bs-toggle="tab" data-bs-target="#vendas" type="button">
+            <i class="bi bi-receipt"></i> Vendas ({{ vendas.count }})
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="os-tab" data-bs-toggle="tab" data-bs-target="#os" type="button">
+            <i class="bi bi-wrench"></i> Ordens de Serviço ({{ ordens_servico.count }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content table-card" id="clienteTabsContent">
+    <!-- Tab Veículos -->
+    <div class="tab-pane fade show active" id="veiculos" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Veículos Cadastrados</h5>
+            <a href="/admin/clientes/veiculo/add/?cliente={{ cliente.id }}" class="btn btn-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Adicionar Veículo
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Placa</th>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>Ano</th>
+                        <th>Cor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for veiculo in veiculos %}
+                    <tr>
+                        <td><strong>{{ veiculo.placa }}</strong></td>
+                        <td>{{ veiculo.marca }}</td>
+                        <td>{{ veiculo.modelo }}</td>
+                        <td>{{ veiculo.ano }}</td>
+                        <td>{{ veiculo.cor|default:"-" }}</td>
+                        <td>
+                            <a href="/admin/clientes/veiculo/{{ veiculo.id }}/change/" class="btn btn-sm btn-outline-warning">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Nenhum veículo cadastrado</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Vendas -->
+    <div class="tab-pane fade" id="vendas" role="tabpanel">
+        <h5 class="mb-3">Histórico de Vendas</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Data</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venda in vendas %}
+                    <tr>
+                        <td><a href="{% url 'detalhe_venda' venda.id %}">#{{ venda.numero }}</a></td>
+                        <td>{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                        <td><strong>R$ {{ venda.total|floatformat:2 }}</strong></td>
+                        <td>
+                            {% if venda.status == 'F' %}
+                            <span class="badge bg-success">Finalizada</span>
+                            {% elif venda.status == 'A' %}
+                            <span class="badge bg-warning">Aberta</span>
+                            {% else %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalhe_venda' venda.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted">Nenhuma venda realizada</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Tab Ordens de Serviço -->
+    <div class="tab-pane fade" id="os" role="tabpanel">
+        <h5 class="mb-3">Ordens de Serviço</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Data</th>
+                        <th>Veículo</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for os in ordens_servico %}
+                    <tr>
+                        <td><a href="{% url 'detalhe_ordem_servico' os.id %}">#{{ os.numero }}</a></td>
+                        <td>{{ os.data_entrada|date:"d/m/Y" }}</td>
+                        <td>{{ os.veiculo.placa }}</td>
+                        <td>
+                            {% if os.status == 'AB' %}
+                            <span class="badge bg-info">Aberta</span>
+                            {% elif os.status == 'EA' %}
+                            <span class="badge bg-primary">Em Andamento</span>
+                            {% elif os.status == 'AG' %}
+                            <span class="badge bg-warning">Aguard. Peças</span>
+                            {% elif os.status == 'FI' %}
+                            <span class="badge bg-success">Finalizada</span>
+                            {% else %}
+                            <span class="badge bg-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>R$ {{ os.total|floatformat:2 }}</strong></td>
+                        <td>
+                            <a href="{% url 'detalhe_ordem_servico' os.id %}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">Nenhuma ordem de serviço</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+}
+
+.stat-card .icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.stat-card.primary .icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.success .icon {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.stat-card.warning .icon {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card.info .icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.stat-card p {
+    margin: 0;
+    color: #718096;
+    font-size: 13px;
+}
+
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.nav-tabs {
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    color: #718096;
+    font-weight: 500;
+    padding: 12px 20px;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #2d3748;
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
+}
+</style>
+{% endblock %}

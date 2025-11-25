@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorias - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Gerenciar Categorias{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card primary">
+                <div class="icon"><i class="bi bi-folder"></i></div>
+                <div>
+                    <h3>{{ stats.total_categorias }}</h3>
+                    <p>Categorias</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card success">
+                <div class="icon"><i class="bi bi-tags"></i></div>
+                <div>
+                    <h3>{{ stats.total_subcategorias }}</h3>
+                    <p>Subcategorias</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card info">
+                <div class="icon"><i class="bi bi-box-seam"></i></div>
+                <div>
+                    <h3>{{ categorias.0.produtos.count|default:0 }}</h3>
+                    <p>Produtos Categorizados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações -->
+    <div class="card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Lista de Categorias e Subcategorias</h5>
+            <a href="{% url 'criar_categoria' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nova Categoria
+            </a>
+        </div>
+    </div>
+
+    <!-- Lista de Categorias -->
+    <div class="row">
+        {% for categoria in categorias %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="categoria-card">
+                <div class="categoria-header">
+                    <div class="d-flex align-items-center">
+                        <div class="categoria-icon">
+                            <i class="{{ categoria.icone }}"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h5 class="mb-0">{{ categoria.nome }}</h5>
+                            <small class="text-muted">{{ categoria.produtos.count }} produtos</small>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'editar_categoria' categoria.id %}">
+                                        <i class="bi bi-pencil"></i> Editar
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'criar_subcategoria' categoria.id %}">
+                                        <i class="bi bi-plus"></i> Nova Subcategoria
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{% url 'deletar_categoria' categoria.id %}" 
+                                       onclick="return confirm('Deseja realmente remover esta categoria?')">
+                                        <i class="bi bi-trash"></i> Remover
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% if categoria.descricao %}
+                    <p class="mt-2 mb-0 text-muted small">{{ categoria.descricao }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="categoria-body">
+                    {% if categoria.subcategorias.exists %}
+                    <div class="subcategorias-lista">
+                        {% for sub in categoria.subcategorias.all %}
+                        {% if sub.ativo %}
+                        <div class="subcategoria-item">
+                            <span>
+                                <i class="bi bi-tag"></i> {{ sub.nome }}
+                                <small class="text-muted">({{ sub.produtos.count }})</small>
+                            </span>
+                            <div>
+                                <a href="{% url 'editar_subcategoria' sub.id %}" class="btn btn-sm btn-link">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'deletar_subcategoria' sub.id %}" class="btn btn-sm btn-link text-danger"
+                                   onclick="return confirm('Remover subcategoria?')">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <small>Nenhuma subcategoria</small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-center mt-2">
+                        <a href="{% url 'criar_subcategoria' categoria.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus"></i> Adicionar Subcategoria
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                <p class="mt-3">Nenhuma categoria cadastrada</p>
+                <a href="{% url 'criar_categoria' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Criar Primeira Categoria
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+}
+
+.stat-card .icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.stat-card.primary .icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.success .icon {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card.info .icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.stat-card p {
+    margin: 0;
+    color: #718096;
+    font-size: 14px;
+}
+
+.categoria-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.categoria-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.categoria-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.categoria-icon {
+    width: 50px;
+    height: 50px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.categoria-header h5 {
+    color: white;
+}
+
+.categoria-header .text-muted {
+    color: rgba(255,255,255,0.8) !important;
+}
+
+.categoria-body {
+    padding: 15px;
+}
+
+.subcategorias-lista {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.subcategoria-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 5px;
+    background: #f7fafc;
+}
+
+.subcategoria-item:hover {
+    background: #edf2f7;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

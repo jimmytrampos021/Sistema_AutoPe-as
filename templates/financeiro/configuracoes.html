@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Configurações - Financeiro{% endblock %}
+
+{% block page_title %}Configurações Financeiras{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .config-section {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        margin-bottom: 24px;
+    }
+
+    .config-section h5 {
+        margin: 0 0 20px 0;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--card-border);
+    }
+
+    .config-section h5 i {
+        color: #3b82f6;
+    }
+
+    .config-section .form-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .config-section .form-control,
+    .config-section .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .config-section .form-control:focus,
+    .config-section .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 24px;
+        border-radius: 8px;
+    }
+
+    .forma-pagamento-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        margin-bottom: 8px;
+    }
+
+    .forma-pagamento-item .info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .forma-pagamento-item .info i {
+        font-size: 1.3rem;
+        color: #3b82f6;
+    }
+
+    .forma-pagamento-item .nome {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <!-- Configuração de Tributo -->
+    <div class="config-section">
+        <h5><i class="bi bi-bank"></i> Configuração de Tributo</h5>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="tributo">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tipo de Tributo</label>
+                    <input type="text" class="form-control" value="{{ config_tributo.nome }}" disabled>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Alíquota (%)</label>
+                    <input type="text" name="aliquota" class="form-control" value="{{ config_tributo.aliquota }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Dia de Vencimento</label>
+                    <input type="number" name="dia_vencimento" class="form-control" 
+                           value="{{ config_tributo.dia_vencimento }}" min="1" max="28">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-salvar">
+                        <i class="bi bi-check-lg"></i> Salvar Configuração
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Formas de Pagamento -->
+    <div class="config-section">
+        <h5><i class="bi bi-wallet2"></i> Formas de Pagamento</h5>
+        
+        {% for forma in formas_pagamento %}
+        <div class="forma-pagamento-item">
+            <div class="info">
+                <i class="{{ forma.icone }}"></i>
+                <span class="nome">{{ forma.nome }}</span>
+            </div>
+            <span class="badge {% if forma.ativo %}bg-success{% else %}bg-secondary{% endif %}">
+                {% if forma.ativo %}Ativo{% else %}Inativo{% endif %}
+            </span>
+        </div>
+        {% endfor %}
+
+        <hr class="my-4">
+
+        <h6 class="mb-3" style="color: var(--text-primary);">Adicionar Nova Forma de Pagamento</h6>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="forma_pagamento">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Nome</label>
+                    <input type="text" name="nome" class="form-control" placeholder="Ex: Pix Banco X" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Ícone</label>
+                    <select name="icone" class="form-select">
+                        <option value="bi-wallet">Carteira</option>
+                        <option value="bi-cash">Dinheiro</option>
+                        <option value="bi-qr-code">QR Code/PIX</option>
+                        <option value="bi-credit-card">Cartão</option>
+                        <option value="bi-bank">Banco</option>
+                        <option value="bi-upc-scan">Boleto</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-salvar w-100">
+                        <i class="bi bi-plus-lg"></i> Adicionar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Link para Categorias -->
+    <div class="config-section">
+        <h5><i class="bi bi-tags"></i> Categorias de Despesa</h5>
+        <p style="color: var(--text-muted);">Gerencie as categorias para organizar suas despesas.</p>
+        <a href="{% url 'financeiro:lista_categorias' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-right"></i> Gerenciar Categorias
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,487 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - Sistema Autopeças{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .form-section {
+        margin-bottom: 30px;
+        padding-bottom: 25px;
+        border-bottom: 2px solid #f1f3f5;
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+    }
+    
+    .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e3a8a;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .section-title i {
+        font-size: 24px;
+        color: #0d6efd;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+    
+    .classificacao-selector {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .estrela-btn {
+        font-size: 28px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #e9ecef;
+        transition: all 0.3s;
+        padding: 0;
+    }
+    
+    .estrela-btn.ativa {
+        color: #ffc107;
+    }
+    
+    .estrela-btn:hover {
+        transform: scale(1.2);
+    }
+    
+    .btn-buscar-cep {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    .loading-cep {
+        display: none;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .actions-footer {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 30px;
+        padding-top: 25px;
+        border-top: 2px solid #f1f3f5;
+    }
+    
+    .btn-large {
+        padding: 12px 30px;
+        font-size: 16px;
+        font-weight: 500;
+    }
+    
+    .info-badge {
+        background: #e7f1ff;
+        color: #0d6efd;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="form-container">
+    
+    <!-- Mensagem Informativa -->
+    {% if acao == 'adicionar' %}
+    <div class="info-badge">
+        <i class="bi bi-info-circle"></i>
+        <strong>Dica:</strong> Apenas o Nome Fantasia é obrigatório. Os demais campos são opcionais.
+    </div>
+    {% endif %}
+    
+    <form method="POST" id="form-fornecedor">
+        {% csrf_token %}
+        
+        <!-- Dados da Empresa -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="bi bi-building"></i>
+                Dados da Empresa
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">CNPJ</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="cnpj" 
+                           id="cnpj"
+                           value="{{ fornecedor.cnpj|default:'' }}"
+                           placeholder="00.000.000/0000-00"
+                           maxlength="18">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Inscrição Estadual</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="inscricao_estadual" 
+                           value="{{ fornecedor.inscricao_estadual|default:'' }}"
+                           placeholder="000.000.000.000">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Razão Social</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="razao_social" 
+                           value="{{ fornecedor.razao_social|default:'' }}"
+                           placeholder="Razão Social da Empresa">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="form-label required-field">Nome Fantasia</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="nome_fantasia" 
+                           value="{{ fornecedor.nome_fantasia|default:'' }}"
+                           placeholder="Nome Fantasia"
+                           required>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contatos -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="bi bi-telephone"></i>
+                Informações de Contato
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Telefone</label>
+                    <input type="tel" 
+                           class="form-control" 
+                           name="telefone" 
+                           id="telefone"
+                           value="{{ fornecedor.telefone|default:'' }}"
+                           placeholder="(00) 0000-0000">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Celular</label>
+                    <input type="tel" 
+                           class="form-control" 
+                           name="celular" 
+                           id="celular"
+                           value="{{ fornecedor.celular|default:'' }}"
+                           placeholder="(00) 00000-0000">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" 
+                           class="form-control" 
+                           name="email" 
+                           value="{{ fornecedor.email|default:'' }}"
+                           placeholder="contato@fornecedor.com.br">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Site</label>
+                    <input type="url" 
+                           class="form-control" 
+                           name="site" 
+                           value="{{ fornecedor.site|default:'' }}"
+                           placeholder="https://www.fornecedor.com.br">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Contato Principal</label>
+                <input type="text" 
+                       class="form-control" 
+                       name="contato_principal" 
+                       value="{{ fornecedor.contato_principal|default:'' }}"
+                       placeholder="Nome do responsável pelos contatos">
+            </div>
+        </div>
+        
+        <!-- Endereço -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="bi bi-geo-alt"></i>
+                Endereço
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">CEP</label>
+                    <div class="input-group position-relative">
+                        <input type="text" 
+                               class="form-control" 
+                               name="cep" 
+                               id="cep"
+                               value="{{ fornecedor.cep|default:'' }}"
+                               placeholder="00000-000"
+                               maxlength="9">
+                        <button type="button" class="btn btn-primary btn-buscar-cep" onclick="buscarCEP()">
+                            <i class="bi bi-search"></i>
+                        </button>
+                        <div class="spinner-border spinner-border-sm loading-cep" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                    <small class="text-muted">Clique no botão para buscar</small>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Logradouro</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="logradouro" 
+                           id="logradouro"
+                           value="{{ fornecedor.logradouro|default:'' }}"
+                           placeholder="Rua, Avenida, etc.">
+                </div>
+                
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Número</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="numero" 
+                           value="{{ fornecedor.numero|default:'' }}"
+                           placeholder="123">
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Complemento</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="complemento" 
+                           value="{{ fornecedor.complemento|default:'' }}"
+                           placeholder="Sala, Andar, etc.">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Bairro</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="bairro" 
+                           id="bairro"
+                           value="{{ fornecedor.bairro|default:'' }}"
+                           placeholder="Bairro">
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Cidade</label>
+                    <input type="text" 
+                           class="form-control" 
+                           name="cidade" 
+                           id="cidade"
+                           value="{{ fornecedor.cidade|default:'' }}"
+                           placeholder="Cidade">
+                </div>
+                
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">UF</label>
+                    <input type="text" 
+                           class="form-control text-uppercase" 
+                           name="estado" 
+                           id="estado"
+                           value="{{ fornecedor.estado|default:'' }}"
+                           placeholder="SP"
+                           maxlength="2">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Classificação e Observações -->
+        <div class="form-section">
+            <div class="section-title">
+                <i class="bi bi-star"></i>
+                Avaliação e Observações
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Classificação do Fornecedor</label>
+                <div class="classificacao-selector">
+                    <input type="hidden" name="classificacao" id="classificacao" value="{{ fornecedor.classificacao|default:3 }}">
+                    {% for i in "12345" %}
+                    <button type="button" 
+                            class="estrela-btn {% if fornecedor.classificacao >= forloop.counter or not fornecedor and forloop.counter <= 3 %}ativa{% endif %}" 
+                            data-valor="{{ forloop.counter }}"
+                            onclick="setClassificacao({{ forloop.counter }})">
+                        ★
+                    </button>
+                    {% endfor %}
+                    <span class="ms-2 text-muted" id="classificacao-texto">
+                        {{ fornecedor.classificacao|default:3 }} de 5 estrelas
+                    </span>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Observações</label>
+                <textarea class="form-control" 
+                          name="observacoes" 
+                          rows="4"
+                          placeholder="Informações adicionais sobre o fornecedor, condições especiais, etc.">{{ fornecedor.observacoes|default:'' }}</textarea>
+            </div>
+            
+            {% if acao == 'editar' %}
+            <div class="form-check form-switch">
+                <input class="form-check-input" 
+                       type="checkbox" 
+                       name="ativo" 
+                       id="ativo"
+                       {% if fornecedor.ativo %}checked{% endif %}>
+                <label class="form-check-label" for="ativo">
+                    Fornecedor Ativo
+                </label>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Botões de Ação -->
+        <div class="actions-footer">
+            <a href="{% url 'lista_fornecedores' %}" class="btn btn-secondary btn-large">
+                <i class="bi bi-x-circle"></i> Cancelar
+            </a>
+            <button type="submit" class="btn btn-success btn-large">
+                <i class="bi bi-check-circle"></i> {{ acao|title }} Fornecedor
+            </button>
+        </div>
+        
+    </form>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Máscaras
+    $('#cnpj').mask('00.000.000/0000-00');
+    $('#telefone').mask('(00) 0000-0000');
+    $('#celular').mask('(00) 00000-0000');
+    $('#cep').mask('00000-000');
+});
+
+function setClassificacao(valor) {
+    $('#classificacao').val(valor);
+    
+    // Atualizar estrelas visuais
+    $('.estrela-btn').each(function(index) {
+        if (index < valor) {
+            $(this).addClass('ativa');
+        } else {
+            $(this).removeClass('ativa');
+        }
+    });
+    
+    // Atualizar texto
+    $('#classificacao-texto').text(valor + ' de 5 estrelas');
+}
+
+function buscarCEP() {
+    const cep = $('#cep').val().replace(/\D/g, '');
+    
+    if (cep.length !== 8) {
+        alert('CEP inválido! Digite um CEP com 8 dígitos.');
+        return;
+    }
+    
+    $('.loading-cep').show();
+    $('.btn-buscar-cep').prop('disabled', true);
+    
+    $.ajax({
+        url: '{% url "buscar_cep" %}',
+        data: { cep: cep },
+        success: function(data) {
+            if (data.success) {
+                $('#logradouro').val(data.logradouro);
+                $('#bairro').val(data.bairro);
+                $('#cidade').val(data.cidade);
+                $('#estado').val(data.estado);
+                
+                // Focar no número
+                $('input[name="numero"]').focus();
+            } else {
+                alert('CEP não encontrado!');
+            }
+        },
+        error: function() {
+            alert('Erro ao buscar CEP. Tente novamente.');
+        },
+        complete: function() {
+            $('.loading-cep').hide();
+            $('.btn-buscar-cep').prop('disabled', false);
+        }
+    });
+}
+
+// Permitir buscar CEP com Enter
+$('#cep').keypress(function(e) {
+    if (e.which === 13) {
+        e.preventDefault();
+        buscarCEP();
+    }
+});
+
+// Validação simplificada do formulário - apenas nome obrigatório
+$('#form-fornecedor').submit(function(e) {
+    const nomeFantasia = $('input[name="nome_fantasia"]').val().trim();
+    
+    if (!nomeFantasia) {
+        e.preventDefault();
+        alert('O Nome Fantasia é obrigatório!');
+        $('input[name="nome_fantasia"]').focus();
+        return false;
+    }
+    
+    return true;
+});
+</script>
+{% endblock %}

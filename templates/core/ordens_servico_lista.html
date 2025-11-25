@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+
+{% block title %}Ordens de Serviço - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Gestão de Ordens de Serviço{% endblock %}
+
+{% block content %}
+<!-- Estatísticas -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="icon"><i class="bi bi-wrench"></i></div>
+            <div>
+                <h3>{{ stats.total_os }}</h3>
+                <p>Total de OS</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card success">
+            <div class="icon"><i class="bi bi-currency-dollar"></i></div>
+            <div>
+                <h3>R$ {{ stats.valor_total|floatformat:2 }}</h3>
+                <p>Valor Total</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card info">
+            <div class="icon"><i class="bi bi-clipboard"></i></div>
+            <div>
+                <h3>{{ stats.abertas }}</h3>
+                <p>Abertas</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card warning">
+            <div class="icon"><i class="bi bi-tools"></i></div>
+            <div>
+                <h3>{{ stats.em_andamento }}</h3>
+                <p>Em Andamento</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="stat-card-success">
+            <div class="icon"><i class="bi bi-check-circle"></i></div>
+            <div>
+                <h3>{{ stats.finalizadas }}</h3>
+                <p>Finalizadas</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="table-card">
+    <form method="get" class="mb-4">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Data Início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Data Fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">Todos</option>
+                    <option value="AB" {% if status_selecionado == 'AB' %}selected{% endif %}>Aberta</option>
+                    <option value="EA" {% if status_selecionado == 'EA' %}selected{% endif %}>Em Andamento</option>
+                    <option value="AG" {% if status_selecionado == 'AG' %}selected{% endif %}>Aguard. Peças</option>
+                    <option value="FI" {% if status_selecionado == 'FI' %}selected{% endif %}>Finalizada</option>
+                    <option value="CA" {% if status_selecionado == 'CA' %}selected{% endif %}>Cancelada</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+        </div>
+        {% if data_inicio or data_fim or status_selecionado %}
+        <div class="mt-2">
+            <a href="{% url 'lista_ordens_servico' %}" class="btn btn-secondary btn-sm">
+                <i class="bi bi-x-circle"></i> Limpar Filtros
+            </a>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Lista de Ordens de Serviço</h5>
+        <a href="/admin/vendas/ordemservico/add/" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Nova OS
+        </a>
+    </div>
+
+    <!-- Tabela de OS -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Data Entrada</th>
+                    <th>Cliente</th>
+                    <th>Veículo</th>
+                    <th>Mecânico</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for os in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'detalhe_ordem_servico' os.id %}">
+                            <strong>#{{ os.numero }}</strong>
+                        </a>
+                    </td>
+                    <td>{{ os.data_entrada|date:"d/m/Y" }}</td>
+                    <td>{{ os.cliente.nome|truncatewords:3 }}</td>
+                    <td>
+                        <strong>{{ os.veiculo.placa }}</strong>
+                        <br><small class="text-muted">{{ os.veiculo.modelo }}</small>
+                    </td>
+                    <td>{{ os.mecanico }}</td>
+                    <td>
+                        {% if os.status == 'AB' %}
+                        <span class="badge bg-info">Aberta</span>
+                        {% elif os.status == 'EA' %}
+                        <span class="badge bg-primary">Em Andamento</span>
+                        {% elif os.status == 'AG' %}
+                        <span class="badge bg-warning">Aguard. Peças</span>
+                        {% elif os.status == 'FI' %}
+                        <span class="badge bg-success">Finalizada</span>
+                        {% else %}
+                        <span class="badge bg-danger">Cancelada</span>
+                        {% endif %}
+                    </td>
+                    <td><strong class="text-success">R$ {{ os.total|floatformat:2 }}</strong></td>
+                    <td>
+                        <a href="{% url 'detalhe_ordem_servico' os.id %}" class="btn btn-sm btn-outline-primary" title="Ver Detalhes">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="/admin/vendas/ordemservico/{{ os.id }}/change/" class="btn btn-sm btn-outline-warning" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p class="mt-2">Nenhuma ordem de serviço encontrada</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginação -->
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Navegação de página">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Primeira</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Anterior</a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Próxima</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if data_inicio %}&data_inicio={{ data_inicio }}{% endif %}{% if data_fim %}&data_fim={{ data_fim }}{% endif %}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Última</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<style>
+.stat-card, .stat-card-success {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+}
+
+.stat-card .icon, .stat-card-success .icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin-right: 15px;
+}
+
+.stat-card.primary .icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.success .icon, .stat-card-success .icon {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    color: white;
+}
+
+.stat-card.info .icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card.warning .icon {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card h3, .stat-card-success h3 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.stat-card p, .stat-card-success p {
+    margin: 0;
+    color: #718096;
+    font-size: 12px;
+}
+
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f7fafc;
+}
+</style>
+{% endblock %}

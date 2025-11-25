@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Lançar Faturamento{% endblock %}
+
+{% block page_title %}Lançar Faturamento{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .form-card .form-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-card .form-control,
+    .form-card .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .form-card .form-control:focus,
+    .form-card .form-select:focus {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .preview-tributo {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+    }
+
+    body.dark-mode .preview-tributo {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.1) 100%);
+    }
+
+    .preview-tributo h6 {
+        margin: 0 0 8px 0;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+    }
+
+    .preview-tributo .valor {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #dc3545;
+    }
+
+    .preview-tributo .aliquota {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label">Mês *</label>
+                    <select name="mes" id="selectMes" class="form-select" required>
+                        <option value="1" {% if mes_atual == 1 %}selected{% endif %}>Janeiro</option>
+                        <option value="2" {% if mes_atual == 2 %}selected{% endif %}>Fevereiro</option>
+                        <option value="3" {% if mes_atual == 3 %}selected{% endif %}>Março</option>
+                        <option value="4" {% if mes_atual == 4 %}selected{% endif %}>Abril</option>
+                        <option value="5" {% if mes_atual == 5 %}selected{% endif %}>Maio</option>
+                        <option value="6" {% if mes_atual == 6 %}selected{% endif %}>Junho</option>
+                        <option value="7" {% if mes_atual == 7 %}selected{% endif %}>Julho</option>
+                        <option value="8" {% if mes_atual == 8 %}selected{% endif %}>Agosto</option>
+                        <option value="9" {% if mes_atual == 9 %}selected{% endif %}>Setembro</option>
+                        <option value="10" {% if mes_atual == 10 %}selected{% endif %}>Outubro</option>
+                        <option value="11" {% if mes_atual == 11 %}selected{% endif %}>Novembro</option>
+                        <option value="12" {% if mes_atual == 12 %}selected{% endif %}>Dezembro</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Ano *</label>
+                    <input type="number" name="ano" class="form-control" required 
+                           value="{{ ano_atual }}" min="2020" max="2100">
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Valor do Faturamento *</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: var(--bg-secondary); border-color: var(--card-border); color: var(--text-muted);">R$</span>
+                        <input type="text" name="valor_faturamento" id="valorFaturamento" class="form-control" required placeholder="0,00">
+                    </div>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Dia de Vencimento do Tributo</label>
+                    <input type="number" name="dia_vencimento" class="form-control" 
+                           value="{{ config_tributo.dia_vencimento }}" min="1" max="28">
+                    <small class="text-muted">Dia do mês seguinte para pagamento</small>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Observações</label>
+                    <textarea name="observacoes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            
+            <div class="preview-tributo">
+                <h6><i class="bi bi-bank me-2"></i>Tributo a Pagar ({{ config_tributo.aliquota }}%)</h6>
+                <div class="valor" id="valorTributo">R$ 0,00</div>
+                <div class="aliquota">Simples Nacional</div>
+            </div>
+            
+            <div class="d-flex gap-3 justify-content-end mt-4">
+                <a href="{% url 'financeiro:lista_faturamento' %}" class="btn btn-cancelar">
+                    <i class="bi bi-x-lg"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-salvar">
+                    <i class="bi bi-check-lg"></i> Lançar Faturamento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const valorFaturamento = document.getElementById('valorFaturamento');
+    const valorTributo = document.getElementById('valorTributo');
+    const aliquota = {{ config_tributo.aliquota }};
+    
+    function calcularTributo() {
+        let valor = valorFaturamento.value.replace(/\./g, '').replace(',', '.');
+        valor = parseFloat(valor) || 0;
+        const tributo = valor * (aliquota / 100);
+        
+        valorTributo.textContent = 'R$ ' + tributo.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    valorFaturamento.addEventListener('input', calcularTributo);
+});
+</script>
+{% endblock %}

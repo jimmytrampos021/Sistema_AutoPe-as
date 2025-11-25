@@ -1,0 +1,605 @@
+{% extends 'base.html' %}
+
+{% block title %}Contas a Pagar - Financeiro{% endblock %}
+
+{% block page_title %}Contas a Pagar{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --bg-tertiary: #edf2f7;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --bg-tertiary: #404040;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 576px) {
+        .stats-row { grid-template-columns: 1fr; }
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .stat-icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .stat-icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .stat-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    body.dark-mode .stat-icon.blue { background: rgba(59, 130, 246, 0.25); }
+    body.dark-mode .stat-icon.green { background: rgba(34, 197, 94, 0.25); }
+    body.dark-mode .stat-icon.yellow { background: rgba(234, 179, 8, 0.25); }
+    body.dark-mode .stat-icon.red { background: rgba(239, 68, 68, 0.25); }
+
+    .stat-info h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .stat-info p {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 2px 0 0 0;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    .filtros-section {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .filtros-section .form-control,
+    .filtros-section .form-select {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 10px 14px;
+    }
+
+    .filtros-section .form-control:focus,
+    .filtros-section .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-filtrar {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .btn-filtrar:hover {
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        color: white;
+    }
+
+    .btn-novo {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .btn-novo:hover {
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        color: white;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .table-header h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .tabela-contas {
+        width: 100%;
+    }
+
+    .tabela-contas thead th {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        padding: 14px 12px;
+        border-bottom: 2px solid var(--card-border);
+    }
+
+    .tabela-contas tbody td {
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    .tabela-contas tbody tr:hover {
+        background: var(--bg-secondary);
+    }
+
+    .conta-descricao {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .conta-categoria {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.85rem;
+    }
+
+    .conta-categoria i {
+        font-size: 1rem;
+    }
+
+    .valor-conta {
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.pendente { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .status-badge.pago { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .status-badge.atrasado { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+    .status-badge.cancelado { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+    body.dark-mode .status-badge.pendente { background: rgba(234, 179, 8, 0.25); color: #eab308; }
+    body.dark-mode .status-badge.pago { background: rgba(34, 197, 94, 0.25); color: #22c55e; }
+    body.dark-mode .status-badge.atrasado { background: rgba(239, 68, 68, 0.25); color: #ef4444; }
+    body.dark-mode .status-badge.cancelado { background: rgba(107, 114, 128, 0.25); color: #9ca3af; }
+
+    .tipo-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .tipo-badge.fixa { background: rgba(111, 66, 193, 0.15); color: #6f42c1; }
+    .tipo-badge.variavel { background: rgba(253, 126, 20, 0.15); color: #fd7e14; }
+    .tipo-badge.parcelado { background: rgba(13, 202, 240, 0.15); color: #0dcaf0; }
+    .tipo-badge.tributo { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+
+    body.dark-mode .tipo-badge.fixa { background: rgba(111, 66, 193, 0.25); }
+    body.dark-mode .tipo-badge.variavel { background: rgba(253, 126, 20, 0.25); }
+    body.dark-mode .tipo-badge.parcelado { background: rgba(13, 202, 240, 0.25); }
+    body.dark-mode .tipo-badge.tributo { background: rgba(220, 53, 69, 0.25); }
+
+    .btn-acao {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+    }
+
+    .parcela-info {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .data-vencimento {
+        font-weight: 500;
+    }
+
+    .data-vencimento.atrasada {
+        color: #ef4444;
+    }
+
+    .paginacao-container {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    .paginacao-container .page-link {
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        background: var(--card-bg);
+        border-radius: 8px;
+        padding: 8px 14px;
+        margin: 0 2px;
+    }
+
+    .paginacao-container .page-item.active .page-link {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border-color: transparent;
+        color: white;
+    }
+
+    .sem-dados {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .sem-dados i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 16px;
+    }
+
+    /* Modal de Pagamento */
+    .modal-pagar .modal-content {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+    }
+
+    .modal-pagar .modal-header {
+        border-bottom: 1px solid var(--card-border);
+    }
+
+    .modal-pagar .modal-footer {
+        border-top: 1px solid var(--card-border);
+    }
+
+    .modal-pagar .form-control,
+    .modal-pagar .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+    }
+
+    .modal-pagar .modal-title {
+        color: var(--text-primary);
+    }
+
+    .modal-pagar label {
+        color: var(--text-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <!-- Estatísticas -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total|floatformat:0 }}</h3>
+                <p>Total ({{ stats.qtd_total }})</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.pendentes|floatformat:0 }}</h3>
+                <p>Pendentes ({{ stats.qtd_pendentes }})</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.pagas|floatformat:0 }}</h3>
+                <p>Pagas</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.atrasadas|floatformat:0 }}</h3>
+                <p>Atrasadas ({{ stats.qtd_atrasadas }})</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Principal -->
+    <div class="main-card">
+        <!-- Filtros -->
+        <div class="filtros-section">
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-lg-3">
+                        <input type="text" name="busca" class="form-control" placeholder="Buscar descrição..." value="{{ busca }}">
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="status" class="form-select">
+                            <option value="">Todos Status</option>
+                            <option value="PENDENTE" {% if status_filtro == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+                            <option value="PAGO" {% if status_filtro == 'PAGO' %}selected{% endif %}>Pago</option>
+                            <option value="ATRASADO" {% if status_filtro == 'ATRASADO' %}selected{% endif %}>Atrasado</option>
+                            <option value="CANCELADO" {% if status_filtro == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="tipo" class="form-select">
+                            <option value="">Todos Tipos</option>
+                            <option value="FIXA" {% if tipo_filtro == 'FIXA' %}selected{% endif %}>Fixa</option>
+                            <option value="VARIAVEL" {% if tipo_filtro == 'VARIAVEL' %}selected{% endif %}>Variável</option>
+                            <option value="PARCELADO" {% if tipo_filtro == 'PARCELADO' %}selected{% endif %}>Parcelado</option>
+                            <option value="TRIBUTO" {% if tipo_filtro == 'TRIBUTO' %}selected{% endif %}>Tributo</option>
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="categoria" class="form-select">
+                            <option value="">Todas Categorias</option>
+                            {% for cat in categorias %}
+                            <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-2">
+                        <select name="mes" class="form-select">
+                            <option value="">Todos Meses</option>
+                            {% for m in "123456789101112"|make_list %}
+                            <option value="{{ forloop.counter }}" {% if mes_selecionado == forloop.counter|stringformat:"s" %}selected{% endif %}>
+                                {% if forloop.counter == 1 %}Janeiro{% elif forloop.counter == 2 %}Fevereiro{% elif forloop.counter == 3 %}Março{% elif forloop.counter == 4 %}Abril{% elif forloop.counter == 5 %}Maio{% elif forloop.counter == 6 %}Junho{% elif forloop.counter == 7 %}Julho{% elif forloop.counter == 8 %}Agosto{% elif forloop.counter == 9 %}Setembro{% elif forloop.counter == 10 %}Outubro{% elif forloop.counter == 11 %}Novembro{% else %}Dezembro{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-1">
+                        <button type="submit" class="btn btn-filtrar w-100">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Cabeçalho -->
+        <div class="table-header">
+            <h5><i class="bi bi-list-ul me-2"></i>Lista de Contas</h5>
+            <a href="{% url 'financeiro:criar_conta' %}" class="btn btn-novo">
+                <i class="bi bi-plus-lg"></i> Nova Conta
+            </a>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-responsive">
+            <table class="tabela-contas">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Categoria</th>
+                        <th>Tipo</th>
+                        <th>Valor</th>
+                        <th>Vencimento</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conta in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="conta-descricao">{{ conta.descricao|truncatewords:6 }}</div>
+                            {% if conta.total_parcelas > 1 %}
+                            <div class="parcela-info">Parcela {{ conta.parcela_atual }}/{{ conta.total_parcelas }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="conta-categoria" style="color: {{ conta.categoria.cor }};">
+                                <i class="{{ conta.categoria.icone }}"></i>
+                                {{ conta.categoria.nome }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="tipo-badge {{ conta.tipo|lower }}">{{ conta.get_tipo_display }}</span>
+                        </td>
+                        <td>
+                            <span class="valor-conta">R$ {{ conta.valor|floatformat:2 }}</span>
+                        </td>
+                        <td>
+                            <span class="data-vencimento {% if conta.esta_atrasado %}atrasada{% endif %}">
+                                {{ conta.data_vencimento|date:"d/m/Y" }}
+                            </span>
+                            {% if conta.dias_atraso > 0 %}
+                            <br><small class="text-danger">{{ conta.dias_atraso }} dias</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge {{ conta.status|lower }}">
+                                {% if conta.status == 'PENDENTE' %}<i class="bi bi-clock"></i>
+                                {% elif conta.status == 'PAGO' %}<i class="bi bi-check-circle"></i>
+                                {% elif conta.status == 'ATRASADO' %}<i class="bi bi-exclamation-triangle"></i>
+                                {% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                {{ conta.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if conta.status != 'PAGO' and conta.status != 'CANCELADO' %}
+                            <button type="button" class="btn btn-acao btn-success" title="Pagar" 
+                                    data-bs-toggle="modal" data-bs-target="#modalPagar{{ conta.id }}">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'financeiro:editar_conta' conta.id %}" class="btn btn-acao btn-outline-warning" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% if conta.status == 'PENDENTE' or conta.status == 'ATRASADO' %}
+                            <form method="post" action="{% url 'financeiro:cancelar_conta' conta.id %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-acao btn-outline-danger" title="Cancelar" onclick="return confirm('Cancelar esta conta?');">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal Pagar -->
+                    <div class="modal fade modal-pagar" id="modalPagar{{ conta.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'financeiro:pagar_conta' conta.id %}" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"><i class="bi bi-check-circle text-success me-2"></i>Pagar Conta</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>{{ conta.descricao }}</strong></p>
+                                        <p class="h4 text-success">R$ {{ conta.valor|floatformat:2 }}</p>
+                                        <hr>
+                                        <div class="mb-3">
+                                            <label class="form-label">Forma de Pagamento</label>
+                                            <select name="forma_pagamento" class="form-select">
+                                                <option value="">Selecione...</option>
+                                                {% for forma in formas_pagamento %}
+                                                <option value="{{ forma.id }}">{{ forma.nome }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Data do Pagamento</label>
+                                            <input type="date" name="data_pagamento" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Comprovante (opcional)</label>
+                                            <input type="file" name="comprovante" class="form-control">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                        <button type="submit" class="btn btn-success"><i class="bi bi-check-lg"></i> Confirmar Pagamento</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="sem-dados">
+                                <i class="bi bi-inbox d-block"></i>
+                                <p>Nenhuma conta encontrada</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <div class="paginacao-container">
+            <nav>
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if busca %}&busca={{ busca }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busca %}&busca={{ busca }}{% endif %}{% if status_filtro %}&status={{ status_filtro }}{% endif %}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
