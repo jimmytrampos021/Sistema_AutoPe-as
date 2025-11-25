@@ -1,0 +1,218 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+
+{% block extrahead %}
+{{ block.super }}
+
+<!-- CSS Customizado -->
+<link rel="stylesheet" href="{% static 'admin/css/precos_customizados.css' %}">
+
+<!-- JavaScript Customizado -->
+<script src="{% static 'admin/js/precos_customizados.js' %}"></script>
+
+<!-- Fallback: JavaScript Inline caso o arquivo não carregue -->
+<script>
+(function($) {
+    $(document).ready(function() {
+        console.log('🚀 Script de preços customizados carregado!');
+        
+        // Verifica se jQuery está disponível
+        if (typeof $ === 'undefined') {
+            console.error('❌ jQuery não encontrado!');
+            return;
+        }
+        
+        // Tabela de taxas
+        const TAXAS = {
+            'DEBITO': 1.09,
+            'CREDITO': {
+                1: 3.45, 2: 5.18, 3: 6.37, 4: 7.56, 5: 8.75, 6: 9.94,
+                7: 11.13, 8: 12.32, 9: 13.51, 10: 14.70, 11: 15.89, 12: 17.08
+            }
+        };
+        
+        // Função de cálculo
+        function calcularPrecoComTaxa(precoBase, taxaPercentual) {
+            if (!precoBase || precoBase <= 0) return 0;
+            return precoBase * (1 + (taxaPercentual / 100));
+        }
+        
+        // Adiciona botão de calcular todos
+        function adicionarBotaoCalcular() {
+            const $precoVista = $('#id_preco_venda_dinheiro').closest('.form-row');
+            
+            if ($precoVista.length && !$('#btn-calcular-todos').length) {
+                const $botao = $(`
+                    <div style="margin: 15px 0; padding: 15px; background: #f0f8ff; border: 2px solid #0d6efd; border-radius: 8px;">
+                        <button type="button" id="btn-calcular-todos" class="button" 
+                                style="background: #28a745; color: white; padding: 10px 20px; font-size: 1rem; font-weight: 600; border: none; border-radius: 4px; cursor: pointer;">
+                            ⚡ Calcular TODOS os preços automaticamente
+                        </button>
+                        <p style="font-size: 0.9rem; color: #6c757d; margin: 10px 0 0 0;">
+                            Clique para preencher débito, crédito e todas as parcelas baseado no preço à vista
+                        </p>
+                    </div>
+                `);
+                
+                $precoVista.after($botao);
+                console.log('✅ Botão "Calcular todos" adicionado!');
+            }
+        }
+        
+        // Ação do botão
+        $(document).on('click', '#btn-calcular-todos', function(e) {
+            e.preventDefault();
+            console.log('🔄 Calculando preços...');
+            
+            const precoVista = parseFloat($('#id_preco_venda_dinheiro').val()) || 0;
+            
+            if (precoVista <= 0) {
+                alert('⚠️ Por favor, defina o preço à vista primeiro!');
+                $('#id_preco_venda_dinheiro').focus();
+                return;
+            }
+            
+            // Calcula débito
+            const precoDebito = calcularPrecoComTaxa(precoVista, TAXAS.DEBITO);
+            $('#id_preco_venda_debito').val(precoDebito.toFixed(2));
+            console.log(`💳 Débito: R$ ${precoDebito.toFixed(2)}`);
+            
+            // Calcula crédito à vista
+            const precoCredito1x = calcularPrecoComTaxa(precoVista, TAXAS.CREDITO[1]);
+            $('#id_preco_venda_credito').val(precoCredito1x.toFixed(2));
+            console.log(`💳 Crédito 1x: R$ ${precoCredito1x.toFixed(2)}`);
+            
+            // Calcula parcelamentos
+            for (let parcela = 2; parcela <= 12; parcela++) {
+                const precoParcelado = calcularPrecoComTaxa(precoVista, TAXAS.CREDITO[parcela]);
+                $(`#id_preco_credito_${parcela}x`).val(precoParcelado.toFixed(2));
+                console.log(`💳 Crédito ${parcela}x: R$ ${precoParcelado.toFixed(2)}`);
+            }
+            
+            // Mensagem de sucesso
+            const $mensagem = $(`
+                <div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 4px; margin-top: 10px; animation: fadeIn 0.3s;">
+                    ✅ <strong>Sucesso!</strong> Todos os preços foram calculados automaticamente.
+                </div>
+            `);
+            
+            $(this).after($mensagem);
+            setTimeout(function() {
+                $mensagem.fadeOut(300, function() { $(this).remove(); });
+            }, 3000);
+            
+            console.log('✅ Cálculo concluído!');
+        });
+        
+        // Validação de margem
+        function validarMargem() {
+            const precoCusto = parseFloat($('#id_preco_custo').val()) || 0;
+            const precoVenda = parseFloat($('#id_preco_venda_dinheiro').val()) || 0;
+            
+            // Remove avisos anteriores
+            $('.aviso-margem').remove();
+            
+            if (precoCusto > 0 && precoVenda > 0) {
+                if (precoCusto >= precoVenda) {
+                    const $aviso = $(`
+                        <div class="aviso-margem" style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                            ⚠️ <strong>ATENÇÃO:</strong> Preço de venda menor ou igual ao custo! Você terá prejuízo.
+                        </div>
+                    `);
+                    $('#id_preco_venda_dinheiro').closest('.form-row').append($aviso);
+                } else {
+                    const margem = ((precoVenda - precoCusto) / precoCusto) * 100;
+                    const $aviso = $(`
+                        <div class="aviso-margem" style="background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-top: 5px;">
+                            ✅ Margem de lucro: <strong>${margem.toFixed(2)}%</strong>
+                        </div>
+                    `);
+                    $('#id_preco_venda_dinheiro').closest('.form-row').append($aviso);
+                }
+            }
+        }
+        
+        // Destaque para imposto 4%
+        function destacarImposto4() {
+            const imposto4Ativo = $('#id_aplicar_imposto_4').is(':checked');
+            const $fieldset = $('#id_aplicar_imposto_4').closest('fieldset');
+            
+            $('.aviso-imposto-4').remove();
+            
+            if (imposto4Ativo) {
+                $fieldset.css({
+                    'border': '3px solid #dc3545',
+                    'background': '#fff5f5'
+                });
+                
+                $fieldset.prepend(`
+                    <div class="aviso-imposto-4" style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #dc3545;">
+                        <strong>⚠️ IMPOSTO DE 4% ATIVO</strong><br>
+                        Todos os preços de venda terão 4% adicional calculado automaticamente.
+                    </div>
+                `);
+            } else {
+                $fieldset.css({
+                    'border': '',
+                    'background': ''
+                });
+            }
+        }
+        
+        // Eventos
+        $('#id_preco_custo, #id_preco_venda_dinheiro').on('change keyup', function() {
+            setTimeout(validarMargem, 300);
+        });
+        
+        $('#id_aplicar_imposto_4').on('change', destacarImposto4);
+        
+        // Inicialização
+        setTimeout(function() {
+            adicionarBotaoCalcular();
+            validarMargem();
+            destacarImposto4();
+            console.log('✅ Sistema de preços customizados inicializado!');
+        }, 500);
+        
+    });
+})(django.jQuery || jQuery);
+</script>
+
+<style>
+/* CSS Inline como fallback */
+.field-preco_credito_2x,
+.field-preco_credito_3x,
+.field-preco_credito_4x,
+.field-preco_credito_5x,
+.field-preco_credito_6x,
+.field-preco_credito_7x,
+.field-preco_credito_8x,
+.field-preco_credito_9x,
+.field-preco_credito_10x,
+.field-preco_credito_11x,
+.field-preco_credito_12x {
+    display: inline-block;
+    width: 32%;
+    margin-right: 1%;
+    vertical-align: top;
+}
+
+input[id^="id_preco_"] {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 8px;
+}
+
+#btn-calcular-todos:hover {
+    background: #218838 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+
+{% endblock %}

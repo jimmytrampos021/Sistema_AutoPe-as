@@ -1,0 +1,245 @@
+/**
+ * CSS para Admin de Produtos - Preços Customizados
+ * Melhora a visualização e UX dos campos de preços
+ */
+
+/* ==========================================
+   FIELDSET DE PREÇOS CUSTOMIZADOS
+   ========================================== */
+
+.field-preco_credito_2x,
+.field-preco_credito_3x,
+.field-preco_credito_4x,
+.field-preco_credito_5x,
+.field-preco_credito_6x,
+.field-preco_credito_7x,
+.field-preco_credito_8x,
+.field-preco_credito_9x,
+.field-preco_credito_10x,
+.field-preco_credito_11x,
+.field-preco_credito_12x {
+    display: inline-block;
+    width: 32%;
+    margin-right: 1%;
+    vertical-align: top;
+}
+
+/* Labels dos campos de parcela */
+.field-preco_credito_2x label,
+.field-preco_credito_3x label,
+.field-preco_credito_4x label,
+.field-preco_credito_5x label,
+.field-preco_credito_6x label,
+.field-preco_credito_7x label,
+.field-preco_credito_8x label,
+.field-preco_credito_9x label,
+.field-preco_credito_10x label,
+.field-preco_credito_11x label,
+.field-preco_credito_12x label {
+    font-weight: 600;
+    color: #6f42c1;
+}
+
+/* Inputs de preço */
+input[id^="id_preco_"] {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 8px;
+}
+
+/* ==========================================
+   BADGES E INDICADORES
+   ========================================== */
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+/* ==========================================
+   SUGESTÕES DE PREÇO
+   ========================================== */
+
+.sugestao-preco {
+    display: inline-block;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.sugestao-preco a {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sugestao-preco a:hover {
+    color: #0056b3 !important;
+    text-decoration: underline !important;
+}
+
+/* ==========================================
+   AVISOS E ALERTAS
+   ========================================== */
+
+.aviso-campo {
+    margin-top: 8px;
+}
+
+/* ==========================================
+   CHECKBOX DE CONFIGURAÇÃO
+   ========================================== */
+
+.field-aplicar_imposto_4 input[type="checkbox"],
+.field-preco_customizado_cartao input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.field-aplicar_imposto_4 label,
+.field-preco_customizado_cartao label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #495057;
+    cursor: pointer;
+}
+
+/* Destaque quando checkbox está marcado */
+.field-aplicar_imposto_4 input[type="checkbox"]:checked + label,
+.field-preco_customizado_cartao input[type="checkbox"]:checked + label {
+    color: #dc3545;
+}
+
+/* ==========================================
+   PREVIEW DE PREÇOS
+   ========================================== */
+
+.field-preview_precos_cartao {
+    margin: 20px 0;
+}
+
+.field-preview_precos_cartao table {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.field-preview_precos_cartao th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+}
+
+/* ==========================================
+   BOTÕES DE AÇÃO
+   ========================================== */
+
+#btn-calcular-todos {
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+#btn-calcular-todos:hover {
+    background: #218838 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#btn-calcular-todos:active {
+    transform: translateY(0);
+}
+
+/* ==========================================
+   ANIMAÇÕES
+   ========================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ==========================================
+   RESPONSIVIDADE
+   ========================================== */
+
+@media (max-width: 768px) {
+    .field-preco_credito_2x,
+    .field-preco_credito_3x,
+    .field-preco_credito_4x,
+    .field-preco_credito_5x,
+    .field-preco_credito_6x,
+    .field-preco_credito_7x,
+    .field-preco_credito_8x,
+    .field-preco_credito_9x,
+    .field-preco_credito_10x,
+    .field-preco_credito_11x,
+    .field-preco_credito_12x {
+        width: 100%;
+        display: block;
+        margin-right: 0;
+    }
+}
+
+/* ==========================================
+   MELHORIAS VISUAIS GERAIS
+   ========================================== */
+
+/* Destaque nos fieldsets importantes */
+fieldset h2 {
+    transition: all 0.3s;
+}
+
+/* Efeito hover nos fieldsets */
+.module:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Melhora contraste dos readonly fields */
+.readonly {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 6px;
+    border-radius: 4px;
+}

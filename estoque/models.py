@@ -559,6 +559,110 @@ class Produto(models.Model):
         verbose_name='Imagem Principal'
     )
 
+
+    # ========== CONFIGURAÇÃO DE IMPOSTOS E PREÇOS CUSTOMIZADOS ==========
+    aplicar_imposto_4 = models.BooleanField(
+        default=False,
+        verbose_name='Aplicar Imposto 4% (Simples Nacional)',
+        help_text='Marca se este produto deve ter 4% de imposto incluído no preço final'
+    )
+
+    preco_customizado_cartao = models.BooleanField(
+        default=False,
+        verbose_name='Usar Preços Customizados no Cartão',
+        help_text='Se marcado, você define preços manualmente por parcela. Se desmarcado, usa taxa automática.'
+    )
+
+    # Preços customizados para cartão de crédito parcelado
+    preco_credito_2x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 2x',
+        help_text='Preço customizado para 2 parcelas'
+    )
+
+    preco_credito_3x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 3x'
+    )
+
+    preco_credito_4x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 4x'
+    )
+
+    preco_credito_5x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 5x'
+    )
+
+    preco_credito_6x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 6x'
+    )
+
+    preco_credito_7x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 7x'
+    )
+
+    preco_credito_8x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 8x'
+    )
+
+    preco_credito_9x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 9x'
+    )
+
+    preco_credito_10x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 10x'
+    )
+
+    preco_credito_11x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 11x'
+    )
+
+    preco_credito_12x = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        verbose_name='Preço Crédito 12x'
+    )
+
     # ========== OBSERVAÇÕES ==========
     observacoes = models.TextField(
         blank=True, 
@@ -671,12 +775,157 @@ class Produto(models.Model):
             partes.append(self.divisao_prateleira)
         return ' / '.join(partes) if partes else 'Não definida'
     
+    def get_preco_cartao(self, tipo='CREDITO', parcelas=1):
+        """
+        Retorna o preço para venda no cartão considerando:
+        - Preços customizados (se configurado)
+        - Taxas automáticas da tabela TaxaCartao
+        - Imposto de 4% (se aplicável)
+        """
+        from financeiro.models import TaxaCartao
+        
+        # Se for PIX, retorna preço dinheiro (sem taxa)
+        if tipo == 'PIX':
+            preco_base = self.preco_venda_dinheiro or Decimal('0.00')
+            if self.aplicar_imposto_4:
+                preco_base = preco_base * Decimal('1.04')
+            return preco_base
+        
+        # Se for DÉBITO
+        if tipo == 'DEBITO':
+            if self.preco_venda_debito and self.preco_venda_debito > 0:
+                preco_base = self.preco_venda_debito
+            else:
+                preco_base = self.preco_venda_dinheiro or Decimal('0.00')
+                taxa = TaxaCartao.get_taxa('DEBITO', 1)
+                preco_base = preco_base * (Decimal('1') + (taxa / Decimal('100')))
+            
+            if self.aplicar_imposto_4:
+                preco_base = preco_base * Decimal('1.04')
+            
+            return preco_base
+        
+        # Se for CRÉDITO
+        if tipo == 'CREDITO':
+            # Verifica se tem preço customizado
+            if self.preco_customizado_cartao and parcelas >= 2:
+                campo_preco = f'preco_credito_{parcelas}x'
+                preco_customizado = getattr(self, campo_preco, None)
+                
+                if preco_customizado and preco_customizado > 0:
+                    preco_base = preco_customizado
+                    if self.aplicar_imposto_4:
+                        preco_base = preco_base * Decimal('1.04')
+                    return preco_base
+            
+            # Calcula automaticamente
+            if parcelas == 1:
+                if self.preco_venda_credito and self.preco_venda_credito > 0:
+                    preco_base = self.preco_venda_credito
+                else:
+                    preco_base = self.preco_venda_dinheiro or Decimal('0.00')
+                    taxa = TaxaCartao.get_taxa('CREDITO', 1)
+                    preco_base = preco_base * (Decimal('1') + (taxa / Decimal('100')))
+            else:
+                preco_base = self.preco_venda_dinheiro or Decimal('0.00')
+                taxa = TaxaCartao.get_taxa('CREDITO', parcelas)
+                preco_base = preco_base * (Decimal('1') + (taxa / Decimal('100')))
+            
+            if self.aplicar_imposto_4:
+                preco_base = preco_base * Decimal('1.04')
+            
+            return preco_base
+        
+        return Decimal('0.00')
+
+
+    def get_todos_precos_cartao(self):
+        """
+        Retorna dicionário com todos os preços possíveis
+        """
+        return {
+            'pix': self.get_preco_cartao('PIX', 1),
+            'dinheiro': self.preco_venda_dinheiro or Decimal('0.00'),
+            'debito': self.get_preco_cartao('DEBITO', 1),
+            'credito': {
+                parcela: self.get_preco_cartao('CREDITO', parcela)
+                for parcela in range(1, 13)
+            }
+        }
+
+
+    def calcular_lucro_liquido(self, preco_venda, tipo_pagamento='PIX', parcelas=1):
+        """
+        Calcula lucro líquido considerando taxas e imposto
+        """
+        from financeiro.models import TaxaCartao
+        
+        preco_venda = Decimal(str(preco_venda))
+        preco_custo = self.preco_custo or Decimal('0.00')
+        
+        taxa_cartao_percentual = Decimal('0.00')
+        valor_taxa_cartao = Decimal('0.00')
+        imposto_4_percentual = Decimal('4.00') if self.aplicar_imposto_4 else Decimal('0.00')
+        valor_imposto_4 = Decimal('0.00')
+        
+        # Taxa do cartão
+        if tipo_pagamento in ['DEBITO', 'CREDITO']:
+            taxa_cartao_percentual = TaxaCartao.get_taxa(tipo_pagamento, parcelas)
+            valor_taxa_cartao = preco_venda * (taxa_cartao_percentual / Decimal('100'))
+        
+        # Imposto 4%
+        if self.aplicar_imposto_4:
+            base_imposto = preco_venda - valor_taxa_cartao
+            valor_imposto_4 = base_imposto * Decimal('0.04')
+        
+        # Lucros
+        lucro_bruto = preco_venda - preco_custo
+        lucro_liquido = preco_venda - preco_custo - valor_taxa_cartao - valor_imposto_4
+        
+        margem_liquida = Decimal('0.00')
+        if preco_custo > 0:
+            margem_liquida = (lucro_liquido / preco_custo) * Decimal('100')
+        
+        return {
+            'preco_venda': preco_venda,
+            'preco_custo': preco_custo,
+            'taxa_cartao_percentual': taxa_cartao_percentual,
+            'valor_taxa_cartao': valor_taxa_cartao,
+            'imposto_4_percentual': imposto_4_percentual,
+            'valor_imposto_4': valor_imposto_4,
+            'lucro_bruto': lucro_bruto,
+            'lucro_liquido': lucro_liquido,
+            'margem_liquida': margem_liquida
+        }
+
+
+    def preencher_precos_automaticos(self):
+        """
+        Preenche automaticamente preços de débito e crédito
+        """
+        from financeiro.models import TaxaCartao
+        
+        if not self.preco_venda_dinheiro or self.preco_venda_dinheiro <= 0:
+            return
+        
+        taxa_debito = TaxaCartao.get_taxa('DEBITO', 1)
+        self.preco_venda_debito = self.preco_venda_dinheiro * (Decimal('1') + (taxa_debito / Decimal('100')))
+        
+        taxa_credito_1x = TaxaCartao.get_taxa('CREDITO', 1)
+        self.preco_venda_credito = self.preco_venda_dinheiro * (Decimal('1') + (taxa_credito_1x / Decimal('100')))
+        
+        if not self.preco_customizado_cartao:
+            for parcela in range(2, 13):
+                setattr(self, f'preco_credito_{parcela}x', None)
+        
+        
     def get_aplicacoes_formatadas(self):
         """Retorna lista de aplicações formatadas"""
         aplicacoes = []
         for versao in self.versoes_compativeis.all().select_related('modelo__montadora'):
             aplicacoes.append(str(versao))
         return aplicacoes
+    
 
 # ==========================================
 # MODELO: COTAÇÃO DE FORNECEDOR
