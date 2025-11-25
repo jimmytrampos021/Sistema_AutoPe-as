@@ -1,0 +1,729 @@
+{% extends 'base.html' %}
+
+{% block title %}PDV - Sistema Autopeças{% endblock %}
+
+{% block page_title %}Ponto de Venda (PDV){% endblock %}
+
+{% block extra_css %}
+<style>
+    .pdv-container {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 20px;
+        height: calc(100vh - 180px);
+    }
+    
+    .produtos-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        overflow-y: auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .carrinho-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .produto-card {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-bottom: 15px;
+    }
+    
+    .produto-card:hover {
+        border-color: #0d6efd;
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(13,110,253,0.2);
+    }
+    
+    .produto-card.selected {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    
+    .produto-card.sem-estoque {
+        border-color: #dc3545;
+        opacity: 0.7;
+    }
+    
+    .produto-card.sem-estoque:hover {
+        border-color: #dc3545;
+        opacity: 1;
+    }
+    
+    .produto-codigo {
+        font-size: 12px;
+        color: #6c757d;
+        font-weight: bold;
+    }
+    
+    .produto-nome {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 5px 0;
+    }
+    
+    .produto-estoque {
+        font-size: 13px;
+        color: #6c757d;
+    }
+    
+    .produto-estoque.alerta {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .produto-preco {
+        font-size: 20px;
+        color: #198754;
+        font-weight: bold;
+        margin-top: 8px;
+    }
+    
+    .carrinho-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid #e9ecef;
+        margin-bottom: 10px;
+    }
+    
+    .carrinho-item:last-child {
+        border-bottom: none;
+    }
+    
+    .carrinho-item.sem-estoque-warning {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    
+    .item-qtd-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .item-qtd-control button {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-radius: 50%;
+    }
+    
+    .carrinho-total {
+        margin-top: auto;
+        padding-top: 20px;
+        border-top: 3px solid #0d6efd;
+    }
+    
+    .total-valor {
+        font-size: 32px;
+        font-weight: bold;
+        color: #0d6efd;
+        text-align: center;
+        margin: 15px 0;
+    }
+    
+    .search-box {
+        position: sticky;
+        top: 0;
+        background: white;
+        padding-bottom: 15px;
+        z-index: 10;
+    }
+    
+    body.dark-mode .search-box {
+        background: #2d2d2d;
+    }
+    
+    .search-counter {
+        font-size: 12px;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+    
+    .produto-card.selected {
+        animation: pulseGreen 0.3s ease;
+    }
+    
+    @keyframes pulseGreen {
+        0%, 100% { transform: scale(1); border-color: #e9ecef; }
+        50% { transform: scale(1.05); border-color: #198754; background-color: #d1e7dd; }
+    }
+    
+    #search-produto:focus {
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        border-color: #0d6efd;
+    }
+    
+    .empty-cart {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+    
+    .empty-cart i {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.3;
+    }
+    
+    .badge-sem-estoque {
+        background-color: #dc3545;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        margin-left: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdv-container">
+    <!-- Seção de Produtos -->
+    <div class="produtos-section">
+        <div class="search-box">
+            <h4><i class="bi bi-box-seam"></i> Produtos</h4>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="search-produto" class="form-control form-control-lg" 
+                       placeholder="Buscar por código, descrição ou código de barras..." 
+                       autocomplete="off">
+            </div>
+            <div class="search-counter" id="search-counter"></div>
+        </div>
+        
+        <div id="lista-produtos" class="mt-3">
+            {% for produto in produtos %}
+            <div class="produto-card {% if produto.estoque_atual <= 0 %}sem-estoque{% endif %}" 
+                 data-id="{{ produto.id }}" 
+                 data-codigo="{{ produto.codigo }}"
+                 data-codigo-barras="{% if produto.codigo_barras %}{{ produto.codigo_barras }}{% endif %}"
+                 data-descricao="{{ produto.descricao }}" 
+                 data-preco="{{ produto.preco_venda_dinheiro }}"
+                 data-estoque="{{ produto.estoque_atual }}">
+                <div class="produto-codigo">
+                    {{ produto.codigo }}
+                    {% if produto.codigo_barras %} | <small>{{ produto.codigo_barras }}</small>{% endif %}
+                    {% if produto.estoque_atual <= 0 %}
+                        <span class="badge-sem-estoque">SEM ESTOQUE</span>
+                    {% endif %}
+                </div>
+                <div class="produto-nome">{{ produto.descricao }}</div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="produto-estoque {% if produto.estoque_atual <= 0 %}alerta{% endif %}">
+                            <i class="bi bi-box"></i> Estoque: {{ produto.estoque_atual }}
+                        </div>
+                    </div>
+                    <div class="col-6 text-end">
+                        <div class="produto-preco">R$ {{ produto.preco_venda_dinheiro }}</div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted p-5">
+                <i class="bi bi-inbox" style="font-size: 48px;"></i>
+                <p>Nenhum produto disponível</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Seção do Carrinho -->
+    <div class="carrinho-section">
+        <h4><i class="bi bi-cart3"></i> Carrinho</h4>
+        
+        <!-- Cliente -->
+        <div class="mb-3">
+            <label class="form-label">Cliente <small class="text-muted">(opcional)</small></label>
+            <select id="cliente-select" class="form-select">
+                <option value="">Não informado</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nome }} - {{ cliente.cpf_cnpj }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Itens do Carrinho -->
+        <div id="carrinho-itens" style="flex: 1; overflow-y: auto;">
+            <div class="empty-cart">
+                <i class="bi bi-cart-x"></i>
+                <p>Carrinho vazio<br>Clique nos produtos para adicionar</p>
+            </div>
+        </div>
+        
+        <!-- Total e Finalização -->
+        <div class="carrinho-total">
+            <div class="mb-3">
+                <label class="form-label">Forma de Pagamento</label>
+                <select id="forma-pagamento" class="form-select">
+                    <option value="DI">Dinheiro</option>
+                    <option value="CD">Cartão de Débito</option>
+                    <option value="CC">Cartão de Crédito</option>
+                    <option value="PIX">PIX</option>
+                    <option value="BO">Boleto</option>
+                    <option value="CR">Crediário</option>
+                </select>
+            </div>
+            
+            <div class="total-valor" id="total-geral">R$ 0,00</div>
+            
+            <div class="d-grid gap-2">
+                <button id="btn-finalizar" class="btn btn-success btn-lg">
+                    <i class="bi bi-check-circle"></i> Finalizar Venda (F4)
+                </button>
+                <button id="btn-limpar" class="btn btn-outline-danger">
+                    <i class="bi bi-x-circle"></i> Limpar Carrinho
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let carrinho = [];
+let carrinhoId = 1;
+let todosOsProdutos = [];
+
+$(document).ready(function() {
+    // Indexar todos os produtos para busca
+    $('.produto-card').each(function() {
+        todosOsProdutos.push({
+            element: $(this),
+            codigo: $(this).data('codigo') ? $(this).data('codigo').toString().toLowerCase() : '',
+            descricao: $(this).data('descricao') ? $(this).data('descricao').toString().toLowerCase() : '',
+            codigoBarras: $(this).data('codigo-barras') ? $(this).data('codigo-barras').toString().toLowerCase() : ''
+        });
+    });
+    
+    // Focar no campo de busca
+    $('#search-produto').focus();
+});
+
+// Função de busca fuzzy/inteligente - TODAS as palavras devem ser encontradas
+function buscaInteligente(texto, busca) {
+    texto = texto.toLowerCase().trim();
+    busca = busca.toLowerCase().trim();
+    
+    if (!busca) return 0;
+    
+    // Se a busca exata existe, retorna pontuação máxima
+    if (texto.includes(busca)) {
+        return 100;
+    }
+    
+    // Divide a busca em palavras (ignora palavras com menos de 2 caracteres)
+    const palavrasBusca = busca.split(/\s+/).filter(p => p.length >= 2);
+    
+    if (palavrasBusca.length === 0) return 0;
+    
+    let todasEncontradas = true;
+    let pontuacao = 0;
+    
+    // TODAS as palavras devem ser encontradas
+    for (const palavra of palavrasBusca) {
+        // Busca a palavra exata ou como parte de uma palavra maior
+        // Mas a palavra da busca deve ter pelo menos 3 caracteres para match parcial
+        if (texto.includes(palavra)) {
+            pontuacao += 50;
+        } else if (palavra.length >= 3) {
+            // Só faz match parcial se a palavra tiver 3+ caracteres
+            const palavrasTexto = texto.split(/\s+/);
+            let encontrou = false;
+            
+            for (const palavraTexto of palavrasTexto) {
+                // A palavra do texto deve CONTER a palavra buscada
+                if (palavraTexto.includes(palavra)) {
+                    pontuacao += 25;
+                    encontrou = true;
+                    break;
+                }
+            }
+            
+            if (!encontrou) {
+                todasEncontradas = false;
+                break;
+            }
+        } else {
+            // Palavra muito curta - precisa match exato
+            const palavrasTexto = texto.split(/\s+/);
+            if (!palavrasTexto.includes(palavra)) {
+                todasEncontradas = false;
+                break;
+            }
+        }
+    }
+    
+    return todasEncontradas ? pontuacao : 0;
+}
+// Busca dinâmica em tempo real (otimizada com busca inteligente)
+let timeoutBusca;
+$('#search-produto').on('input', function() {
+    clearTimeout(timeoutBusca);
+    
+    const busca = $(this).val().toLowerCase().trim();
+    
+    // Se busca vazia, mostrar todos
+    if (busca === '') {
+        $('.produto-card').show();
+        $('#busca-vazia').remove();
+        $('#search-counter').text('');
+        return;
+    }
+    
+    // Usar timeout para não sobrecarregar durante digitação rápida
+    timeoutBusca = setTimeout(function() {
+        let encontrados = 0;
+        let resultados = [];
+        
+        // Buscar em todos os produtos com pontuação
+        todosOsProdutos.forEach(function(produto) {
+            const pontuacaoCodigo = buscaInteligente(produto.codigo, busca);
+            const pontuacaoDescricao = buscaInteligente(produto.descricao, busca);
+            const pontuacaoBarras = buscaInteligente(produto.codigoBarras, busca);
+            
+            const pontuacaoTotal = Math.max(pontuacaoCodigo, pontuacaoDescricao, pontuacaoBarras);
+            
+            if (pontuacaoTotal > 0) {
+                resultados.push({
+                    produto: produto,
+                    pontuacao: pontuacaoTotal
+                });
+            }
+        });
+        
+        // Ordenar por pontuação (mais relevantes primeiro)
+        resultados.sort((a, b) => b.pontuacao - a.pontuacao);
+        
+        // Esconder todos primeiro
+        todosOsProdutos.forEach(p => p.element.hide());
+        
+        // Mostrar apenas os encontrados na ordem de relevância
+        resultados.forEach(resultado => {
+            resultado.produto.element.show();
+            encontrados++;
+        });
+        
+        // Atualizar contador
+        if (encontrados > 0) {
+            $('#search-counter').html(`<i class="bi bi-check-circle text-success"></i> ${encontrados} produto${encontrados > 1 ? 's' : ''} encontrado${encontrados > 1 ? 's' : ''}`);
+        } else {
+            $('#search-counter').html(`<i class="bi bi-x-circle text-danger"></i> Nenhum produto encontrado`);
+        }
+        
+        // Feedback visual se não encontrou nada
+        if (encontrados === 0) {
+            if ($('#busca-vazia').length === 0) {
+                $('#lista-produtos').prepend(`
+                    <div id="busca-vazia" class="alert alert-warning">
+                        <i class="bi bi-search"></i> Nenhum produto encontrado para "<strong>${$('#search-produto').val()}</strong>"
+                        <br><small>Tente buscar por código, descrição ou código de barras</small>
+                    </div>
+                `);
+            }
+        } else {
+            $('#busca-vazia').remove();
+        }
+    }, 150); // Aguarda 150ms após parar de digitar
+});
+
+// Limpar busca com ESC
+$('#search-produto').on('keydown', function(e) {
+    if (e.key === 'Escape') {
+        $(this).val('');
+        $('.produto-card').show();
+        $('#busca-vazia').remove();
+    }
+});
+
+// Adicionar produto ao carrinho (PERMITE VENDA SEM ESTOQUE)
+$(document).on('click', '.produto-card', function() {
+    const produto = {
+        id: carrinhoId++,
+        produto_id: $(this).data('id'),
+        codigo: $(this).data('codigo'),
+        descricao: $(this).data('descricao'),
+        preco: parseFloat($(this).data('preco')),
+        estoque: parseInt($(this).data('estoque')),
+        quantidade: 1,
+        semEstoque: parseInt($(this).data('estoque')) <= 0
+    };
+    
+    // Verificar se já existe no carrinho
+    const existente = carrinho.find(item => item.produto_id === produto.produto_id);
+    if (existente) {
+        existente.quantidade++;
+        
+        // AVISO se ultrapassar o estoque (mas permite continuar)
+        if (existente.quantidade > produto.estoque && produto.estoque > 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Estoque Insuficiente!',
+                html: `<strong>Disponível em estoque: ${produto.estoque} unidades</strong><br>
+                       Você está vendendo: ${existente.quantidade} unidades<br><br>
+                       <small>A venda pode continuar, mas o estoque ficará negativo.</small>`,
+                showConfirmButton: true,
+                confirmButtonText: 'Ok, entendi'
+            });
+        }
+    } else {
+        carrinho.push(produto);
+        
+        // AVISO se produto sem estoque (mas permite adicionar)
+        if (produto.semEstoque) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Produto sem estoque!',
+                html: `<strong>${produto.descricao}</strong><br><br>
+                       Este produto está sem estoque, mas a venda pode continuar.<br>
+                       O estoque ficará negativo após a venda.`,
+                timer: 3000,
+                showConfirmButton: false
+            });
+        }
+    }
+    
+    atualizarCarrinho();
+    
+    // Feedback visual
+    $(this).addClass('selected');
+    setTimeout(() => $(this).removeClass('selected'), 300);
+});
+
+// Atualizar visualização do carrinho
+function atualizarCarrinho() {
+    const container = $('#carrinho-itens');
+    container.empty();
+    
+    if (carrinho.length === 0) {
+        container.html(`
+            <div class="empty-cart">
+                <i class="bi bi-cart-x"></i>
+                <p>Carrinho vazio<br>Clique nos produtos para adicionar</p>
+            </div>
+        `);
+        $('#total-geral').text('R$ 0,00');
+        return;
+    }
+    
+    let total = 0;
+    
+    carrinho.forEach(item => {
+        const subtotal = item.preco * item.quantidade;
+        total += subtotal;
+        
+        const semEstoqueClass = (item.quantidade > item.estoque) ? 'sem-estoque-warning' : '';
+        const alertaEstoque = (item.quantidade > item.estoque) ? 
+            `<small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Estoque: ${item.estoque}</small>` : '';
+        
+        container.append(`
+            <div class="carrinho-item ${semEstoqueClass}" data-id="${item.id}">
+                <div style="flex: 1;">
+                    <strong>${item.descricao}</strong>
+                    <br>
+                    <small class="text-muted">R$ ${item.preco.toFixed(2)} cada</small>
+                    ${alertaEstoque}
+                </div>
+                <div class="item-qtd-control">
+                    <button class="btn btn-sm btn-outline-secondary btn-diminuir" data-id="${item.id}">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                    <span style="min-width: 30px; text-align: center;">${item.quantidade}</span>
+                    <button class="btn btn-sm btn-outline-secondary btn-aumentar" data-id="${item.id}">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger btn-remover" data-id="${item.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div style="text-align: right; min-width: 80px;">
+                    <strong>R$ ${subtotal.toFixed(2)}</strong>
+                </div>
+            </div>
+        `);
+    });
+    
+    $('#total-geral').text(`R$ ${total.toFixed(2)}`);
+}
+
+// Aumentar quantidade
+$(document).on('click', '.btn-aumentar', function() {
+    const id = $(this).data('id');
+    const item = carrinho.find(i => i.id === id);
+    if (item) {
+        item.quantidade++;
+        
+        // Aviso se ultrapassar estoque
+        if (item.quantidade > item.estoque && item.estoque > 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atenção!',
+                text: `Estoque disponível: ${item.estoque} | Vendendo: ${item.quantidade}`,
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+        
+        atualizarCarrinho();
+    }
+});
+
+// Diminuir quantidade
+$(document).on('click', '.btn-diminuir', function() {
+    const id = $(this).data('id');
+    const item = carrinho.find(i => i.id === id);
+    if (item) {
+        item.quantidade--;
+        if (item.quantidade <= 0) {
+            carrinho = carrinho.filter(i => i.id !== id);
+        }
+        atualizarCarrinho();
+    }
+});
+
+// Remover item
+$(document).on('click', '.btn-remover', function() {
+    const id = $(this).data('id');
+    carrinho = carrinho.filter(i => i.id !== id);
+    atualizarCarrinho();
+});
+
+// Limpar carrinho
+$('#btn-limpar').on('click', function() {
+    if (carrinho.length === 0) return;
+    
+    Swal.fire({
+        title: 'Limpar carrinho?',
+        text: 'Todos os itens serão removidos.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, limpar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            carrinho = [];
+            atualizarCarrinho();
+        }
+    });
+});
+
+// Finalizar venda (PERMITE SEM CLIENTE)
+$('#btn-finalizar').on('click', function() {
+    const formaPagamento = $('#forma-pagamento').val();
+    const clienteId = $('#cliente-select').val();
+    
+    if (!formaPagamento) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Atenção!',
+            text: 'Selecione a forma de pagamento.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    if (carrinho.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Carrinho vazio!',
+            text: 'Adicione produtos antes de finalizar.',
+            confirmButtonText: 'OK'
+        });
+        return;
+    }
+    
+    // Verificar itens sem estoque e mostrar resumo
+    const itensSemEstoque = carrinho.filter(item => item.quantidade > item.estoque);
+    let mensagemEstoque = '';
+    
+    if (itensSemEstoque.length > 0) {
+        mensagemEstoque = `<div class="alert alert-warning mt-2">
+            <strong>⚠️ Produtos com estoque insuficiente:</strong><br>`;
+        itensSemEstoque.forEach(item => {
+            mensagemEstoque += `• ${item.descricao}: Vendendo ${item.quantidade} | Estoque: ${item.estoque}<br>`;
+        });
+        mensagemEstoque += `<small>O estoque ficará negativo após a venda.</small></div>`;
+    }
+    
+    const clienteInfo = clienteId ? $('#cliente-select option:selected').text() : 'Não informado';
+    const totalVenda = carrinho.reduce((sum, item) => sum + (item.preco * item.quantidade), 0);
+    
+    // Confirmação final
+    Swal.fire({
+        title: 'Confirmar Venda?',
+        html: `
+            <div style="text-align: left;">
+                <strong>Cliente:</strong> ${clienteInfo}<br>
+                <strong>Forma de Pagamento:</strong> ${$('#forma-pagamento option:selected').text()}<br>
+                <strong>Total de itens:</strong> ${carrinho.length}<br>
+                <strong>Valor Total:</strong> R$ ${totalVenda.toFixed(2)}
+                ${mensagemEstoque}
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Confirmar Venda',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#198754'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Aqui você faria a chamada AJAX para salvar a venda
+            // Por enquanto, apenas simula o sucesso
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Venda Realizada!',
+                text: 'A venda foi registrada com sucesso.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            
+            setTimeout(() => {
+                carrinho = [];
+                atualizarCarrinho();
+                $('#cliente-select').val('');
+                $('#search-produto').val('').focus();
+            }, 2000);
+        }
+    });
+});
+
+// Atalhos de teclado
+$(document).on('keydown', function(e) {
+    // F2 - Focar em busca
+    if (e.key === 'F2') {
+        e.preventDefault();
+        $('#search-produto').focus().select();
+    }
+    
+    // F3 - Focar em cliente
+    if (e.key === 'F3') {
+        e.preventDefault();
+        $('#cliente-select').focus();
+    }
+    
+    // F4 - Finalizar venda
+    if (e.key === 'F4') {
+        e.preventDefault();
+        $('#btn-finalizar').click();
+    }
+});
+</script>
+
+<!-- SweetAlert2 para alertas bonitos -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+{% endblock %}

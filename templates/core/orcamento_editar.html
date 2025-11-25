@@ -1,0 +1,431 @@
+{% extends 'base.html' %}
+
+{% block title %}Orçamento {{ orcamento.numero }} - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Orçamento {{ orcamento.numero }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Cabeçalho do Orçamento -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h4 class="mb-0">
+                        <i class="bi bi-file-earmark-text"></i> {{ orcamento.numero }}
+                    </h4>
+                    <small class="text-muted">
+                        Cliente: <strong>{{ orcamento.cliente.nome }}</strong> | 
+                        Vendedor: {{ orcamento.vendedor.get_full_name|default:orcamento.vendedor.username }} |
+                        Validade: {{ orcamento.data_validade|date:"d/m/Y" }}
+                    </small>
+                    {% if orcamento.veiculo_modelo %}
+                    <br>
+                    <small class="text-muted">
+                        <i class="bi bi-car-front"></i> 
+                        {{ orcamento.veiculo_modelo.montadora.nome }} {{ orcamento.veiculo_modelo.nome }}
+                        {% if orcamento.veiculo_placa %}| Placa: {{ orcamento.veiculo_placa }}{% endif %}
+                    </small>
+                    {% endif %}
+                </div>
+                <div class="col-md-4 text-end">
+                    <span class="badge 
+                        {% if orcamento.status == 'ABERTO' %}bg-primary
+                        {% elif orcamento.status == 'ENVIADO' %}bg-info
+                        {% elif orcamento.status == 'APROVADO' %}bg-success
+                        {% elif orcamento.status == 'REJEITADO' %}bg-danger
+                        {% elif orcamento.status == 'CONVERTIDO' %}bg-success
+                        {% else %}bg-secondary{% endif %}"
+                        style="font-size: 14px; padding: 8px 15px;">
+                        {{ orcamento.get_status_display }}
+                    </span>
+                    <div class="mt-2">
+                        <a href="{% url 'lista_orcamentos' %}" class="btn btn-secondary btn-sm">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Painel de Busca de Produtos -->
+        <div class="col-md-5">
+            <div class="card mb-4 search-panel">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-search"></i> Buscar Produtos</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filtros -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-car-front"></i> Filtrar por Veículo</label>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <select id="filtro-montadora" class="form-select">
+                                    <option value="">Todas as montadoras</option>
+                                    {% for montadora in montadoras %}
+                                    <option value="{{ montadora.id }}">{{ montadora.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <select id="filtro-modelo" class="form-select" disabled>
+                                    <option value="">Selecione a montadora</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campo de Busca -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-search"></i> Buscar Peça</label>
+                        <div class="input-group">
+                            <input type="text" id="busca-produto" class="form-control" 
+                                   placeholder="Código, descrição, aplicação...">
+                            <button class="btn btn-primary" onclick="buscarProdutos()">
+                                <i class="bi bi-search"></i> Buscar
+                            </button>
+                        </div>
+                        <small class="text-muted">Digite pelo menos 2 caracteres</small>
+                    </div>
+
+                    <!-- Resultado da Busca -->
+                    <div id="resultado-busca" style="max-height: 500px; overflow-y: auto;">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-search" style="font-size: 3rem;"></i>
+                            <p>Use os filtros acima para buscar produtos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Painel do Orçamento -->
+        <div class="col-md-7">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-list-ul"></i> Itens do Orçamento</h5>
+                </div>
+                <div class="card-body">
+                    {% if itens %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th>Qtd</th>
+                                    <th>Preço Un.</th>
+                                    <th>Total</th>
+                                    <th>Estoque</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in itens %}
+                                <tr>
+                                    <td><strong>{{ item.produto.codigo }}</strong></td>
+                                    <td>{{ item.produto.descricao|truncatewords:5 }}</td>
+                                    <td>{{ item.quantidade }}</td>
+                                    <td>R$ {{ item.preco_unitario|floatformat:2 }}</td>
+                                    <td><strong>R$ {{ item.total|floatformat:2 }}</strong></td>
+                                    <td>
+                                        {% if item.tem_estoque %}
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle"></i> {{ item.produto.estoque_disponivel }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-danger">
+                                            <i class="bi bi-exclamation-triangle"></i> {{ item.produto.estoque_disponivel }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if orcamento.status == 'ABERTO' %}
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="remove_item">
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <button type="submit" class="btn btn-sm btn-danger" 
+                                                    onclick="return confirm('Remover este item?')">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                        <p>Nenhum item adicionado ainda</p>
+                        <small>Use a busca ao lado para adicionar produtos</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resumo -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Resumo do Orçamento</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>Subtotal:</td>
+                                    <td class="text-end"><strong>R$ {{ orcamento.subtotal|floatformat:2 }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td>Desconto:</td>
+                                    <td class="text-end">
+                                        {% if orcamento.status == 'ABERTO' %}
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="update_desconto">
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">R$</span>
+                                                <input type="number" name="desconto" class="form-control" 
+                                                       value="{{ orcamento.desconto }}" step="0.01" style="max-width: 100px;">
+                                                <button type="submit" class="btn btn-sm btn-primary">OK</button>
+                                            </div>
+                                        </form>
+                                        {% else %}
+                                        <strong>R$ {{ orcamento.desconto|floatformat:2 }}</strong>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>TOTAL:</strong></td>
+                                    <td class="text-end"><h5 class="mb-0">R$ {{ orcamento.total|floatformat:2 }}</h5></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Ações</h6>
+                            {% if orcamento.status == 'ABERTO' %}
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_status">
+                                <button type="submit" name="status" value="ENVIADO" class="btn btn-info btn-sm w-100 mb-2">
+                                    <i class="bi bi-send"></i> Enviar ao Cliente
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if orcamento.status == 'ENVIADO' %}
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="update_status">
+                                <button type="submit" name="status" value="APROVADO" class="btn btn-success btn-sm w-100 mb-2">
+                                    <i class="bi bi-check-circle"></i> Aprovar Orçamento
+                                </button>
+                                <button type="submit" name="status" value="REJEITADO" class="btn btn-danger btn-sm w-100">
+                                    <i class="bi bi-x-circle"></i> Rejeitar Orçamento
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if orcamento.status == 'APROVADO' and pode_converter %}
+                            <a href="{% url 'converter_orcamento_venda' orcamento.id %}" class="btn btn-success btn-sm w-100">
+                                <i class="bi bi-cart-check"></i> Converter em Venda
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-panel {
+    position: sticky;
+    top: 20px;
+}
+
+.produto-item {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.produto-item:hover {
+    background-color: #f8f9fa;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.produto-codigo {
+    font-weight: bold;
+    color: #667eea;
+}
+
+.produto-estoque {
+    font-size: 0.875rem;
+}
+
+.aplicacoes-list {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+</style>
+
+<script>
+// Função para buscar modelos quando seleciona montadora
+document.getElementById('filtro-montadora').addEventListener('change', function() {
+    const montadoraId = this.value;
+    const modeloSelect = document.getElementById('filtro-modelo');
+    
+    if (!montadoraId) {
+        modeloSelect.innerHTML = '<option value="">Selecione a montadora</option>';
+        modeloSelect.disabled = true;
+        return;
+    }
+    
+    // Buscar modelos da montadora
+    fetch(`/api/buscar-modelos/?montadora_id=${montadoraId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                modeloSelect.innerHTML = '<option value="">Todos os modelos</option>';
+                data.modelos.forEach(modelo => {
+                    const option = document.createElement('option');
+                    option.value = modelo.id;
+                    option.textContent = modelo.descricao;
+                    modeloSelect.appendChild(option);
+                });
+                modeloSelect.disabled = false;
+            }
+        });
+});
+
+// Função para buscar produtos
+function buscarProdutos() {
+    const busca = document.getElementById('busca-produto').value;
+    const montadora = document.getElementById('filtro-montadora').value;
+    const modelo = document.getElementById('filtro-modelo').value;
+    
+    if (busca.length < 2 && !montadora && !modelo) {
+        alert('Digite pelo menos 2 caracteres ou selecione um filtro');
+        return;
+    }
+    
+    // Montar URL
+    let url = '/api/buscar-produtos/?';
+    if (busca) url += `q=${encodeURIComponent(busca)}&`;
+    if (montadora) url += `montadora=${montadora}&`;
+    if (modelo) url += `modelo=${modelo}&`;
+    
+    // Fazer requisição
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            mostrarResultados(data.produtos);
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao buscar produtos');
+        });
+}
+
+// Função para mostrar resultados
+function mostrarResultados(produtos) {
+    const container = document.getElementById('resultado-busca');
+    
+    if (produtos.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                <p>Nenhum produto encontrado</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    produtos.forEach(produto => {
+        const estoqueClass = produto.situacao === 'normal' ? 'success' : 
+                           produto.situacao === 'baixo' ? 'warning' : 'danger';
+        
+        const aplicacoes = produto.aplicacoes.map(app => 
+            `${app.montadora} ${app.modelo}`
+        ).join(', ') || 'Aplicação genérica';
+        
+        // Preço de acordo com forma de pagamento
+        const precoPorForma = {
+            'DINHEIRO': produto.preco_dinheiro,
+            'DEBITO': produto.preco_debito,
+            'CREDITO': produto.preco_credito,
+            'ATACADO': produto.preco_atacado
+        };
+        const preco = precoPorForma['{{ orcamento.forma_pagamento }}'] || produto.preco_dinheiro;
+        
+        html += `
+            <div class="produto-item" onclick="adicionarProduto(${produto.id}, '${produto.codigo}', '${produto.descricao.replace(/'/g, "\\'")}', ${preco})">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="produto-codigo">${produto.codigo}</div>
+                        <div>${produto.descricao}</div>
+                        <div class="aplicacoes-list">
+                            <i class="bi bi-car-front"></i> ${aplicacoes}
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-pin-map"></i> ${produto.localizacao}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="h5 mb-1 text-success">R$ ${preco.toFixed(2)}</div>
+                        <span class="badge bg-${estoqueClass}">
+                            Est: ${produto.estoque_disponivel}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Função para adicionar produto ao orçamento
+function adicionarProduto(produtoId, codigo, descricao, preco) {
+    const quantidade = prompt(`Adicionar ao orçamento:\n${codigo} - ${descricao}\n\nQuantidade:`, '1');
+    
+    if (quantidade && parseInt(quantidade) > 0) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_item">
+            <input type="hidden" name="produto_id" value="${produtoId}">
+            <input type="hidden" name="quantidade" value="${quantidade}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Buscar ao pressionar Enter
+document.getElementById('busca-produto').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        buscarProdutos();
+    }
+});
+
+// Auto-buscar ao mudar modelo
+document.getElementById('filtro-modelo').addEventListener('change', function() {
+    if (this.value) {
+        buscarProdutos();
+    }
+});
+</script>
+{% endblock %}

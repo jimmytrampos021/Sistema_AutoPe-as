@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Nova{% endif %} Categoria{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-folder"></i> 
+                        {% if editando %}Editar Categoria{% else %}Nova Categoria{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label for="nome" class="form-label required">Nome da Categoria</label>
+                            <input type="text" class="form-control" id="nome" name="nome" 
+                                   value="{% if categoria %}{{ categoria.nome }}{% endif %}" 
+                                   required maxlength="100">
+                            <small class="text-muted">Ex: Motor, Freios, Suspensão</small>
+                        </div>
+                        
+                        <!-- Descrição -->
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição (opcional)</label>
+                            <textarea class="form-control" id="descricao" name="descricao" 
+                                      rows="3">{% if categoria %}{{ categoria.descricao }}{% endif %}</textarea>
+                        </div>
+                        
+                        <!-- Ícone -->
+                        <div class="mb-3">
+                            <label class="form-label">Ícone</label>
+                            <div class="row g-2">
+                                {% for icone_valor, icone_nome in icones %}
+                                <div class="col-6 col-md-4">
+                                    <input type="radio" class="btn-check" name="icone" 
+                                           id="icone_{{ forloop.counter }}" 
+                                           value="{{ icone_valor }}"
+                                           {% if categoria.icone == icone_valor or not categoria and icone_valor == 'bi-box' %}checked{% endif %}>
+                                    <label class="btn btn-outline-primary w-100" for="icone_{{ forloop.counter }}">
+                                        <i class="{{ icone_valor }}"></i> {{ icone_nome }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Ativo -->
+                        {% if editando %}
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
+                                       {% if categoria.ativo %}checked{% endif %}>
+                                <label class="form-check-label" for="ativo">
+                                    Categoria ativa
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'lista_categorias' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> 
+                                {% if editando %}Atualizar{% else %}Criar{% endif %} Categoria
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required:after {
+    content: " *";
+    color: red;
+}
+
+.btn-check:checked + .btn-outline-primary {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

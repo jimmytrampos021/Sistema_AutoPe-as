@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Nova{% endif %} Subcategoria{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-tag"></i> 
+                        {% if editando %}
+                            Editar Subcategoria
+                        {% else %}
+                            Nova Subcategoria em "{{ categoria.nome }}"
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Categoria Pai -->
+                        {% if not editando %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Categoria:</strong> {{ categoria.nome }}
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Nome -->
+                        <div class="mb-3">
+                            <label for="nome" class="form-label required">Nome da Subcategoria</label>
+                            <input type="text" class="form-control" id="nome" name="nome" 
+                                   value="{% if subcategoria %}{{ subcategoria.nome }}{% endif %}" 
+                                   required maxlength="100">
+                            <small class="text-muted">Ex: Velas de Ignição, Filtros de Óleo, Pastilhas</small>
+                        </div>
+                        
+                        <!-- Descrição -->
+                        <div class="mb-3">
+                            <label for="descricao" class="form-label">Descrição (opcional)</label>
+                            <textarea class="form-control" id="descricao" name="descricao" 
+                                      rows="3">{% if subcategoria %}{{ subcategoria.descricao }}{% endif %}</textarea>
+                        </div>
+                        
+                        <!-- Ativo -->
+                        {% if editando %}
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="ativo" name="ativo"
+                                       {% if subcategoria.ativo %}checked{% endif %}>
+                                <label class="form-check-label" for="ativo">
+                                    Subcategoria ativa
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Botões -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'lista_categorias' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-check-circle"></i> 
+                                {% if editando %}Atualizar{% else %}Criar{% endif %} Subcategoria
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required:after {
+    content: " *";
+    color: red;
+}
+
+.card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

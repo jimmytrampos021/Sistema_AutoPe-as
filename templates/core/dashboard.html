@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Sistema Autopeças{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Cards de Estatísticas -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="icon">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <h3>R$ {{ vendas_hoje_total|floatformat:2 }}</h3>
+            <p>Vendas Hoje ({{ vendas_hoje_qtd }})</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card success">
+            <div class="icon">
+                <i class="bi bi-graph-up-arrow"></i>
+            </div>
+            <h3>R$ {{ vendas_mes_total|floatformat:2 }}</h3>
+            <p>Vendas do Mês ({{ vendas_mes_qtd }})</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card warning">
+            <div class="icon">
+                <i class="bi bi-wrench"></i>
+            </div>
+            <h3>{{ os_abertas_qtd }}</h3>
+            <p>OS em Aberto</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card info">
+            <div class="icon">
+                <i class="bi bi-people"></i>
+            </div>
+            <h3>{{ total_clientes }}</h3>
+            <p>Clientes Ativos</p>
+        </div>
+    </div>
+</div>
+
+<!-- Alerta de Produtos Críticos -->
+{% if produtos_criticos_qtd > 0 %}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <strong>Atenção!</strong> Existem {{ produtos_criticos_qtd }} produtos com estoque abaixo do mínimo.
+    <a href="/admin/estoque/produto/?estoque_atual__lte=estoque_minimo" class="alert-link">Ver produtos críticos</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row">
+    <!-- Vendas Recentes -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h4><i class="bi bi-receipt"></i> Vendas Recentes</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Data</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venda in vendas_recentes %}
+                        <tr>
+                            <td><a href="/admin/vendas/venda/{{ venda.id }}/change/">#{{ venda.numero }}</a></td>
+                            <td>{{ venda.cliente.nome|truncatewords:3 }}</td>
+                            <td>{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                            <td><strong>R$ {{ venda.total|floatformat:2 }}</strong></td>
+                            <td>
+                                {% if venda.status == 'F' %}
+                                <span class="badge bg-success badge-status">Finalizada</span>
+                                {% elif venda.status == 'A' %}
+                                <span class="badge bg-warning badge-status">Aberta</span>
+                                {% else %}
+                                <span class="badge bg-danger badge-status">Cancelada</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Nenhuma venda recente</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-end mt-3">
+                <a href="/admin/vendas/venda/" class="btn btn-primary btn-custom btn-sm">
+                    Ver Todas <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ordens de Serviço Recentes -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <h4><i class="bi bi-wrench"></i> Ordens de Serviço</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Veículo</th>
+                            <th>Status</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for os in os_recentes %}
+                        <tr>
+                            <td><a href="/admin/vendas/ordemservico/{{ os.id }}/change/">#{{ os.numero }}</a></td>
+                            <td>{{ os.cliente.nome|truncatewords:2 }}</td>
+                            <td>{{ os.veiculo.placa }}</td>
+                            <td>
+                                {% if os.status == 'AB' %}
+                                <span class="badge bg-info badge-status">Aberta</span>
+                                {% elif os.status == 'EA' %}
+                                <span class="badge bg-primary badge-status">Em Andamento</span>
+                                {% elif os.status == 'AG' %}
+                                <span class="badge bg-warning badge-status">Aguard. Peças</span>
+                                {% elif os.status == 'FI' %}
+                                <span class="badge bg-success badge-status">Finalizada</span>
+                                {% else %}
+                                <span class="badge bg-danger badge-status">Cancelada</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>R$ {{ os.total|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Nenhuma OS recente</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-end mt-3">
+                <a href="/admin/vendas/ordemservico/" class="btn btn-primary btn-custom btn-sm">
+                    Ver Todas <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produtos Críticos -->
+{% if produtos_criticos %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="table-card">
+            <h4><i class="bi bi-exclamation-triangle"></i> Produtos com Estoque Crítico</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Descrição</th>
+                            <th>Categoria</th>
+                            <th>Estoque Atual</th>
+                            <th>Estoque Mínimo</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for produto in produtos_criticos %}
+                        <tr>
+                            <td><strong>{{ produto.codigo }}</strong></td>
+                            <td>{{ produto.descricao }}</td>
+                            <td>{{ produto.categoria.nome }}</td>
+                            <td>
+                                <span class="badge bg-danger">{{ produto.estoque_atual }}</span>
+                            </td>
+                            <td>{{ produto.estoque_minimo }}</td>
+                            <td>
+                                <a href="/admin/estoque/produto/{{ produto.id }}/change/" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Ações Rápidas -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="table-card">
+            <h4><i class="bi bi-lightning"></i> Ações Rápidas</h4>
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="{% url 'pdv' %}" class="btn btn-lg btn-primary btn-custom w-100">
+                        <i class="bi bi-cart-plus"></i><br>
+                        Nova Venda
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="/admin/vendas/ordemservico/add/" class="btn btn-lg btn-warning btn-custom w-100">
+                        <i class="bi bi-wrench"></i><br>
+                        Nova OS
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="/admin/clientes/cliente/add/" class="btn btn-lg btn-info btn-custom w-100">
+                        <i class="bi bi-person-plus"></i><br>
+                        Novo Cliente
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="/admin/estoque/produto/add/" class="btn btn-lg btn-success btn-custom w-100">
+                        <i class="bi bi-box-seam"></i><br>
+                        Novo Produto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Atualizar a cada 5 minutos
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

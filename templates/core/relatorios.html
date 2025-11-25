@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatórios - Sistema Autopeças{% endblock %}
+
+{% block page_title %}Relatórios{% endblock %}
+
+{% block extra_css %}
+<style>
+    .relatorio-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .relatorio-card h4 {
+        color: #1e3a8a;
+        margin-bottom: 20px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .filtro-periodo {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros de Período -->
+<div class="filtro-periodo">
+    <div class="row align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Data Inicial</label>
+            <input type="date" class="form-control" id="data-inicial">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Data Final</label>
+            <input type="date" class="form-control" id="data-final">
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-primary btn-custom">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+            <button class="btn btn-outline-secondary btn-custom">
+                <i class="bi bi-arrow-clockwise"></i> Limpar
+            </button>
+        </div>
+        <div class="col-md-3 text-end">
+            <button class="btn btn-success btn-custom">
+                <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Cards Resumo -->
+<div class="row">
+    <div class="col-md-3">
+        <div class="stat-card primary">
+            <div class="icon">
+                <i class="bi bi-currency-dollar"></i>
+            </div>
+            <h3>R$ {{ total_vendido|floatformat:2 }}</h3>
+            <p>Total Vendido (30 dias)</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card success">
+            <div class="icon">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <h3>{{ vendas_periodo.count }}</h3>
+            <p>Total de Vendas</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card warning">
+            <div class="icon">
+                <i class="bi bi-graph-up"></i>
+            </div>
+            <h3>R$ {% if vendas_periodo.count > 0 %}{{ total_vendido|floatformat:2|default:0|divisibleby:vendas_periodo.count }}{% else %}0,00{% endif %}</h3>
+            <p>Ticket Médio</p>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card info">
+            <div class="icon">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <h3>{{ top_produtos|length }}</h3>
+            <p>Produtos Vendidos</p>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="relatorio-card">
+            <h4><i class="bi bi-graph-up"></i> Vendas ao Longo do Tempo</h4>
+            <div class="chart-container">
+                <canvas id="vendasChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="relatorio-card">
+            <h4><i class="bi bi-pie-chart"></i> Formas de Pagamento</h4>
+            <div class="chart-container">
+                <canvas id="pagamentosChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Produtos -->
+<div class="row">
+    <div class="col-12">
+        <div class="relatorio-card">
+            <h4><i class="bi bi-trophy"></i> Top 10 Produtos Mais Vendidos</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Produto</th>
+                            <th class="text-end">Quantidade</th>
+                            <th class="text-end">Valor Total</th>
+                            <th style="width: 30%;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_produtos %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.produto__descricao }}</td>
+                            <td class="text-end"><strong>{{ item.quantidade_total }}</strong> un</td>
+                            <td class="text-end"><strong>R$ {{ item.valor_total|floatformat:2 }}</strong></td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                         style="width: {{ item.percentual|default:0 }}%" 
+                                         aria-valuenow="{{ item.percentual|default:0 }}" 
+                                         aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Nenhum dado disponível</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vendas por Período -->
+<div class="row">
+    <div class="col-12">
+        <div class="relatorio-card">
+            <h4><i class="bi bi-receipt-cutoff"></i> Detalhamento de Vendas</h4>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Data</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Forma Pagamento</th>
+                            <th class="text-end">Total</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for venda in vendas_periodo %}
+                        <tr>
+                            <td><a href="/admin/vendas/venda/{{ venda.id }}/change/">#{{ venda.numero }}</a></td>
+                            <td>{{ venda.data_venda|date:"d/m/Y H:i" }}</td>
+                            <td>{{ venda.cliente.nome|truncatewords:3 }}</td>
+                            <td>{{ venda.vendedor }}</td>
+                            <td>
+                                {% if venda.forma_pagamento == 'DI' %}Dinheiro
+                                {% elif venda.forma_pagamento == 'CD' %}Cartão Débito
+                                {% elif venda.forma_pagamento == 'CC' %}Cartão Crédito
+                                {% elif venda.forma_pagamento == 'PI' %}PIX
+                                {% elif venda.forma_pagamento == 'BO' %}Boleto
+                                {% else %}Crediário{% endif %}
+                            </td>
+                            <td class="text-end"><strong>R$ {{ venda.total|floatformat:2 }}</strong></td>
+                            <td>
+                                {% if venda.status == 'F' %}
+                                <span class="badge bg-success">Finalizada</span>
+                                {% elif venda.status == 'A' %}
+                                <span class="badge bg-warning">Aberta</span>
+                                {% else %}
+                                <span class="badge bg-danger">Cancelada</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Nenhuma venda no período</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Gráfico de Vendas ao Longo do Tempo
+const vendasCtx = document.getElementById('vendasChart');
+new Chart(vendasCtx, {
+    type: 'line',
+    data: {
+        labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+        datasets: [{
+            label: 'Vendas (R$)',
+            data: [1200, 1900, 3000, 2500, 2800, 3500, 2200],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return 'R$ ' + value.toFixed(0);
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Gráfico de Formas de Pagamento
+const pagamentosCtx = document.getElementById('pagamentosChart');
+new Chart(pagamentosCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['PIX', 'Cartão Débito', 'Cartão Crédito', 'Dinheiro'],
+        datasets: [{
+            data: [45, 25, 20, 10],
+            backgroundColor: [
+                'rgb(54, 162, 235)',
+                'rgb(255, 99, 132)',
+                'rgb(255, 205, 86)',
+                'rgb(75, 192, 192)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Definir data padrão (últimos 30 dias)
+const hoje = new Date();
+const trintaDiasAtras = new Date(hoje);
+trintaDiasAtras.setDate(hoje.getDate() - 30);
+
+document.getElementById('data-inicial').valueAsDate = trintaDiasAtras;
+document.getElementById('data-final').valueAsDate = hoje;
+</script>
+{% endblock %}

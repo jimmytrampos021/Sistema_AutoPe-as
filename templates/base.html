@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema Autopeças{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+        }
+        
+        /* TEMA CLARO (padrão) */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8f9fa;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* TEMA ESCURO */
+        body.dark-mode {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .sidebar {
+            background: linear-gradient(180deg, #0a0e27 0%, #1e3a8a 100%);
+        }
+        
+        body.dark-mode .stat-card {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .table-card {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .topbar {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .topbar h2 {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .table {
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .table-hover tbody tr:hover {
+            background-color: #3d3d3d;
+        }
+        
+        body.dark-mode .produto-card {
+            background: #2d2d2d;
+            border-color: #444;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .carrinho-section {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .produtos-section {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .form-control,
+        body.dark-mode .form-select {
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+            border-color: #555;
+        }
+        
+        body.dark-mode .form-control:focus,
+        body.dark-mode .form-select:focus {
+            background-color: #3d3d3d;
+            color: #e0e0e0;
+            border-color: #0d6efd;
+        }
+        
+        body.dark-mode .relatorio-card {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .filtro-periodo {
+            background: #3d3d3d;
+        }
+        
+        body.dark-mode .modal-content {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        
+        body.dark-mode .alert {
+            background-color: #3d3d3d;
+            border-color: #555;
+        }
+        
+        /* Botão de tema */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .theme-toggle:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        
+        .theme-toggle:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+        
+        body.dark-mode .theme-toggle {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            padding-top: 20px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar .logo {
+            text-align: center;
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            margin: 5px 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .sidebar .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        
+        .stat-card {
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card .icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card.primary .icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .stat-card.success .icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .stat-card.warning .icon {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #856404;
+        }
+        
+        .stat-card.info .icon {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #0c5460;
+        }
+        
+        .stat-card h3 {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .stat-card p {
+            color: #6c757d;
+            margin: 0;
+        }
+        
+        .table-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        
+        .table-card h4 {
+            margin-bottom: 20px;
+            color: #1e3a8a;
+        }
+        
+        .btn-custom {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .badge-status {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .topbar {
+            background: white;
+            padding: 15px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .topbar h2 {
+            margin: 0;
+            color: #1e3a8a;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <i class="bi bi-tools"></i> AutoPeças
+        </div>
+        <nav class="nav flex-column mt-4">
+            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'dashboard' %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            
+            <!-- ADICIONE ESTA LINHA -->
+            <a class="nav-link {% if 'clientes' in request.path %}active{% endif %}" href="{% url 'lista_clientes' %}">
+                <i class="bi bi-people"></i> Clientes
+            </a>
+            
+            <!-- ADICIONE ESTA LINHA -->
+            <a class="nav-link {% if 'estoque' in request.path %}active{% endif %}" href="{% url 'lista_estoque' %}">
+                <i class="bi bi-box-seam"></i> Estoque
+            </a>
+            
+            <a class="nav-link {% if 'pdv' in request.path %}active{% endif %}" href="{% url 'pdv' %}">
+                <i class="bi bi-cart3"></i> PDV - Vendas
+            </a>
+            
+            <!-- ADICIONE ESTA LINHA -->
+            <a class="nav-link {% if 'vendas' in request.path %}active{% endif %}" href="{% url 'lista_vendas' %}">
+                <i class="bi bi-receipt"></i> Vendas
+            </a>
+            
+            <a class="nav-link" href="{% url 'lista_categorias' %}">
+                <i class="bi bi-folder"></i> Categorias
+            </a>
+
+
+            
+            <a class="nav-link" href="{% url 'lista_orcamentos' %}">
+                <i class="bi bi-file-earmark-text"></i> Orçamentos
+            </a>
+
+            <a class="nav-link {% if 'financeiro' in request.path %}active{% endif %}" href="{% url 'financeiro:dashboard' %}">
+                <i class="bi bi-wallet2"></i> Financeiro
+            </a>
+
+            <a class="nav-link {% if 'fornecedores' in request.path %}active{% endif %}" href="{% url 'lista_fornecedores' %}">
+                <i class="bi bi-building"></i> Fornecedores
+            </a>
+            
+            <!-- ADICIONE ESTA LINHA -->
+            <a class="nav-link {% if 'ordens-servico' in request.path %}active{% endif %}" href="{% url 'lista_ordens_servico' %}">
+                <i class="bi bi-wrench"></i> Ordens de Serviço
+            </a>
+            
+            <a class="nav-link {% if 'relatorios' in request.path %}active{% endif %}" href="{% url 'relatorios' %}">
+                <i class="bi bi-graph-up"></i> Relatórios
+            </a>
+            
+            <a class="nav-link" href="/admin/">
+                <i class="bi bi-gear"></i> Administração
+            </a>
+            
+            <hr style="border-color: rgba(255,255,255,0.2);">
+            
+            <a class="nav-link" href="/admin/logout/">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="topbar">
+            <h2>{% block page_title %}Sistema de Gestão{% endblock %}</h2>
+            <div class="user-info">
+                <div>
+                    <small class="text-muted">Bem-vindo,</small><br>
+                    <strong>{{ user.username }}</strong>
+                </div>
+                <div class="user-avatar">
+                    {{ user.username|slice:":1"|upper }}
+                </div>
+            </div>
+        </div>
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Botão de Alternância de Tema -->
+    <button class="theme-toggle" id="theme-toggle" title="Alternar tema">
+        <i class="bi bi-moon-stars-fill" id="theme-icon"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Script de Tema Escuro/Claro -->
+    <script>
+        // Carregar tema salvo
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            const themeIcon = document.getElementById('theme-icon');
+            
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                themeIcon.classList.remove('bi-moon-stars-fill');
+                themeIcon.classList.add('bi-sun-fill');
+            }
+        });
+        
+        // Alternar tema
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            const body = document.body;
+            const themeIcon = document.getElementById('theme-icon');
+            
+            body.classList.toggle('dark-mode');
+            
+            if (body.classList.contains('dark-mode')) {
+                localStorage.setItem('theme', 'dark');
+                themeIcon.classList.remove('bi-moon-stars-fill');
+                themeIcon.classList.add('bi-sun-fill');
+            } else {
+                localStorage.setItem('theme', 'light');
+                themeIcon.classList.remove('bi-sun-fill');
+                themeIcon.classList.add('bi-moon-stars-fill');
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+
+{% block title %}Faturamento - Financeiro{% endblock %}
+
+{% block page_title %}Faturamento e Tributos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .config-card {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.1) 0%, rgba(220, 53, 69, 0.05) 100%);
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    body.dark-mode .config-card {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.2) 0%, rgba(220, 53, 69, 0.1) 100%);
+    }
+
+    .config-card i {
+        font-size: 2.5rem;
+        color: #dc3545;
+    }
+
+    .config-card .info h5 {
+        margin: 0;
+        color: var(--text-primary);
+    }
+
+    .config-card .info p {
+        margin: 4px 0 0 0;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .config-card .info strong {
+        color: #dc3545;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .header-section h5 {
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .btn-novo {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .btn-calcular {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .faturamento-card {
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .faturamento-periodo {
+        min-width: 120px;
+    }
+
+    .faturamento-periodo h6 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .faturamento-periodo small {
+        color: var(--text-muted);
+    }
+
+    .faturamento-valores {
+        display: flex;
+        gap: 32px;
+        flex-wrap: wrap;
+    }
+
+    .faturamento-valores .item {
+        text-align: center;
+    }
+
+    .faturamento-valores .label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .faturamento-valores .valor {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .faturamento-valores .valor.faturamento { color: #22c55e; }
+    .faturamento-valores .valor.tributo { color: #dc3545; }
+    .faturamento-valores .valor.aliquota { color: #6f42c1; }
+
+    .faturamento-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .status-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-badge.gerado {
+        background: rgba(34, 197, 94, 0.15);
+        color: #16a34a;
+    }
+
+    .status-badge.pendente {
+        background: rgba(234, 179, 8, 0.15);
+        color: #b45309;
+    }
+
+    body.dark-mode .status-badge.gerado {
+        background: rgba(34, 197, 94, 0.25);
+        color: #22c55e;
+    }
+
+    body.dark-mode .status-badge.pendente {
+        background: rgba(234, 179, 8, 0.25);
+        color: #eab308;
+    }
+
+    .btn-gerar-tributo {
+        background: #dc3545;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+    }
+
+    .sem-dados {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-muted);
+    }
+
+    .sem-dados i {
+        font-size: 4rem;
+        opacity: 0.3;
+        margin-bottom: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <!-- Card de Configuração -->
+    <div class="config-card">
+        <i class="bi bi-bank"></i>
+        <div class="info">
+            <h5>{{ config_tributo.nome }}</h5>
+            <p>Alíquota: <strong>{{ config_tributo.aliquota }}%</strong> • Vencimento: <strong>dia {{ config_tributo.dia_vencimento }}</strong> do mês seguinte</p>
+        </div>
+        <a href="{% url 'financeiro:configuracoes' %}" class="btn btn-outline-danger ms-auto">
+            <i class="bi bi-gear"></i> Configurar
+        </a>
+    </div>
+
+    <div class="main-card">
+        <div class="header-section">
+            <h5><i class="bi bi-graph-up-arrow text-success me-2"></i>Faturamentos Mensais</h5>
+            <div class="d-flex gap-2">
+                <form method="post" action="{% url 'financeiro:calcular_faturamento_automatico' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-calcular" onclick="return confirm('Calcular faturamento baseado nas vendas do mês atual?');">
+                        <i class="bi bi-calculator"></i> Calcular Automático
+                    </button>
+                </form>
+                <a href="{% url 'financeiro:criar_faturamento' %}" class="btn btn-novo">
+                    <i class="bi bi-plus-lg"></i> Lançar Manual
+                </a>
+            </div>
+        </div>
+
+        {% if faturamentos %}
+        {% for fat in faturamentos %}
+        <div class="faturamento-card">
+            <div class="faturamento-periodo">
+                <h6>{% if fat.mes == 1 %}Janeiro{% elif fat.mes == 2 %}Fevereiro{% elif fat.mes == 3 %}Março{% elif fat.mes == 4 %}Abril{% elif fat.mes == 5 %}Maio{% elif fat.mes == 6 %}Junho{% elif fat.mes == 7 %}Julho{% elif fat.mes == 8 %}Agosto{% elif fat.mes == 9 %}Setembro{% elif fat.mes == 10 %}Outubro{% elif fat.mes == 11 %}Novembro{% else %}Dezembro{% endif %}/{{ fat.ano }}</h6>
+                <small>Vence em {{ fat.data_vencimento_tributo|date:"d/m/Y" }}</small>
+            </div>
+            
+            <div class="faturamento-valores">
+                <div class="item">
+                    <div class="label">Faturamento</div>
+                    <div class="valor faturamento">R$ {{ fat.valor_faturamento|floatformat:2 }}</div>
+                </div>
+                <div class="item">
+                    <div class="label">Alíquota</div>
+                    <div class="valor aliquota">{{ fat.aliquota_aplicada }}%</div>
+                </div>
+                <div class="item">
+                    <div class="label">Tributo</div>
+                    <div class="valor tributo">R$ {{ fat.valor_tributo|floatformat:2 }}</div>
+                </div>
+            </div>
+            
+            <div class="faturamento-status">
+                {% if fat.tributo_gerado %}
+                <span class="status-badge gerado">
+                    <i class="bi bi-check-circle"></i> Tributo Gerado
+                </span>
+                {% else %}
+                <span class="status-badge pendente">
+                    <i class="bi bi-clock"></i> Pendente
+                </span>
+                <form method="post" action="{% url 'financeiro:gerar_tributo' fat.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-gerar-tributo" onclick="return confirm('Gerar conta a pagar do tributo de R$ {{ fat.valor_tributo|floatformat:2 }}?');">
+                        <i class="bi bi-receipt"></i> Gerar Tributo
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="sem-dados">
+            <i class="bi bi-graph-up d-block"></i>
+            <p>Nenhum faturamento registrado</p>
+            <a href="{% url 'financeiro:criar_faturamento' %}" class="btn btn-novo mt-3">
+                <i class="bi bi-plus-lg"></i> Lançar Primeiro Faturamento
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

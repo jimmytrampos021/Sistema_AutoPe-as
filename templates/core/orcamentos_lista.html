@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block title %}Orçamentos - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Orçamentos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Estatísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card primary">
+                <div class="icon"><i class="bi bi-file-earmark-text"></i></div>
+                <div>
+                    <h3>{{ stats.total_orcamentos }}</h3>
+                    <p>Total de Orçamentos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card success">
+                <div class="icon"><i class="bi bi-cash-stack"></i></div>
+                <div>
+                    <h3>R$ {{ stats.valor_total|floatformat:2 }}</h3>
+                    <p>Valor Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card info">
+                <div class="icon"><i class="bi bi-hourglass-split"></i></div>
+                <div>
+                    <h3>{{ stats.abertos }}</h3>
+                    <p>Abertos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card warning">
+                <div class="icon"><i class="bi bi-check-circle"></i></div>
+                <div>
+                    <h3>{{ stats.aprovados }}</h3>
+                    <p>Aprovados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros e Ações -->
+    <div class="table-card">
+        <form method="get" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">Todos os Status</option>
+                        <option value="ABERTO" {% if status_selecionado == 'ABERTO' %}selected{% endif %}>Aberto</option>
+                        <option value="ENVIADO" {% if status_selecionado == 'ENVIADO' %}selected{% endif %}>Enviado</option>
+                        <option value="APROVADO" {% if status_selecionado == 'APROVADO' %}selected{% endif %}>Aprovado</option>
+                        <option value="REJEITADO" {% if status_selecionado == 'REJEITADO' %}selected{% endif %}>Rejeitado</option>
+                        <option value="CONVERTIDO" {% if status_selecionado == 'CONVERTIDO' %}selected{% endif %}>Convertido</option>
+                        <option value="EXPIRADO" {% if status_selecionado == 'EXPIRADO' %}selected{% endif %}>Expirado</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}" placeholder="Data Início">
+                </div>
+                <div class="col-md-3">
+                    <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}" placeholder="Data Fim">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-filter"></i> Filtrar
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Lista de Orçamentos</h5>
+            <a href="{% url 'criar_orcamento' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Novo Orçamento
+            </a>
+        </div>
+
+        <!-- Tabela de Orçamentos -->
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Número</th>
+                        <th>Data</th>
+                        <th>Cliente</th>
+                        <th>Veículo</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                        <th>Validade</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for orcamento in page_obj %}
+                    <tr>
+                        <td><strong>{{ orcamento.numero }}</strong></td>
+                        <td>{{ orcamento.data_orcamento|date:"d/m/Y H:i" }}</td>
+                        <td>{{ orcamento.cliente.nome }}</td>
+                        <td>
+                            {% if orcamento.veiculo_modelo %}
+                            <small>
+                                <i class="bi bi-car-front"></i>
+                                {{ orcamento.veiculo_modelo.montadora.nome }} {{ orcamento.veiculo_modelo.nome }}
+                            </small>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td><strong>R$ {{ orcamento.total|floatformat:2 }}</strong></td>
+                        <td>
+                            <span class="badge 
+                                {% if orcamento.status == 'ABERTO' %}bg-primary
+                                {% elif orcamento.status == 'ENVIADO' %}bg-info
+                                {% elif orcamento.status == 'APROVADO' %}bg-success
+                                {% elif orcamento.status == 'REJEITADO' %}bg-danger
+                                {% elif orcamento.status == 'CONVERTIDO' %}bg-success
+                                {% else %}bg-secondary{% endif %}">
+                                {{ orcamento.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ orcamento.data_validade|date:"d/m/Y" }}</td>
+                        <td>
+                            <a href="{% url 'editar_orcamento' orcamento.id %}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'detalhe_orcamento' orcamento.id %}" class="btn btn-sm btn-outline-info" title="Ver">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-2">Nenhum orçamento encontrado</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Navegação de página">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Primeira</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Anterior</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Próxima</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_selecionado %}&status={{ status_selecionado }}{% endif %}">Última</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+}
+
+.stat-card .icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-right: 15px;
+}
+
+.stat-card.primary .icon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-card.success .icon {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.stat-card.info .icon {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-card.warning .icon {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+.stat-card h3 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+.stat-card p {
+    margin: 0;
+    color: #718096;
+    font-size: 14px;
+}
+
+.table-card {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table thead th {
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table tbody tr:hover {
+    background-color: #f7fafc;
+}
+</style>
+{% endblock %}

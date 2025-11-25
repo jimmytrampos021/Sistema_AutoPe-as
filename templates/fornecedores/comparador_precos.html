@@ -1,0 +1,476 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparador de Preços - Sistema Autopeças{% endblock %}
+
+{% block page_title %}Comparador de Preços{% endblock %}
+
+{% block extra_css %}
+<style>
+    .comparador-container {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 20px;
+    }
+    
+    .busca-section {
+        background: white;
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        height: fit-content;
+        position: sticky;
+        top: 20px;
+    }
+    
+    .resultado-section {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        min-height: 500px;
+    }
+    
+    .produto-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .produto-card:hover {
+        background: #e7f1ff;
+        transform: translateX(5px);
+    }
+    
+    .produto-card.selected {
+        background: #e7f1ff;
+        border-left-color: #198754;
+    }
+    
+    .cotacao-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    
+    .cotacao-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .cotacao-card.melhor-preco {
+        border-color: #198754;
+        background: #f0fff4;
+        position: relative;
+        border-width: 3px;
+    }
+    
+    .cotacao-card.melhor-preco::before {
+        content: "🏆 MELHOR PREÇO";
+        position: absolute;
+        top: -12px;
+        left: 20px;
+        background: #198754;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    
+    .fornecedor-nome {
+        font-size: 22px;
+        font-weight: 600;
+        color: #1e3a8a;
+        margin-bottom: 10px;
+    }
+    
+    .preco-grande {
+        font-size: 36px;
+        font-weight: bold;
+        color: #198754;
+        margin: 15px 0;
+    }
+    
+    .preco-grande.caro {
+        color: #dc3545;
+    }
+    
+    .info-cotacao {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #495057;
+    }
+    
+    .info-item i {
+        color: #0d6efd;
+    }
+    
+    .economia-badge {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    
+    .economia-alta {
+        background: #d1f4e0;
+        color: #198754;
+    }
+    
+    .economia-media {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .economia-baixa {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .classificacao-fornecedor {
+        display: inline-block;
+        color: #ffc107;
+        font-size: 16px;
+    }
+    
+    .estatistica-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    .estatistica-valor {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .estatistica-label {
+        font-size: 13px;
+        opacity: 0.9;
+    }
+    
+    .alert-success-custom {
+        background: #d1f4e0;
+        border: 2px solid #198754;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .alert-warning-custom {
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .btn-nova-cotacao {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #198754;
+        color: white;
+        border: none;
+        font-size: 24px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        transition: all 0.3s;
+        z-index: 1000;
+    }
+    
+    .btn-nova-cotacao:hover {
+        transform: scale(1.1);
+        background: #157347;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-state i {
+        font-size: 80px;
+        color: #e9ecef;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="comparador-container">
+    <!-- Seção de Busca -->
+    <div class="busca-section">
+        <h5 class="mb-3"><i class="bi bi-search"></i> Buscar Produto</h5>
+        
+        <form method="GET" class="mb-4">
+            <div class="input-group mb-3">
+                <input type="text" 
+                       class="form-control" 
+                       name="busca" 
+                       value="{{ busca }}"
+                       placeholder="Código ou descrição...">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+        
+        {% if busca %}
+        <h6 class="mb-2">Resultados ({{ produtos|length }})</h6>
+        <div style="max-height: 400px; overflow-y: auto;">
+            {% for produto in produtos %}
+            <div class="produto-card {% if produto_selecionado and produto.id == produto_selecionado.id %}selected{% endif %}"
+                 onclick="window.location.href='?produto={{ produto.id }}'">
+                <strong>{{ produto.codigo }}</strong>
+                <div style="font-size: 13px; color: #6c757d;">
+                    {{ produto.descricao|truncatewords:5 }}
+                </div>
+                <small class="text-muted">Custo: R$ {{ produto.preco_custo }}</small>
+                
+                {% if produto.num_cotacoes > 0 %}
+                <div class="mt-2">
+                    <span class="badge bg-success">{{ produto.num_cotacoes }} cotações</span>
+                </div>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="text-center text-muted p-3">
+                <i class="bi bi-inbox" style="font-size: 32px;"></i>
+                <p>Nenhum produto encontrado</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <hr>
+        
+        <h5><i class="bi bi-star-fill text-warning"></i> Top Produtos</h5>
+        <small class="text-muted">Produtos com mais cotações</small>
+        <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
+            {% for produto in produtos_top %}
+            <div class="produto-card"
+                 onclick="window.location.href='?produto={{ produto.id }}'">
+                <strong>{{ produto.codigo }}</strong>
+                <div style="font-size: 12px;">{{ produto.descricao|truncatewords:5 }}</div>
+                <span class="badge bg-primary">{{ produto.num_cotacoes }} cotações</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Seção de Resultados -->
+    <div class="resultado-section">
+        {% if produto_selecionado %}
+        
+        <!-- Informações do Produto -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h3>{{ produto_selecionado.descricao }}</h3>
+                <p class="text-muted mb-0">
+                    <strong>Código:</strong> {{ produto_selecionado.codigo }} | 
+                    <strong>Categoria:</strong> {{ produto_selecionado.categoria.nome }}
+                </p>
+                <p class="text-muted">
+                    <strong>Fornecedor Principal:</strong> {{ produto_selecionado.fornecedor.nome_fantasia }}
+                </p>
+            </div>
+            <div class="col-md-4">
+                <div class="estatistica-card">
+                    <div class="estatistica-label">PREÇO ATUAL</div>
+                    <div class="estatistica-valor">R$ {{ produto_selecionado.preco_custo }}</div>
+                    <small>Preço de custo do produto</small>
+                </div>
+            </div>
+        </div>
+        
+        {% if cotacoes %}
+        
+        <!-- Melhor Economia -->
+        {% if economia_maxima > 0 %}
+        <div class="alert-success-custom">
+            <h5><i class="bi bi-piggy-bank-fill"></i> Economia Disponível!</h5>
+            <p class="mb-0">
+                <strong>Você pode economizar até R$ {{ economia_maxima|floatformat:2 }}</strong> 
+                comprando do fornecedor com melhor preço!
+            </p>
+        </div>
+        {% endif %}
+        
+        <!-- Lista de Cotações -->
+        <h4 class="mb-4">
+            <i class="bi bi-list-check"></i> {{ cotacoes|length }} Cotações Encontradas
+        </h4>
+        
+        {% for cotacao in cotacoes %}
+        <div class="cotacao-card {% if forloop.first %}melhor-preco{% endif %}">
+            <div class="row">
+                <div class="col-md-8">
+                    <h5 class="fornecedor-nome">
+                        {{ cotacao.fornecedor.nome_fantasia }}
+                        <span class="classificacao-fornecedor ms-2">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= cotacao.fornecedor.classificacao %}⭐{% endif %}
+                            {% endfor %}
+                        </span>
+                    </h5>
+                    
+                    <div class="preco-grande {% if not forloop.first %}caro{% endif %}">
+                        R$ {{ cotacao.preco_unitario|floatformat:2 }}
+                        {% if cotacao.valor_frete > 0 %}
+                        <small style="font-size: 16px; color: #6c757d;">
+                            + Frete: R$ {{ cotacao.valor_frete|floatformat:2 }}
+                        </small>
+                        {% endif %}
+                    </div>
+                    
+                    {% if cotacao.get_economia_percentual > 0 %}
+                    <div class="mb-3">
+                        <span class="economia-badge 
+                            {% if cotacao.get_economia_percentual > 20 %}economia-alta
+                            {% elif cotacao.get_economia_percentual > 10 %}economia-media
+                            {% else %}economia-baixa{% endif %}">
+                            💰 {{ cotacao.get_economia_percentual|floatformat:1 }}% de economia
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="info-cotacao">
+                        <div class="info-item">
+                            <i class="bi bi-box"></i>
+                            <span>Qtd. Mínima: {{ cotacao.quantidade_minima }}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="bi bi-credit-card"></i>
+                            <span>{{ cotacao.get_forma_pagamento_display }}</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="bi bi-clock"></i>
+                            <span>Entrega: {{ cotacao.prazo_entrega_dias }} dias</span>
+                        </div>
+                        <div class="info-item">
+                            <i class="bi bi-calendar"></i>
+                            <span>{{ cotacao.data_cotacao|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                    
+                    {% if cotacao.observacoes %}
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="bi bi-chat-left-text"></i> <strong>Obs:</strong> {{ cotacao.observacoes }}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="col-md-4 text-end">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success btn-lg">
+                            <i class="bi bi-cart-plus"></i> Escolher
+                        </button>
+                        <button class="btn btn-outline-primary"
+                                onclick="window.open('tel:{{ cotacao.fornecedor.telefone }}')">
+                            <i class="bi bi-telephone"></i> Ligar
+                        </button>
+                        <a href="{% url 'detalhes_fornecedor' cotacao.fornecedor.id %}"
+                           class="btn btn-outline-secondary">
+                            <i class="bi bi-info-circle"></i> Ver Fornecedor
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% else %}
+        <div class="alert-warning-custom">
+            <h5><i class="bi bi-exclamation-triangle"></i> Nenhuma Cotação Encontrada</h5>
+            <p>Este produto ainda não possui cotações cadastradas.</p>
+            <a href="{% url 'adicionar_cotacao' %}?produto={{ produto_selecionado.id }}" 
+               class="btn btn-warning mt-2">
+                <i class="bi bi-plus-circle"></i> Cadastrar Cotação
+            </a>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <!-- Nenhum produto selecionado -->
+        <div class="empty-state">
+            <i class="bi bi-search"></i>
+            <h4>Busque um produto para comparar preços</h4>
+            <p class="text-muted">
+                Use a busca ao lado para encontrar o produto desejado<br>
+                e visualizar as cotações de diferentes fornecedores
+            </p>
+        </div>
+        
+        <!-- Produtos que precisam de cotação -->
+        {% if produtos_precisam_cotacao %}
+        <div class="alert-warning-custom">
+            <h5><i class="bi bi-exclamation-circle"></i> Produtos que Precisam de Cotação</h5>
+            <p>Produtos com estoque baixo e sem cotações recentes:</p>
+            <ul>
+                {% for produto in produtos_precisam_cotacao %}
+                <li>
+                    <a href="?produto={{ produto.id }}">
+                        {{ produto.codigo }} - {{ produto.descricao }}
+                    </a>
+                    <span class="badge bg-danger">Estoque: {{ produto.estoque_atual }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% endif %}
+    </div>
+</div>
+
+<!-- Botão flutuante para nova cotação -->
+<a href="{% url 'adicionar_cotacao' %}{% if produto_selecionado %}?produto={{ produto_selecionado.id }}{% endif %}" 
+   class="btn btn-primary btn-nova-cotacao" 
+   title="Cadastrar Nova Cotação">
+    <i class="bi bi-plus"></i>
+</a>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Feedback visual ao clicar em cotação
+    $('.cotacao-card').hover(
+        function() {
+            $(this).css('transform', 'scale(1.02)');
+        },
+        function() {
+            $(this).css('transform', 'scale(1)');
+        }
+    );
+});
+</script>
+{% endblock %}

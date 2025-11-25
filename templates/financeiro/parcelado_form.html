@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}Nova Compra Parcelada{% endblock %}
+
+{% block page_title %}Nova Compra Parcelada{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .form-card .form-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-card .form-control,
+    .form-card .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .form-card .form-control:focus,
+    .form-card .form-select:focus {
+        border-color: #0dcaf0;
+        box-shadow: 0 0 0 3px rgba(13, 202, 240, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #0dcaf0 0%, #0aa2c0 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .preview-parcelas {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 16px;
+        margin-top: 20px;
+    }
+
+    .preview-parcelas h6 {
+        margin: 0 0 12px 0;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .preview-parcelas .valor-parcela {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0dcaf0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label">Descrição *</label>
+                    <input type="text" name="descricao" class="form-control" required
+                           placeholder="Ex: Compra de equipamento, Reforma...">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Categoria *</label>
+                    <select name="categoria" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Valor Total *</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: var(--bg-secondary); border-color: var(--card-border); color: var(--text-muted);">R$</span>
+                        <input type="text" name="valor_total" id="valorTotal" class="form-control" required placeholder="0,00">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Número de Parcelas *</label>
+                    <select name="numero_parcelas" id="numParcelas" class="form-select" required>
+                        {% for i in "123456789101112131415161718192021222324"|make_list %}
+                        <option value="{{ forloop.counter }}">{{ forloop.counter }}x</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Data da 1ª Parcela *</label>
+                    <input type="date" name="data_primeira_parcela" class="form-control" required>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Observações</label>
+                    <textarea name="observacoes" class="form-control" rows="3" placeholder="Anotações sobre esta compra..."></textarea>
+                </div>
+            </div>
+            
+            <div class="preview-parcelas">
+                <h6><i class="bi bi-calculator me-2"></i>Valor de cada parcela:</h6>
+                <div class="valor-parcela" id="valorParcela">R$ 0,00</div>
+            </div>
+            
+            <div class="d-flex gap-3 justify-content-end mt-4">
+                <a href="{% url 'financeiro:lista_parcelados' %}" class="btn btn-cancelar">
+                    <i class="bi bi-x-lg"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-salvar">
+                    <i class="bi bi-check-lg"></i> Criar Parcelamento
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const valorTotal = document.getElementById('valorTotal');
+    const numParcelas = document.getElementById('numParcelas');
+    const valorParcela = document.getElementById('valorParcela');
+    
+    function calcularParcela() {
+        let valor = valorTotal.value.replace(/\./g, '').replace(',', '.');
+        valor = parseFloat(valor) || 0;
+        const parcelas = parseInt(numParcelas.value) || 1;
+        const parcela = valor / parcelas;
+        
+        valorParcela.textContent = 'R$ ' + parcela.toLocaleString('pt-BR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    valorTotal.addEventListener('input', calcularParcela);
+    numParcelas.addEventListener('change', calcularParcela);
+});
+</script>
+{% endblock %}

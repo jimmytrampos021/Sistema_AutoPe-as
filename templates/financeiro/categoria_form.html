@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Nova{% endif %} Categoria{% endblock %}
+
+{% block page_title %}{% if editando %}Editar{% else %}Nova{% endif %} Categoria{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        max-width: 550px;
+        margin: 0 auto;
+    }
+
+    .form-card .form-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .form-card .form-control,
+    .form-card .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .form-card .form-control:focus,
+    .form-card .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .preview-categoria {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .preview-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+
+    .preview-nome {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .cor-option {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 3px solid transparent;
+        cursor: pointer;
+        transition: transform 0.15s;
+    }
+
+    .cor-option:hover {
+        transform: scale(1.1);
+    }
+
+    .cor-option.selected {
+        border-color: var(--text-primary);
+    }
+
+    .cores-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <div class="form-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label">Nome da Categoria *</label>
+                    <input type="text" name="nome" id="inputNome" class="form-control" required
+                           value="{{ categoria.nome|default:'' }}" placeholder="Ex: Aluguel, Combustível...">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Tipo *</label>
+                    <select name="tipo" class="form-select" required>
+                        <option value="FIXA" {% if categoria.tipo == 'FIXA' %}selected{% endif %}>Despesa Fixa</option>
+                        <option value="VARIAVEL" {% if categoria.tipo == 'VARIAVEL' %}selected{% endif %}>Despesa Variável</option>
+                        <option value="AMBOS" {% if categoria.tipo == 'AMBOS' or not categoria %}selected{% endif %}>Ambos</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Ordem de Exibição</label>
+                    <input type="number" name="ordem" class="form-control" 
+                           value="{{ categoria.ordem|default:0 }}" min="0">
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Ícone</label>
+                    <select name="icone" id="selectIcone" class="form-select">
+                        <option value="bi-folder" {% if categoria.icone == 'bi-folder' %}selected{% endif %}>📁 Pasta</option>
+                        <option value="bi-house" {% if categoria.icone == 'bi-house' %}selected{% endif %}>🏠 Casa</option>
+                        <option value="bi-building" {% if categoria.icone == 'bi-building' %}selected{% endif %}>🏢 Prédio</option>
+                        <option value="bi-lightning" {% if categoria.icone == 'bi-lightning' %}selected{% endif %}>⚡ Energia</option>
+                        <option value="bi-droplet" {% if categoria.icone == 'bi-droplet' %}selected{% endif %}>💧 Água</option>
+                        <option value="bi-wifi" {% if categoria.icone == 'bi-wifi' %}selected{% endif %}>📶 Internet</option>
+                        <option value="bi-telephone" {% if categoria.icone == 'bi-telephone' %}selected{% endif %}>📞 Telefone</option>
+                        <option value="bi-people" {% if categoria.icone == 'bi-people' %}selected{% endif %}>👥 Pessoas</option>
+                        <option value="bi-bus-front" {% if categoria.icone == 'bi-bus-front' %}selected{% endif %}>🚌 Transporte</option>
+                        <option value="bi-cup-hot" {% if categoria.icone == 'bi-cup-hot' %}selected{% endif %}>☕ Alimentação</option>
+                        <option value="bi-box-seam" {% if categoria.icone == 'bi-box-seam' %}selected{% endif %}>📦 Mercadoria</option>
+                        <option value="bi-fuel-pump" {% if categoria.icone == 'bi-fuel-pump' %}selected{% endif %}>⛽ Combustível</option>
+                        <option value="bi-tools" {% if categoria.icone == 'bi-tools' %}selected{% endif %}>🔧 Ferramentas</option>
+                        <option value="bi-car-front" {% if categoria.icone == 'bi-car-front' %}selected{% endif %}>🚗 Veículo</option>
+                        <option value="bi-calculator" {% if categoria.icone == 'bi-calculator' %}selected{% endif %}>🧮 Calculadora</option>
+                        <option value="bi-bank" {% if categoria.icone == 'bi-bank' %}selected{% endif %}>🏦 Banco</option>
+                        <option value="bi-megaphone" {% if categoria.icone == 'bi-megaphone' %}selected{% endif %}>📢 Marketing</option>
+                        <option value="bi-pc-display" {% if categoria.icone == 'bi-pc-display' %}selected{% endif %}>🖥️ Computador</option>
+                        <option value="bi-wrench" {% if categoria.icone == 'bi-wrench' %}selected{% endif %}>🔩 Manutenção</option>
+                        <option value="bi-gear" {% if categoria.icone == 'bi-gear' %}selected{% endif %}>⚙️ Equipamento</option>
+                        <option value="bi-shield" {% if categoria.icone == 'bi-shield' %}selected{% endif %}>🛡️ Seguro</option>
+                        <option value="bi-three-dots" {% if categoria.icone == 'bi-three-dots' %}selected{% endif %}>... Outros</option>
+                    </select>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Cor</label>
+                    <input type="hidden" name="cor" id="inputCor" value="{{ categoria.cor|default:'#6c757d' }}">
+                    <div class="cores-grid">
+                        <div class="cor-option" style="background: #dc3545;" data-cor="#dc3545" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #fd7e14;" data-cor="#fd7e14" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #ffc107;" data-cor="#ffc107" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #198754;" data-cor="#198754" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #20c997;" data-cor="#20c997" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #0dcaf0;" data-cor="#0dcaf0" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #0d6efd;" data-cor="#0d6efd" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #6f42c1;" data-cor="#6f42c1" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #e91e8c;" data-cor="#e91e8c" onclick="selecionarCor(this)"></div>
+                        <div class="cor-option" style="background: #6c757d;" data-cor="#6c757d" onclick="selecionarCor(this)"></div>
+                    </div>
+                </div>
+                
+                {% if editando %}
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="ativo" id="checkAtivo" {% if categoria.ativo %}checked{% endif %}>
+                        <label class="form-check-label" for="checkAtivo">Categoria Ativa</label>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="preview-categoria">
+                <div class="preview-icon" id="previewIcon">
+                    <i class="{{ categoria.icone|default:'bi-folder' }}"></i>
+                </div>
+                <div class="preview-nome" id="previewNome">{{ categoria.nome|default:'Nome da Categoria' }}</div>
+            </div>
+            
+            <div class="d-flex gap-3 justify-content-end mt-4">
+                <a href="{% url 'financeiro:lista_categorias' %}" class="btn btn-cancelar">
+                    <i class="bi bi-x-lg"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-salvar">
+                    <i class="bi bi-check-lg"></i> {% if editando %}Salvar{% else %}Criar{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const inputNome = document.getElementById('inputNome');
+    const selectIcone = document.getElementById('selectIcone');
+    const inputCor = document.getElementById('inputCor');
+    const previewIcon = document.getElementById('previewIcon');
+    const previewNome = document.getElementById('previewNome');
+    
+    // Selecionar cor inicial
+    const corInicial = inputCor.value;
+    document.querySelectorAll('.cor-option').forEach(el => {
+        if (el.dataset.cor === corInicial) {
+            el.classList.add('selected');
+        }
+    });
+    atualizarPreview();
+    
+    inputNome.addEventListener('input', atualizarPreview);
+    selectIcone.addEventListener('change', atualizarPreview);
+    
+    function atualizarPreview() {
+        previewNome.textContent = inputNome.value || 'Nome da Categoria';
+        previewIcon.innerHTML = '<i class="' + selectIcone.value + '"></i>';
+        previewIcon.style.background = inputCor.value + '20';
+        previewIcon.style.color = inputCor.value;
+    }
+    
+    window.selecionarCor = function(el) {
+        document.querySelectorAll('.cor-option').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        inputCor.value = el.dataset.cor;
+        atualizarPreview();
+    };
+});
+</script>
+{% endblock %}

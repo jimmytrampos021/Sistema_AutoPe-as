@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Nova{% endif %} Conta - Financeiro{% endblock %}
+
+{% block page_title %}{% if editando %}Editar{% else %}Nova{% endif %} Conta a Pagar{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .form-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .form-card .form-label {
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+
+    .form-card .form-control,
+    .form-card .form-select {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+
+    .form-card .form-control:focus,
+    .form-card .form-select:focus {
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background: var(--card-bg);
+    }
+
+    .form-card textarea.form-control {
+        min-height: 100px;
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-salvar:hover {
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        color: white;
+    }
+
+    .btn-cancelar {
+        background: var(--bg-secondary);
+        border: 1px solid var(--card-border);
+        color: var(--text-secondary);
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar:hover {
+        background: var(--card-border);
+        color: var(--text-primary);
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-title i {
+        color: #3b82f6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <div class="form-card">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="section-title">
+                <i class="bi bi-info-circle"></i> Informações da Conta
+            </div>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label">Descrição *</label>
+                    <input type="text" name="descricao" class="form-control" required
+                           value="{{ conta.descricao|default:'' }}" placeholder="Ex: Conta de luz, Aluguel...">
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Categoria *</label>
+                    <select name="categoria" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}" {% if conta.categoria_id == cat.id %}selected{% endif %}>
+                            {{ cat.nome }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Tipo *</label>
+                    <select name="tipo" class="form-select" required>
+                        <option value="VARIAVEL" {% if conta.tipo == 'VARIAVEL' %}selected{% endif %}>Despesa Variável</option>
+                        <option value="FIXA" {% if conta.tipo == 'FIXA' %}selected{% endif %}>Despesa Fixa</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Valor *</label>
+                    <div class="input-group">
+                        <span class="input-group-text" style="background: var(--bg-secondary); border: 1px solid var(--card-border); color: var(--text-muted);">R$</span>
+                        <input type="text" name="valor" class="form-control" required
+                               value="{{ conta.valor|default:'' }}" placeholder="0,00">
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <label class="form-label">Data de Vencimento *</label>
+                    <input type="date" name="data_vencimento" class="form-control" required
+                           value="{{ conta.data_vencimento|date:'Y-m-d'|default:'' }}">
+                </div>
+            </div>
+            
+            <div class="section-title">
+                <i class="bi bi-card-text"></i> Informações Adicionais
+            </div>
+            
+            <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label">Observações</label>
+                    <textarea name="observacoes" class="form-control" placeholder="Anotações sobre esta conta...">{{ conta.observacoes|default:'' }}</textarea>
+                </div>
+                
+                <div class="col-12">
+                    <label class="form-label">Comprovante</label>
+                    <input type="file" name="comprovante" class="form-control">
+                    {% if conta.comprovante %}
+                    <small class="text-muted">Arquivo atual: {{ conta.comprovante.name }}</small>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="d-flex gap-3 justify-content-end">
+                <a href="{% url 'financeiro:lista_contas' %}" class="btn btn-cancelar">
+                    <i class="bi bi-x-lg"></i> Cancelar
+                </a>
+                <button type="submit" class="btn btn-salvar">
+                    <i class="bi bi-check-lg"></i> {% if editando %}Salvar Alterações{% else %}Criar Conta{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
