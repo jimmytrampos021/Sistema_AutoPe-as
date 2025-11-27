@@ -8,7 +8,7 @@
 <style>
     .pdv-container {
         display: grid;
-        grid-template-columns: 1fr 400px;
+        grid-template-columns: 1fr 450px;
         gap: 20px;
         height: calc(100vh - 180px);
     }
@@ -186,6 +186,135 @@
         font-size: 10px;
         margin-left: 5px;
     }
+    
+    /* Loading spinner */
+    .loading-spinner {
+        text-align: center;
+        padding: 20px;
+        color: #6c757d;
+    }
+    
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15em;
+    }
+    
+    /* Modo Escuro */
+    body.dark-mode .pdv-container {
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .produtos-section,
+    body.dark-mode .carrinho-section {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .produto-card {
+        background: #1a1a1a;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .produto-card:hover {
+        border-color: #0d6efd;
+        background: #2a2a2a;
+    }
+    
+    body.dark-mode .produto-card.selected {
+        background: #1a3a5a;
+        border-color: #0d6efd;
+    }
+    
+    body.dark-mode .produto-codigo,
+    body.dark-mode .produto-estoque {
+        color: #999;
+    }
+    
+    body.dark-mode .produto-nome {
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .carrinho-item {
+        border-bottom-color: #444;
+    }
+    
+    body.dark-mode .empty-cart {
+        color: #999;
+    }
+    
+    body.dark-mode .form-select,
+    body.dark-mode .form-control {
+        background: #1a1a1a;
+        border-color: #444;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .form-select:focus,
+    body.dark-mode .form-control:focus {
+        background: #2a2a2a;
+        border-color: #0d6efd;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .search-counter,
+    body.dark-mode .loading-spinner {
+        color: #999;
+    }
+    
+    /* Badge de parcelas */
+    .badge-parcela {
+        background: #0d6efd;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        margin-left: 5px;
+    }
+    
+    /* Info de desconto/acréscimo */
+    #info-ajuste {
+        background: #e7f1ff;
+        padding: 5px 8px;
+        border-radius: 5px;
+        border-left: 3px solid #0d6efd;
+    }
+    
+    body.dark-mode #info-ajuste {
+        background: #1a3a5a;
+        border-left-color: #4a90e2;
+        color: #a0c4ff;
+    }
+    
+    .total-breakdown {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+    
+    .total-breakdown .row {
+        padding: 3px 0;
+    }
+    
+    .total-breakdown .label {
+        color: #6c757d;
+    }
+    
+    .total-breakdown .value {
+        font-weight: 600;
+    }
+    
+    .total-breakdown .desconto {
+        color: #198754;
+    }
+    
+    .total-breakdown .acrescimo {
+        color: #dc3545;
+    }
+    
+    body.dark-mode .total-breakdown .label {
+        color: #999;
+    }
 </style>
 {% endblock %}
 
@@ -198,10 +327,12 @@
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input type="text" id="search-produto" class="form-control form-control-lg" 
-                       placeholder="Buscar por código, descrição ou código de barras..." 
+                       placeholder="Digite para buscar (mínimo 2 caracteres)..." 
                        autocomplete="off">
             </div>
-            <div class="search-counter" id="search-counter"></div>
+            <div class="search-counter" id="search-counter">
+                Mostrando {{ produtos|length }} de {{ total_produtos }} produtos
+            </div>
         </div>
         
         <div id="lista-produtos" class="mt-3">
@@ -256,8 +387,64 @@
             </select>
         </div>
         
+        <!-- Forma de Pagamento -->
+        <div class="mb-3">
+            <label class="form-label">Forma de Pagamento</label>
+            <select id="forma-pagamento" class="form-select">
+                <option value="DI">💵 Dinheiro/PIX</option>
+                <option value="DB">💳 Débito</option>
+                <option value="CC">💳 Crédito à Vista</option>
+                <option value="CP">💳 Crédito Parcelado</option>
+            </select>
+        </div>
+        
+        <!-- Parcelas (aparece apenas se Crédito Parcelado) -->
+        <div id="parcelas-container" class="mb-3" style="display: none;">
+            <label class="form-label">Número de Parcelas</label>
+            <select id="numero-parcelas" class="form-select">
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+                <option value="5">5x</option>
+                <option value="6">6x</option>
+                <option value="7">7x</option>
+                <option value="8">8x</option>
+                <option value="9">9x</option>
+                <option value="10">10x</option>
+                <option value="11">11x</option>
+                <option value="12">12x</option>
+            </select>
+        </div>
+        
+        <!-- Desconto/Acréscimo -->
+        <div class="mb-3">
+            <label class="form-label">💰 Desconto/Acréscimo</label>
+            <div class="row g-2">
+                <div class="col-5">
+                    <select id="tipo-ajuste" class="form-select form-select-sm">
+                        <option value="">Nenhum</option>
+                        <option value="desconto">Desconto</option>
+                        <option value="acrescimo">Acréscimo</option>
+                    </select>
+                </div>
+                <div class="col-4">
+                    <input type="number" id="valor-ajuste" class="form-control form-control-sm" 
+                           placeholder="0.00" step="0.01" min="0" disabled>
+                </div>
+                <div class="col-3">
+                    <select id="tipo-valor-ajuste" class="form-select form-select-sm" disabled>
+                        <option value="reais">R$</option>
+                        <option value="percent">%</option>
+                    </select>
+                </div>
+            </div>
+            <div id="info-ajuste" class="mt-1" style="font-size: 11px; color: #6c757d; display: none;">
+                <i class="bi bi-info-circle"></i> <span id="info-ajuste-texto"></span>
+            </div>
+        </div>
+        
         <!-- Itens do Carrinho -->
-        <div id="carrinho-itens" style="flex: 1; overflow-y: auto;">
+        <div id="carrinho-itens" style="flex: 1; overflow-y: auto; max-height: 250px;">
             <div class="empty-cart">
                 <i class="bi bi-cart-x"></i>
                 <p>Carrinho vazio<br>Clique nos produtos para adicionar</p>
@@ -266,16 +453,17 @@
         
         <!-- Total e Finalização -->
         <div class="carrinho-total">
-            <div class="mb-3">
-                <label class="form-label">Forma de Pagamento</label>
-                <select id="forma-pagamento" class="form-select">
-                    <option value="DI">Dinheiro</option>
-                    <option value="CD">Cartão de Débito</option>
-                    <option value="CC">Cartão de Crédito</option>
-                    <option value="PIX">PIX</option>
-                    <option value="BO">Boleto</option>
-                    <option value="CR">Crediário</option>
-                </select>
+            <!-- Detalhamento do Total -->
+            <div class="total-breakdown" id="total-breakdown" style="display: none;">
+                <div class="row">
+                    <div class="col-6 label">Subtotal:</div>
+                    <div class="col-6 text-end value" id="valor-subtotal">R$ 0,00</div>
+                </div>
+                <div class="row" id="row-ajuste" style="display: none;">
+                    <div class="col-6 label" id="label-ajuste">Desconto:</div>
+                    <div class="col-6 text-end value" id="valor-ajuste-display">R$ 0,00</div>
+                </div>
+                <hr style="margin: 8px 0;">
             </div>
             
             <div class="total-valor" id="total-geral">R$ 0,00</div>
@@ -296,185 +484,169 @@
 {% block extra_js %}
 <script>
 let carrinho = [];
-let carrinhoId = 1;
-let todosOsProdutos = [];
+let buscaTimeout = null;
+let ultimaBusca = '';
+let ajusteAtual = {
+    tipo: '',      // 'desconto' ou 'acrescimo'
+    valor: 0,      // valor numérico
+    tipoValor: 'reais'  // 'reais' ou 'percent'
+};
 
-$(document).ready(function() {
-    // Indexar todos os produtos para busca
-    $('.produto-card').each(function() {
-        todosOsProdutos.push({
-            element: $(this),
-            codigo: $(this).data('codigo') ? $(this).data('codigo').toString().toLowerCase() : '',
-            descricao: $(this).data('descricao') ? $(this).data('descricao').toString().toLowerCase() : '',
-            codigoBarras: $(this).data('codigo-barras') ? $(this).data('codigo-barras').toString().toLowerCase() : ''
-        });
-    });
-    
-    // Focar no campo de busca
-    $('#search-produto').focus();
-});
-
-// Função de busca fuzzy/inteligente - TODAS as palavras devem ser encontradas
-function buscaInteligente(texto, busca) {
-    texto = texto.toLowerCase().trim();
-    busca = busca.toLowerCase().trim();
-    
-    if (!busca) return 0;
-    
-    // Se a busca exata existe, retorna pontuação máxima
-    if (texto.includes(busca)) {
-        return 100;
-    }
-    
-    // Divide a busca em palavras (ignora palavras com menos de 2 caracteres)
-    const palavrasBusca = busca.split(/\s+/).filter(p => p.length >= 2);
-    
-    if (palavrasBusca.length === 0) return 0;
-    
-    let todasEncontradas = true;
-    let pontuacao = 0;
-    
-    // TODAS as palavras devem ser encontradas
-    for (const palavra of palavrasBusca) {
-        // Busca a palavra exata ou como parte de uma palavra maior
-        // Mas a palavra da busca deve ter pelo menos 3 caracteres para match parcial
-        if (texto.includes(palavra)) {
-            pontuacao += 50;
-        } else if (palavra.length >= 3) {
-            // Só faz match parcial se a palavra tiver 3+ caracteres
-            const palavrasTexto = texto.split(/\s+/);
-            let encontrou = false;
-            
-            for (const palavraTexto of palavrasTexto) {
-                // A palavra do texto deve CONTER a palavra buscada
-                if (palavraTexto.includes(palavra)) {
-                    pontuacao += 25;
-                    encontrou = true;
-                    break;
-                }
-            }
-            
-            if (!encontrou) {
-                todasEncontradas = false;
-                break;
-            }
-        } else {
-            // Palavra muito curta - precisa match exato
-            const palavrasTexto = texto.split(/\s+/);
-            if (!palavrasTexto.includes(palavra)) {
-                todasEncontradas = false;
-                break;
-            }
-        }
-    }
-    
-    return todasEncontradas ? pontuacao : 0;
-}
-// Busca dinâmica em tempo real (otimizada com busca inteligente)
-let timeoutBusca;
+// ============================================
+// BUSCA AJAX DE PRODUTOS
+// ============================================
 $('#search-produto').on('input', function() {
-    clearTimeout(timeoutBusca);
+    const query = $(this).val().trim();
     
-    const busca = $(this).val().toLowerCase().trim();
+    // Limpar timeout anterior
+    if (buscaTimeout) {
+        clearTimeout(buscaTimeout);
+    }
     
-    // Se busca vazia, mostrar todos
-    if (busca === '') {
-        $('.produto-card').show();
-        $('#busca-vazia').remove();
-        $('#search-counter').text('');
+    // Se busca vazia, mostrar produtos iniciais
+    if (query.length === 0) {
+        $('#search-counter').text('Mostrando produtos recentes');
         return;
     }
     
-    // Usar timeout para não sobrecarregar durante digitação rápida
-    timeoutBusca = setTimeout(function() {
-        let encontrados = 0;
-        let resultados = [];
-        
-        // Buscar em todos os produtos com pontuação
-        todosOsProdutos.forEach(function(produto) {
-            const pontuacaoCodigo = buscaInteligente(produto.codigo, busca);
-            const pontuacaoDescricao = buscaInteligente(produto.descricao, busca);
-            const pontuacaoBarras = buscaInteligente(produto.codigoBarras, busca);
-            
-            const pontuacaoTotal = Math.max(pontuacaoCodigo, pontuacaoDescricao, pontuacaoBarras);
-            
-            if (pontuacaoTotal > 0) {
-                resultados.push({
-                    produto: produto,
-                    pontuacao: pontuacaoTotal
-                });
-            }
-        });
-        
-        // Ordenar por pontuação (mais relevantes primeiro)
-        resultados.sort((a, b) => b.pontuacao - a.pontuacao);
-        
-        // Esconder todos primeiro
-        todosOsProdutos.forEach(p => p.element.hide());
-        
-        // Mostrar apenas os encontrados na ordem de relevância
-        resultados.forEach(resultado => {
-            resultado.produto.element.show();
-            encontrados++;
-        });
-        
-        // Atualizar contador
-        if (encontrados > 0) {
-            $('#search-counter').html(`<i class="bi bi-check-circle text-success"></i> ${encontrados} produto${encontrados > 1 ? 's' : ''} encontrado${encontrados > 1 ? 's' : ''}`);
-        } else {
-            $('#search-counter').html(`<i class="bi bi-x-circle text-danger"></i> Nenhum produto encontrado`);
+    // Aguardar 300ms antes de buscar (debounce)
+    buscaTimeout = setTimeout(function() {
+        if (query.length < 2) {
+            $('#search-counter').html('<span class="text-muted">Digite pelo menos 2 caracteres</span>');
+            return;
         }
         
-        // Feedback visual se não encontrou nada
-        if (encontrados === 0) {
-            if ($('#busca-vazia').length === 0) {
-                $('#lista-produtos').prepend(`
-                    <div id="busca-vazia" class="alert alert-warning">
-                        <i class="bi bi-search"></i> Nenhum produto encontrado para "<strong>${$('#search-produto').val()}</strong>"
-                        <br><small>Tente buscar por código, descrição ou código de barras</small>
-                    </div>
-                `);
-            }
-        } else {
-            $('#busca-vazia').remove();
+        // Evitar buscar a mesma coisa
+        if (query === ultimaBusca) {
+            return;
         }
-    }, 150); // Aguarda 150ms após parar de digitar
+        
+        ultimaBusca = query;
+        buscarProdutos(query);
+    }, 300);
 });
 
-// Limpar busca com ESC
-$('#search-produto').on('keydown', function(e) {
-    if (e.key === 'Escape') {
-        $(this).val('');
-        $('.produto-card').show();
-        $('#busca-vazia').remove();
+function buscarProdutos(query) {
+    // Mostrar loading
+    $('#lista-produtos').html(`
+        <div class="loading-spinner">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Buscando...</span>
+            </div>
+            <p class="mt-2">Buscando produtos...</p>
+        </div>
+    `);
+    
+    $('#search-counter').html('<span class="spinner-border spinner-border-sm me-2"></span>Buscando...');
+    
+    // Fazer requisição AJAX
+    $.ajax({
+        url: '{% url "api_buscar_produtos_pdv" %}',
+        method: 'GET',
+        data: { q: query },
+        success: function(response) {
+            renderizarProdutos(response.produtos);
+            $('#search-counter').text(`${response.total} produto(s) encontrado(s)`);
+        },
+        error: function(xhr, status, error) {
+            console.error('Erro na busca:', error);
+            $('#lista-produtos').html(`
+                <div class="text-center text-danger p-5">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 48px;"></i>
+                    <p>Erro ao buscar produtos</p>
+                    <small>${error}</small>
+                </div>
+            `);
+            $('#search-counter').html('<span class="text-danger">Erro na busca</span>');
+        }
+    });
+}
+
+function renderizarProdutos(produtos) {
+    const container = $('#lista-produtos');
+    container.empty();
+    
+    if (produtos.length === 0) {
+        container.html(`
+            <div class="text-center text-muted p-5">
+                <i class="bi bi-inbox" style="font-size: 48px;"></i>
+                <p>Nenhum produto encontrado</p>
+            </div>
+        `);
+        return;
     }
-});
+    
+    produtos.forEach(produto => {
+        const semEstoque = produto.estoque_atual <= 0;
+        const badgeSemEstoque = semEstoque ? '<span class="badge-sem-estoque">SEM ESTOQUE</span>' : '';
+        const codigoBarras = produto.codigo_barras ? ` | <small>${produto.codigo_barras}</small>` : '';
+        
+        const html = `
+            <div class="produto-card ${semEstoque ? 'sem-estoque' : ''}" 
+                 data-id="${produto.id}" 
+                 data-codigo="${produto.codigo}"
+                 data-codigo-barras="${produto.codigo_barras}"
+                 data-descricao="${produto.descricao}" 
+                 data-preco="${produto.preco_venda_dinheiro}"
+                 data-preco-debito="${produto.preco_venda_debito}"
+                 data-preco-credito="${produto.preco_venda_credito}"
+                 data-estoque="${produto.estoque_atual}"
+                 data-imposto="${produto.aplicar_imposto_4}"
+                 data-customizado="${produto.preco_customizado_cartao}"
+                 data-precos-credito='${JSON.stringify(produto.precos_credito)}'>
+                <div class="produto-codigo">
+                    ${produto.codigo}${codigoBarras}${badgeSemEstoque}
+                </div>
+                <div class="produto-nome">${produto.descricao}</div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="produto-estoque ${semEstoque ? 'alerta' : ''}">
+                            <i class="bi bi-box"></i> Estoque: ${produto.estoque_atual}
+                        </div>
+                    </div>
+                    <div class="col-6 text-end">
+                        <div class="produto-preco">R$ ${parseFloat(produto.preco_venda_dinheiro).toFixed(2)}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.append(html);
+    });
+}
 
-// Adicionar produto ao carrinho (PERMITE VENDA SEM ESTOQUE)
+// ============================================
+// ADICIONAR PRODUTO AO CARRINHO
+// ============================================
 $(document).on('click', '.produto-card', function() {
     const produto = {
-        id: carrinhoId++,
-        produto_id: $(this).data('id'),
+        id: parseInt($(this).data('id')),
         codigo: $(this).data('codigo'),
         descricao: $(this).data('descricao'),
         preco: parseFloat($(this).data('preco')),
-        estoque: parseInt($(this).data('estoque')),
+        preco_debito: parseFloat($(this).data('preco-debito')),
+        preco_credito: parseFloat($(this).data('preco-credito')),
+        estoque: parseFloat($(this).data('estoque')),
+        aplicar_imposto: $(this).data('imposto') === true || $(this).data('imposto') === 'True',
+        preco_customizado: $(this).data('customizado') === true || $(this).data('customizado') === 'True',
+        precos_credito: $(this).data('precos-credito') || {},
         quantidade: 1,
-        semEstoque: parseInt($(this).data('estoque')) <= 0
+        semEstoque: parseFloat($(this).data('estoque')) <= 0
     };
     
     // Verificar se já existe no carrinho
-    const existente = carrinho.find(item => item.produto_id === produto.produto_id);
+    const existente = carrinho.find(item => item.id === produto.id);
+    
     if (existente) {
         existente.quantidade++;
         
-        // AVISO se ultrapassar o estoque (mas permite continuar)
+        // Aviso se ultrapassar estoque
         if (existente.quantidade > produto.estoque && produto.estoque > 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Estoque Insuficiente!',
-                html: `<strong>Disponível em estoque: ${produto.estoque} unidades</strong><br>
-                       Você está vendendo: ${existente.quantidade} unidades<br><br>
+                html: `<strong>Disponível: ${produto.estoque} unidades</strong><br>
+                       Vendendo: ${existente.quantidade} unidades<br><br>
                        <small>A venda pode continuar, mas o estoque ficará negativo.</small>`,
                 showConfirmButton: true,
                 confirmButtonText: 'Ok, entendi'
@@ -483,13 +655,13 @@ $(document).on('click', '.produto-card', function() {
     } else {
         carrinho.push(produto);
         
-        // AVISO se produto sem estoque (mas permite adicionar)
+        // Aviso se sem estoque
         if (produto.semEstoque) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Produto sem estoque!',
                 html: `<strong>${produto.descricao}</strong><br><br>
-                       Este produto está sem estoque, mas a venda pode continuar.<br>
+                       Este produto está sem estoque.<br>
                        O estoque ficará negativo após a venda.`,
                 timer: 3000,
                 showConfirmButton: false
@@ -504,7 +676,9 @@ $(document).on('click', '.produto-card', function() {
     setTimeout(() => $(this).removeClass('selected'), 300);
 });
 
-// Atualizar visualização do carrinho
+// ============================================
+// ATUALIZAR VISUALIZAÇÃO DO CARRINHO
+// ============================================
 function atualizarCarrinho() {
     const container = $('#carrinho-itens');
     container.empty();
@@ -517,25 +691,51 @@ function atualizarCarrinho() {
             </div>
         `);
         $('#total-geral').text('R$ 0,00');
+        $('#total-breakdown').hide();
+        $('#info-ajuste').hide();
         return;
     }
     
-    let total = 0;
+    let subtotal = 0;
+    const formaPagamento = $('#forma-pagamento').val();
+    const numeroParcelas = parseInt($('#numero-parcelas').val()) || 1;
     
     carrinho.forEach(item => {
-        const subtotal = item.preco * item.quantidade;
-        total += subtotal;
+        // Calcular preço baseado na forma de pagamento
+        let precoFinal = item.preco;
+        
+        if (formaPagamento === 'DB') {
+            precoFinal = item.preco_debito || item.preco;
+        } else if (formaPagamento === 'CC') {
+            precoFinal = item.preco_credito || item.preco;
+        } else if (formaPagamento === 'CP') {
+            // Crédito parcelado - usar preço customizado se disponível
+            if (item.preco_customizado && item.precos_credito[numeroParcelas + 'x']) {
+                precoFinal = item.precos_credito[numeroParcelas + 'x'];
+            } else {
+                precoFinal = item.preco_credito || item.preco;
+            }
+        }
+        
+        const itemSubtotal = precoFinal * item.quantidade;
+        subtotal += itemSubtotal;
         
         const semEstoqueClass = (item.quantidade > item.estoque) ? 'sem-estoque-warning' : '';
         const alertaEstoque = (item.quantidade > item.estoque) ? 
             `<small class="text-warning"><i class="bi bi-exclamation-triangle-fill"></i> Estoque: ${item.estoque}</small>` : '';
         
+        let infoParcela = '';
+        if (formaPagamento === 'CP') {
+            const valorParcela = precoFinal / numeroParcelas;
+            infoParcela = `<span class="badge-parcela">${numeroParcelas}x R$ ${valorParcela.toFixed(2)}</span>`;
+        }
+        
         container.append(`
             <div class="carrinho-item ${semEstoqueClass}" data-id="${item.id}">
                 <div style="flex: 1;">
-                    <strong>${item.descricao}</strong>
+                    <strong>${item.descricao}</strong>${infoParcela}
                     <br>
-                    <small class="text-muted">R$ ${item.preco.toFixed(2)} cada</small>
+                    <small class="text-muted">R$ ${precoFinal.toFixed(2)} cada</small>
                     ${alertaEstoque}
                 </div>
                 <div class="item-qtd-control">
@@ -551,14 +751,45 @@ function atualizarCarrinho() {
                     </button>
                 </div>
                 <div style="text-align: right; min-width: 80px;">
-                    <strong>R$ ${subtotal.toFixed(2)}</strong>
+                    <strong>R$ ${itemSubtotal.toFixed(2)}</strong>
                 </div>
             </div>
         `);
     });
     
+    // Calcular ajuste (desconto ou acréscimo)
+    const resultado = calcularAjuste(subtotal);
+    const total = resultado.total;
+    const valorAjuste = resultado.valorAjuste;
+    
+    // Atualizar info do ajuste
+    atualizarInfoAjuste(subtotal, valorAjuste);
+    
+    // Mostrar breakdown se houver ajuste
+    if (ajusteAtual.tipo && ajusteAtual.valor > 0) {
+        $('#valor-subtotal').text(`R$ ${subtotal.toFixed(2)}`);
+        
+        const classAjuste = ajusteAtual.tipo === 'desconto' ? 'desconto' : 'acrescimo';
+        const sinalAjuste = ajusteAtual.tipo === 'desconto' ? '-' : '+';
+        
+        $('#label-ajuste').text(`${ajusteAtual.tipo === 'desconto' ? 'Desconto' : 'Acréscimo'}:`);
+        $('#valor-ajuste-display')
+            .removeClass('desconto acrescimo')
+            .addClass(classAjuste)
+            .text(`${sinalAjuste} R$ ${valorAjuste.toFixed(2)}`);
+        
+        $('#row-ajuste').show();
+        $('#total-breakdown').show();
+    } else {
+        $('#total-breakdown').hide();
+    }
+    
     $('#total-geral').text(`R$ ${total.toFixed(2)}`);
 }
+
+// ============================================
+// CONTROLES DO CARRINHO
+// ============================================
 
 // Aumentar quantidade
 $(document).on('click', '.btn-aumentar', function() {
@@ -567,12 +798,11 @@ $(document).on('click', '.btn-aumentar', function() {
     if (item) {
         item.quantidade++;
         
-        // Aviso se ultrapassar estoque
         if (item.quantidade > item.estoque && item.estoque > 0) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Atenção!',
-                text: `Estoque disponível: ${item.estoque} | Vendendo: ${item.quantidade}`,
+                text: `Estoque: ${item.estoque} | Vendendo: ${item.quantidade}`,
                 timer: 2000,
                 showConfirmButton: false
             });
@@ -616,12 +846,138 @@ $('#btn-limpar').on('click', function() {
     }).then((result) => {
         if (result.isConfirmed) {
             carrinho = [];
+            
+            // Limpar ajuste também
+            $('#tipo-ajuste').val('');
+            $('#valor-ajuste').val('').prop('disabled', true);
+            $('#tipo-valor-ajuste').val('reais').prop('disabled', true);
+            ajusteAtual = { tipo: '', valor: 0, tipoValor: 'reais' };
+            $('#info-ajuste').hide();
+            
             atualizarCarrinho();
         }
     });
 });
 
-// Finalizar venda (PERMITE SEM CLIENTE)
+// Mostrar/ocultar campo de parcelas
+$('#forma-pagamento').on('change', function() {
+    const parcelasContainer = document.getElementById('parcelas-container');
+    if ($(this).val() === 'CP') {
+        parcelasContainer.style.display = 'block';
+        $('#parcelas-container').slideDown();
+    } else {
+        parcelasContainer.style.display = 'none';
+        $('#parcelas-container').slideUp();
+    }
+    atualizarCarrinho();
+});
+
+// Também adicionar listener com JavaScript puro (fallback)
+document.getElementById('forma-pagamento').addEventListener('change', function() {
+    const parcelasContainer = document.getElementById('parcelas-container');
+    if (this.value === 'CP') {
+        parcelasContainer.style.display = 'block';
+    } else {
+        parcelasContainer.style.display = 'none';
+    }
+    atualizarCarrinho();
+});
+
+// Atualizar quando mudar número de parcelas
+$('#numero-parcelas').on('change', function() {
+    atualizarCarrinho();
+});
+
+// ============================================
+// DESCONTO E ACRÉSCIMO
+// ============================================
+
+// Habilitar/desabilitar campos de ajuste
+$('#tipo-ajuste').on('change', function() {
+    const tipo = $(this).val();
+    
+    if (tipo) {
+        $('#valor-ajuste').prop('disabled', false);
+        $('#tipo-valor-ajuste').prop('disabled', false);
+        ajusteAtual.tipo = tipo;
+    } else {
+        $('#valor-ajuste').prop('disabled', true).val('');
+        $('#tipo-valor-ajuste').prop('disabled', true);
+        ajusteAtual.tipo = '';
+        ajusteAtual.valor = 0;
+        $('#info-ajuste').hide();
+    }
+    
+    atualizarCarrinho();
+});
+
+// Atualizar valor do ajuste
+$('#valor-ajuste, #tipo-valor-ajuste').on('input change', function() {
+    const valor = parseFloat($('#valor-ajuste').val()) || 0;
+    const tipoValor = $('#tipo-valor-ajuste').val();
+    
+    ajusteAtual.valor = valor;
+    ajusteAtual.tipoValor = tipoValor;
+    
+    atualizarCarrinho();
+});
+
+function calcularAjuste(subtotal) {
+    if (!ajusteAtual.tipo || ajusteAtual.valor <= 0) {
+        return { valorAjuste: 0, total: subtotal };
+    }
+    
+    let valorAjuste = 0;
+    
+    if (ajusteAtual.tipoValor === 'reais') {
+        valorAjuste = ajusteAtual.valor;
+    } else {
+        // Percentual
+        valorAjuste = (subtotal * ajusteAtual.valor) / 100;
+    }
+    
+    let total = subtotal;
+    
+    if (ajusteAtual.tipo === 'desconto') {
+        total = subtotal - valorAjuste;
+        if (total < 0) total = 0;
+    } else {
+        total = subtotal + valorAjuste;
+    }
+    
+    return { valorAjuste, total };
+}
+
+function atualizarInfoAjuste(subtotal, valorAjuste) {
+    const infoEl = $('#info-ajuste');
+    const infoTexto = $('#info-ajuste-texto');
+    
+    if (!ajusteAtual.tipo || ajusteAtual.valor <= 0) {
+        infoEl.hide();
+        return;
+    }
+    
+    let texto = '';
+    
+    if (ajusteAtual.tipoValor === 'reais') {
+        texto = `R$ ${ajusteAtual.valor.toFixed(2)}`;
+    } else {
+        texto = `${ajusteAtual.valor}% de R$ ${subtotal.toFixed(2)} = R$ ${valorAjuste.toFixed(2)}`;
+    }
+    
+    if (ajusteAtual.tipo === 'desconto') {
+        texto = `Desconto de ${texto}`;
+    } else {
+        texto = `Acréscimo de ${texto}`;
+    }
+    
+    infoTexto.text(texto);
+    infoEl.show();
+}
+
+// ============================================
+// FINALIZAR VENDA
+// ============================================
 $('#btn-finalizar').on('click', function() {
     const formaPagamento = $('#forma-pagamento').val();
     const clienteId = $('#cliente-select').val();
@@ -646,7 +1002,7 @@ $('#btn-finalizar').on('click', function() {
         return;
     }
     
-    // Verificar itens sem estoque e mostrar resumo
+    // Verificar itens sem estoque
     const itensSemEstoque = carrinho.filter(item => item.quantidade > item.estoque);
     let mensagemEstoque = '';
     
@@ -656,11 +1012,55 @@ $('#btn-finalizar').on('click', function() {
         itensSemEstoque.forEach(item => {
             mensagemEstoque += `• ${item.descricao}: Vendendo ${item.quantidade} | Estoque: ${item.estoque}<br>`;
         });
-        mensagemEstoque += `<small>O estoque ficará negativo após a venda.</small></div>`;
+        mensagemEstoque += `<small>O estoque ficará negativo.</small></div>`;
     }
     
     const clienteInfo = clienteId ? $('#cliente-select option:selected').text() : 'Não informado';
-    const totalVenda = carrinho.reduce((sum, item) => sum + (item.preco * item.quantidade), 0);
+    
+    // Calcular subtotal e total com ajuste
+    let subtotal = 0;
+    const formaPagamentoVal = $('#forma-pagamento').val();
+    const numeroParcelas = parseInt($('#numero-parcelas').val()) || 1;
+    
+    carrinho.forEach(item => {
+        let precoFinal = item.preco;
+        
+        if (formaPagamentoVal === 'DB') {
+            precoFinal = item.preco_debito || item.preco;
+        } else if (formaPagamentoVal === 'CC') {
+            precoFinal = item.preco_credito || item.preco;
+        } else if (formaPagamentoVal === 'CP') {
+            if (item.preco_customizado && item.precos_credito[numeroParcelas + 'x']) {
+                precoFinal = item.precos_credito[numeroParcelas + 'x'];
+            } else {
+                precoFinal = item.preco_credito || item.preco;
+            }
+        }
+        
+        subtotal += precoFinal * item.quantidade;
+    });
+    
+    const resultado = calcularAjuste(subtotal);
+    const totalVenda = resultado.total;
+    const valorAjuste = resultado.valorAjuste;
+    
+    const formaPagamentoTexto = $('#forma-pagamento option:selected').text();
+    
+    let infoAdicional = '';
+    if ($('#forma-pagamento').val() === 'CP') {
+        const parcelas = $('#numero-parcelas').val();
+        const valorParcela = totalVenda / parcelas;
+        infoAdicional = `<br><strong>Parcelas:</strong> ${parcelas}x de R$ ${valorParcela.toFixed(2)}`;
+    }
+    
+    // Informação de desconto/acréscimo
+    let infoAjuste = '';
+    if (ajusteAtual.tipo && ajusteAtual.valor > 0) {
+        const tipoTexto = ajusteAtual.tipo === 'desconto' ? 'Desconto' : 'Acréscimo';
+        const sinal = ajusteAtual.tipo === 'desconto' ? '-' : '+';
+        infoAjuste = `<br><strong>Subtotal:</strong> R$ ${subtotal.toFixed(2)}<br>
+                      <strong>${tipoTexto}:</strong> ${sinal} R$ ${valorAjuste.toFixed(2)}`;
+    }
     
     // Confirmação final
     Swal.fire({
@@ -668,8 +1068,8 @@ $('#btn-finalizar').on('click', function() {
         html: `
             <div style="text-align: left;">
                 <strong>Cliente:</strong> ${clienteInfo}<br>
-                <strong>Forma de Pagamento:</strong> ${$('#forma-pagamento option:selected').text()}<br>
-                <strong>Total de itens:</strong> ${carrinho.length}<br>
+                <strong>Forma de Pagamento:</strong> ${formaPagamentoTexto}${infoAdicional}<br>
+                <strong>Total de itens:</strong> ${carrinho.length}${infoAjuste}<br>
                 <strong>Valor Total:</strong> R$ ${totalVenda.toFixed(2)}
                 ${mensagemEstoque}
             </div>
@@ -682,7 +1082,7 @@ $('#btn-finalizar').on('click', function() {
     }).then((result) => {
         if (result.isConfirmed) {
             // Aqui você faria a chamada AJAX para salvar a venda
-            // Por enquanto, apenas simula o sucesso
+            // Por enquanto, apenas simula sucesso
             
             Swal.fire({
                 icon: 'success',
@@ -696,13 +1096,26 @@ $('#btn-finalizar').on('click', function() {
                 carrinho = [];
                 atualizarCarrinho();
                 $('#cliente-select').val('');
+                $('#forma-pagamento').val('DI');
+                $('#parcelas-container').hide();
+                
+                // Limpar ajuste
+                $('#tipo-ajuste').val('');
+                $('#valor-ajuste').val('').prop('disabled', true);
+                $('#tipo-valor-ajuste').val('reais').prop('disabled', true);
+                ajusteAtual = { tipo: '', valor: 0, tipoValor: 'reais' };
+                $('#info-ajuste').hide();
+                
                 $('#search-produto').val('').focus();
+                ultimaBusca = '';
             }, 2000);
         }
     });
 });
 
-// Atalhos de teclado
+// ============================================
+// ATALHOS DE TECLADO
+// ============================================
 $(document).on('keydown', function(e) {
     // F2 - Focar em busca
     if (e.key === 'F2') {
@@ -721,6 +1134,11 @@ $(document).on('keydown', function(e) {
         e.preventDefault();
         $('#btn-finalizar').click();
     }
+});
+
+// Focar no campo de busca ao carregar
+$(document).ready(function() {
+    $('#search-produto').focus();
 });
 </script>
 

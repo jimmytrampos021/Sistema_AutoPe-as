@@ -102,24 +102,88 @@ def dashboard(request):
 
 @login_required
 def pdv(request):
-    """Ponto de Venda - Interface de vendas rapida"""
+    """Ponto de Venda - Interface de vendas rápida OTIMIZADA"""
     clientes = Cliente.objects.filter(ativo=True).order_by('nome')
     
-    # CORRIGIDO: Buscar TODOS os produtos ativos (nao so destaque)
-    produtos = Produto.objects.filter(
-        ativo=True
-    ).select_related('categoria', 'fabricante').order_by('descricao')
-    
-    # Montadoras para filtro
-    montadoras = Montadora.objects.filter(ativa=True).order_by('ordem', 'nome')
+    # OTIMIZADO: Carrega apenas 20 produtos iniciais (mais vendidos ou recentes)
+    produtos_iniciais = Produto.objects.filter(
+        ativo=True,
+        estoque_atual__gt=0  # Apenas com estoque
+    ).select_related('categoria', 'fabricante').order_by('-id')[:20]
     
     context = {
         'clientes': clientes,
-        'produtos': produtos,
-        'montadoras': montadoras,
+        'produtos': produtos_iniciais,  # Apenas 20 iniciais
+        'total_produtos': Produto.objects.filter(ativo=True).count(),  # Total para mostrar
     }
     
     return render(request, 'core/pdv.html', context)
+
+@login_required
+def api_buscar_produtos_pdv(request):
+    """
+    API para buscar produtos no PDV via AJAX
+    Retorna JSON com produtos filtrados
+    BUSCA FUZZY: Busca múltiplas palavras separadas
+    """
+    query = request.GET.get('q', '').strip()
+    
+    if not query or len(query) < 2:
+        return JsonResponse({'produtos': []})
+    
+    # Dividir query em palavras (busca fuzzy)
+    palavras = query.split()
+    
+    # Construir filtros para cada palavra
+    filtros = Q(ativo=True)
+    
+    for palavra in palavras:
+        if palavra:  # Ignorar strings vazias
+            filtros &= (
+                Q(codigo__icontains=palavra) |
+                Q(descricao__icontains=palavra) |
+                Q(codigo_barras__icontains=palavra) |
+                Q(codigo_sku__icontains=palavra)
+            )
+    
+    # Buscar produtos que contenham TODAS as palavras
+    produtos = Produto.objects.filter(filtros).select_related('categoria', 'fabricante')[:50]
+    
+    # Serializa os produtos para JSON
+    produtos_data = []
+    for p in produtos:
+        produtos_data.append({
+            'id': p.id,
+            'codigo': p.codigo,
+            'codigo_barras': p.codigo_barras or '',
+            'descricao': p.descricao,
+            'preco_venda_dinheiro': float(p.preco_venda_dinheiro) if p.preco_venda_dinheiro else 0,
+            'preco_venda_debito': float(p.preco_venda_debito) if p.preco_venda_debito else 0,
+            'preco_venda_credito': float(p.preco_venda_credito) if p.preco_venda_credito else 0,
+            'estoque_atual': float(p.estoque_atual) if p.estoque_atual else 0,
+            'aplicar_imposto_4': p.aplicar_imposto_4 if hasattr(p, 'aplicar_imposto_4') else False,
+            'preco_customizado_cartao': p.preco_customizado_cartao if hasattr(p, 'preco_customizado_cartao') else False,
+            'precos_credito': {
+                '2x': float(p.preco_credito_2x) if hasattr(p, 'preco_credito_2x') and p.preco_credito_2x else 0,
+                '3x': float(p.preco_credito_3x) if hasattr(p, 'preco_credito_3x') and p.preco_credito_3x else 0,
+                '4x': float(p.preco_credito_4x) if hasattr(p, 'preco_credito_4x') and p.preco_credito_4x else 0,
+                '5x': float(p.preco_credito_5x) if hasattr(p, 'preco_credito_5x') and p.preco_credito_5x else 0,
+                '6x': float(p.preco_credito_6x) if hasattr(p, 'preco_credito_6x') and p.preco_credito_6x else 0,
+                '7x': float(p.preco_credito_7x) if hasattr(p, 'preco_credito_7x') and p.preco_credito_7x else 0,
+                '8x': float(p.preco_credito_8x) if hasattr(p, 'preco_credito_8x') and p.preco_credito_8x else 0,
+                '9x': float(p.preco_credito_9x) if hasattr(p, 'preco_credito_9x') and p.preco_credito_9x else 0,
+                '10x': float(p.preco_credito_10x) if hasattr(p, 'preco_credito_10x') and p.preco_credito_10x else 0,
+                '11x': float(p.preco_credito_11x) if hasattr(p, 'preco_credito_11x') and p.preco_credito_11x else 0,
+                '12x': float(p.preco_credito_12x) if hasattr(p, 'preco_credito_12x') and p.preco_credito_12x else 0,
+            },
+            'categoria': p.categoria.nome if p.categoria else '',
+            'fabricante': p.fabricante.nome if p.fabricante else '',
+        })
+    
+    return JsonResponse({
+        'produtos': produtos_data,
+        'total': len(produtos_data)
+    })
 
 
 @login_required
@@ -984,38 +1048,6 @@ def cadastrar_cotacao(request, produto_id=None):
     }
     return render(request, 'estoque/cadastrar_cotacao.html', context)
 
-
-@login_required
-def api_buscar_produto(request):
-    """API para buscar produtos (para autocomplete)"""
-    termo = request.GET.get('q', '').strip()
-    
-    if len(termo) < 2:
-        return JsonResponse({'produtos': []})
-    
-    produtos = Produto.objects.filter(ativo=True)
-    produtos = busca_fuzzy(produtos, ['codigo', 'descricao', 'codigo_barras'], termo)[:10]
-    
-    data = {
-        'produtos': [
-            {
-                'id': p.id,
-                'codigo': p.codigo,
-                'descricao': p.descricao,
-                'preco_custo': float(p.preco_custo),
-                'preco_venda': float(
-                                    p.preco_venda_dinheiro
-                                    or p.preco_venda_debito
-                                    or p.preco_venda_credito
-                                    or 0
-                                    ),
-                'estoque': p.estoque_atual,
-            }
-            for p in produtos
-        ]
-    }
-    
-    return JsonResponse(data)
 
 
 @login_required

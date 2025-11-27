@@ -22,6 +22,30 @@ from core import views as core_views
 
 
 
+"""
+URL configuration for autopecas_system project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/5.2/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from core import views as core_views
+
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('financeiro/', include('financeiro.urls')),
@@ -36,7 +60,7 @@ urlpatterns = [
     path('cotacao/nova/', core_views.cadastrar_cotacao, name='cadastrar_cotacao'),
     path('fornecedores/cotacao/adicionar/', core_views.adicionar_cotacao, name='adicionar_cotacao'),
     path('relatorio/fornecedores/', core_views.relatorio_melhores_fornecedores, name='relatorio_fornecedores'),
-    path('api/produto/buscar/', core_views.api_buscar_produto, name='api_buscar_produto'),
+    # path('api/produto/buscar/', core_views.api_buscar_produto, name='api_buscar_produto'),
     path('api/produto/<int:produto_id>/cotacoes/', core_views.api_cotacoes_produto, name='api_cotacoes_produto'),
     
     # Fornecedores (UNIFICADO - apenas um bloco)
@@ -75,7 +99,8 @@ urlpatterns = [
     path('orcamentos/<int:orcamento_id>/converter/', core_views.converter_orcamento_venda, name='converter_orcamento_venda'),
     
     # APIs de Busca
-    path('api/buscar-produtos/', core_views.buscar_produtos_rapido, name='buscar_produtos_rapido'),
+    # path('api/buscar-produtos/', core_views.buscar_produtos_rapido, name='buscar_produtos_rapido'),
+    path('api/pdv/buscar-produtos/', core_views.api_buscar_produtos_pdv, name='api_buscar_produtos_pdv'),
     path('api/buscar-modelos/', core_views.buscar_modelos_por_montadora, name='buscar_modelos_por_montadora'),
     # Categorias
     path('categorias/', core_views.lista_categorias, name='lista_categorias'),
@@ -94,6 +119,16 @@ urlpatterns = [
     path('api/subcategorias/', core_views.api_buscar_subcategorias, name='api_buscar_subcategorias'),
 
 ]
+   
+
+
+
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+
    
 
 
