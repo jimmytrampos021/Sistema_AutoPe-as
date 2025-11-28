@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+
+{% block title %}Crediário - {{ venda.cliente.nome }}{% endblock %}
+
+{% block page_title %}Detalhe do Crediário{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detalhe-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    body.dark-mode .detalhe-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #8b5cf6;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #8b5cf6;
+    }
+
+    .cliente-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .cliente-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .cliente-info h4 {
+        margin: 0;
+        color: #1a202c;
+    }
+
+    body.dark-mode .cliente-info h4 {
+        color: #f0f0f0;
+    }
+
+    .cliente-info p {
+        margin: 0;
+        color: #718096;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .info-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .info-box {
+        text-align: center;
+        padding: 15px;
+        border-radius: 10px;
+        background: #f8fafc;
+    }
+
+    body.dark-mode .info-box {
+        background: #363636;
+    }
+
+    .info-box .valor {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1a202c;
+    }
+
+    body.dark-mode .info-box .valor {
+        color: #f0f0f0;
+    }
+
+    .info-box .label {
+        font-size: 0.75rem;
+        color: #718096;
+        text-transform: uppercase;
+    }
+
+    .info-box.recebido .valor { color: #22c55e; }
+    .info-box.pendente .valor { color: #eab308; }
+    .info-box.atrasado .valor { color: #ef4444; }
+
+    .progress-grande {
+        height: 20px;
+        border-radius: 10px;
+        background: #e2e8f0;
+        margin: 20px 0;
+        overflow: hidden;
+    }
+
+    body.dark-mode .progress-grande {
+        background: #404040;
+    }
+
+    .progress-grande .bar {
+        height: 100%;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border-radius: 10px;
+        transition: width 0.5s ease;
+    }
+
+    .parcelas-table {
+        width: 100%;
+    }
+
+    .parcelas-table thead th {
+        background: #f8fafc;
+        padding: 14px 12px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #718096;
+        font-weight: 600;
+    }
+
+    body.dark-mode .parcelas-table thead th {
+        background: #363636;
+        color: #a0a0a0;
+    }
+
+    .parcelas-table tbody td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    body.dark-mode .parcelas-table tbody td {
+        border-color: #404040;
+    }
+
+    .parcelas-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    body.dark-mode .parcelas-table tbody tr:hover {
+        background: #363636;
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.pendente { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .status-badge.recebido { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .status-badge.atrasado { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+    .status-badge.cancelado { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+    .btn-receber-parcela {
+        background: #22c55e;
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+
+    .btn-receber-parcela:hover {
+        background: #16a34a;
+        color: white;
+    }
+
+    .btn-voltar {
+        background: #6c757d;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar {
+        background: #ef4444;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .parcela-atrasada {
+        background: rgba(239, 68, 68, 0.05);
+    }
+
+    .dias-atraso {
+        font-size: 0.75rem;
+        color: #ef4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Card Principal -->
+            <div class="detalhe-card">
+                <!-- Header Cliente -->
+                <div class="cliente-header">
+                    <div class="cliente-avatar">
+                        {{ venda.cliente.nome|slice:":1"|upper }}
+                    </div>
+                    <div class="cliente-info">
+                        <h4>{{ venda.cliente.nome }}</h4>
+                        <p>{{ venda.descricao }}</p>
+                    </div>
+                </div>
+
+                <!-- Grid de Informações -->
+                <div class="info-grid">
+                    <div class="info-box">
+                        <div class="valor">R$ {{ stats.total|floatformat:2 }}</div>
+                        <div class="label">Valor Total</div>
+                    </div>
+                    <div class="info-box recebido">
+                        <div class="valor">R$ {{ stats.recebido|floatformat:2 }}</div>
+                        <div class="label">Recebido</div>
+                    </div>
+                    <div class="info-box pendente">
+                        <div class="valor">R$ {{ stats.pendente|floatformat:2 }}</div>
+                        <div class="label">Pendente</div>
+                    </div>
+                    <div class="info-box atrasado">
+                        <div class="valor">R$ {{ stats.atrasado|floatformat:2 }}</div>
+                        <div class="label">Em Atraso</div>
+                    </div>
+                </div>
+
+                <!-- Barra de Progresso -->
+                <div class="progress-grande">
+                    <div class="bar" style="width: {% widthratio stats.recebido stats.total 100 %}%"></div>
+                </div>
+                <div class="d-flex justify-content-between text-muted small">
+                    <span>{{ stats.qtd_pagas }} de {{ venda.numero_parcelas }} parcelas pagas</span>
+                    <span>{% widthratio stats.recebido stats.total 100 %}% concluído</span>
+                </div>
+            </div>
+
+            <!-- Parcelas -->
+            <div class="detalhe-card">
+                <div class="section-title">
+                    <i class="bi bi-list-ol"></i> Parcelas
+                </div>
+
+                <div class="table-responsive">
+                    <table class="parcelas-table">
+                        <thead>
+                            <tr>
+                                <th>Parcela</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Recebido em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for parcela in parcelas %}
+                            <tr class="{% if parcela.status == 'ATRASADO' %}parcela-atrasada{% endif %}">
+                                <td>
+                                    <strong>{{ parcela.parcela_atual }}/{{ parcela.total_parcelas }}</strong>
+                                </td>
+                                <td>
+                                    {{ parcela.data_vencimento|date:"d/m/Y" }}
+                                    {% if parcela.dias_atraso > 0 %}
+                                    <br><span class="dias-atraso">{{ parcela.dias_atraso }} dias de atraso</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>R$ {{ parcela.valor|floatformat:2 }}</strong></td>
+                                <td>
+                                    <span class="status-badge {{ parcela.status|lower }}">
+                                        {{ parcela.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if parcela.data_recebimento %}
+                                    {{ parcela.data_recebimento|date:"d/m/Y" }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if parcela.status != 'RECEBIDO' and parcela.status != 'CANCELADO' %}
+                                    <button type="button" class="btn-receber-parcela" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalReceber{{ parcela.id }}">
+                                        <i class="bi bi-check-lg"></i> Receber
+                                    </button>
+
+                                    <!-- Modal Receber -->
+                                    <div class="modal fade" id="modalReceber{{ parcela.id }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <form method="POST" action="{% url 'financeiro:receber_conta' parcela.id %}">
+                                                    {% csrf_token %}
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">
+                                                            <i class="bi bi-check-circle text-success"></i> 
+                                                            Receber Parcela {{ parcela.parcela_atual }}/{{ parcela.total_parcelas }}
+                                                        </h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p>Cliente: <strong>{{ venda.cliente.nome }}</strong></p>
+                                                        <p>Valor: <strong class="text-success">R$ {{ parcela.valor|floatformat:2 }}</strong></p>
+                                                        
+                                                        {% if parcela.dias_atraso > 0 %}
+                                                        <div class="alert alert-warning">
+                                                            <i class="bi bi-exclamation-triangle"></i>
+                                                            Parcela com {{ parcela.dias_atraso }} dias de atraso
+                                                        </div>
+                                                        {% endif %}
+                                                        
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Data do Recebimento</label>
+                                                            <input type="date" name="data_recebimento" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Forma de Pagamento</label>
+                                                            <select name="forma_pagamento" class="form-select">
+                                                                <option value="">Selecione...</option>
+                                                                {% for forma in formas_pagamento %}
+                                                                <option value="{{ forma.id }}">{{ forma.nome }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Valor Recebido</label>
+                                                            <div class="input-group">
+                                                                <span class="input-group-text">R$</span>
+                                                                <input type="text" name="valor_recebido" class="form-control" value="{{ parcela.valor|floatformat:2 }}">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                        <button type="submit" class="btn btn-success">
+                                                            <i class="bi bi-check-lg"></i> Confirmar
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% elif parcela.status == 'RECEBIDO' %}
+                                    <span class="text-success"><i class="bi bi-check-circle-fill"></i></span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Informações do Crediário -->
+            <div class="detalhe-card">
+                <div class="section-title">
+                    <i class="bi bi-info-circle"></i> Informações
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Categoria</small>
+                    <p class="mb-0"><strong>{{ venda.categoria.nome }}</strong></p>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Forma de Cobrança</small>
+                    <p class="mb-0"><strong>{{ venda.get_forma_cobranca_display }}</strong></p>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Intervalo</small>
+                    <p class="mb-0"><strong>{{ venda.get_intervalo_tipo_display }}</strong></p>
+                </div>
+
+                <div class="mb-3">
+                    <small class="text-muted">Data de Criação</small>
+                    <p class="mb-0"><strong>{{ venda.data_cadastro|date:"d/m/Y H:i" }}</strong></p>
+                </div>
+
+                {% if venda.aplica_juros %}
+                <div class="mb-3">
+                    <small class="text-muted">Juros por Atraso</small>
+                    <p class="mb-0"><strong>{{ venda.percentual_juros_dia }}% ao dia</strong></p>
+                </div>
+                {% endif %}
+
+                {% if venda.aplica_multa %}
+                <div class="mb-3">
+                    <small class="text-muted">Multa por Atraso</small>
+                    <p class="mb-0"><strong>{{ venda.percentual_multa }}%</strong></p>
+                </div>
+                {% endif %}
+
+                {% if venda.observacoes %}
+                <div class="mb-3">
+                    <small class="text-muted">Observações</small>
+                    <p class="mb-0">{{ venda.observacoes }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Ações -->
+            <div class="detalhe-card">
+                <div class="section-title">
+                    <i class="bi bi-lightning"></i> Ações
+                </div>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'financeiro:lista_crediario' %}" class="btn btn-voltar">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                    {% if stats.qtd_pendentes > 0 or stats.qtd_atrasadas > 0 %}
+                    <form method="POST" action="{% url 'financeiro:cancelar_crediario' venda.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-cancelar w-100" 
+                                onclick="return confirm('Cancelar todas as parcelas pendentes deste crediário?')">
+                            <i class="bi bi-x-circle"></i> Cancelar Pendentes
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

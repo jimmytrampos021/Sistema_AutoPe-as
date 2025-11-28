@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Nova{% endif %} Receita - Financeiro{% endblock %}
+
+{% block page_title %}{% if editando %}Editar{% else %}Nova{% endif %} Receita{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .form-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #22c55e;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #22c55e;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 6px;
+    }
+
+    body.dark-mode .form-label {
+        color: #c0c0c0;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 12px 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .form-control,
+    body.dark-mode .form-select {
+        background: #363636;
+        border-color: #404040;
+        color: #f0f0f0;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-salvar:hover {
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+        color: white;
+    }
+
+    .btn-voltar {
+        background: #6c757d;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .juros-multa-section {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 10px;
+    }
+
+    body.dark-mode .juros-multa-section {
+        background: #363636;
+    }
+
+    .form-check-input:checked {
+        background-color: #22c55e;
+        border-color: #22c55e;
+    }
+
+    .input-group-text {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .input-group-text {
+        background: #404040;
+        border-color: #404040;
+        color: #c0c0c0;
+    }
+
+    .required::after {
+        content: " *";
+        color: #ef4444;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="form-card">
+                <form method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Informações Básicas -->
+                    <div class="section-title">
+                        <i class="bi bi-info-circle"></i> Informações Básicas
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label required">Descrição</label>
+                            <input type="text" name="descricao" class="form-control" required
+                                   value="{% if editando %}{{ conta.descricao }}{% endif %}"
+                                   placeholder="Ex: Venda de peças, Serviço mecânico...">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Tipo</label>
+                            <select name="tipo" class="form-select" required>
+                                <option value="VENDA" {% if editando and conta.tipo == 'VENDA' %}selected{% endif %}>Venda</option>
+                                <option value="SERVICO" {% if editando and conta.tipo == 'SERVICO' %}selected{% endif %}>Serviço/OS</option>
+                                <option value="AVULSO" {% if editando and conta.tipo == 'AVULSO' %}selected{% endif %}>Receita Avulsa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Categoria</label>
+                            <select name="categoria" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}" {% if editando and conta.categoria_id == cat.id %}selected{% endif %}>
+                                    {{ cat.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Cliente</label>
+                            <select name="cliente" class="form-select">
+                                <option value="">Sem cliente vinculado</option>
+                                {% for cli in clientes %}
+                                <option value="{{ cli.id }}" {% if editando and conta.cliente_id == cli.id %}selected{% endif %}>
+                                    {{ cli.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Valores e Datas -->
+                    <div class="section-title">
+                        <i class="bi bi-currency-dollar"></i> Valores e Datas
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Valor</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" name="valor" class="form-control" required
+                                       value="{% if editando %}{{ conta.valor }}{% endif %}"
+                                       placeholder="0,00">
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Data Vencimento</label>
+                            <input type="date" name="data_vencimento" class="form-control" required
+                                   value="{% if editando %}{{ conta.data_vencimento|date:'Y-m-d' }}{% else %}{{ today|date:'Y-m-d' }}{% endif %}">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Forma de Cobrança</label>
+                            <select name="forma_cobranca" class="form-select" required>
+                                <option value="FIADO" {% if editando and conta.forma_cobranca == 'FIADO' %}selected{% endif %}>Fiado</option>
+                                <option value="BOLETO" {% if editando and conta.forma_cobranca == 'BOLETO' %}selected{% endif %}>Boleto</option>
+                                <option value="CARTAO" {% if editando and conta.forma_cobranca == 'CARTAO' %}selected{% endif %}>Cartão</option>
+                                <option value="PIX" {% if editando and conta.forma_cobranca == 'PIX' %}selected{% endif %}>PIX</option>
+                                <option value="DINHEIRO" {% if editando and conta.forma_cobranca == 'DINHEIRO' %}selected{% endif %}>Dinheiro</option>
+                                <option value="CHEQUE" {% if editando and conta.forma_cobranca == 'CHEQUE' %}selected{% endif %}>Cheque</option>
+                                <option value="DEPOSITO" {% if editando and conta.forma_cobranca == 'DEPOSITO' %}selected{% endif %}>Depósito/Transferência</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nº Documento/NF</label>
+                            <input type="text" name="documento_referencia" class="form-control"
+                                   value="{% if editando %}{{ conta.documento_referencia|default:'' }}{% endif %}"
+                                   placeholder="Opcional">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Comprovante</label>
+                            <input type="file" name="comprovante" class="form-control">
+                            {% if editando and conta.comprovante %}
+                            <small class="text-muted">Arquivo atual: {{ conta.comprovante.name }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Juros e Multa -->
+                    <div class="section-title">
+                        <i class="bi bi-percent"></i> Juros e Multa (Opcional)
+                    </div>
+
+                    <div class="juros-multa-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="aplica_juros" class="form-check-input" id="aplicaJuros"
+                                           {% if editando and conta.aplica_juros %}checked{% endif %}>
+                                    <label class="form-check-label" for="aplicaJuros">Aplicar juros por atraso</label>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" name="percentual_juros_dia" class="form-control"
+                                           value="{% if editando %}{{ conta.percentual_juros_dia }}{% else %}{{ config.juros_padrao_dia }}{% endif %}"
+                                           placeholder="0,00">
+                                    <span class="input-group-text">% ao dia</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="aplica_multa" class="form-check-input" id="aplicaMulta"
+                                           {% if editando and conta.aplica_multa %}checked{% endif %}>
+                                    <label class="form-check-label" for="aplicaMulta">Aplicar multa por atraso</label>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" name="percentual_multa" class="form-control"
+                                           value="{% if editando %}{{ conta.percentual_multa }}{% else %}{{ config.multa_padrao }}{% endif %}"
+                                           placeholder="0,00">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="section-title mt-4">
+                        <i class="bi bi-chat-left-text"></i> Observações
+                    </div>
+
+                    <div class="mb-4">
+                        <textarea name="observacoes" class="form-control" rows="3" placeholder="Observações adicionais...">{% if editando %}{{ conta.observacoes|default:'' }}{% endif %}</textarea>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-voltar">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-salvar">
+                            <i class="bi bi-check-lg"></i> {% if editando %}Atualizar{% else %}Salvar{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

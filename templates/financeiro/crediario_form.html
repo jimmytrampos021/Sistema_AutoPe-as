@@ -1,0 +1,389 @@
+{% extends 'base.html' %}
+
+{% block title %}Novo Crediário - Financeiro{% endblock %}
+
+{% block page_title %}Novo Crediário{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .form-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #8b5cf6;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #8b5cf6;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #4a5568;
+        margin-bottom: 6px;
+    }
+
+    body.dark-mode .form-label {
+        color: #c0c0c0;
+    }
+
+    .form-control, .form-select {
+        border-radius: 8px;
+        padding: 12px 16px;
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .form-control,
+    body.dark-mode .form-select {
+        background: #363636;
+        border-color: #404040;
+        color: #f0f0f0;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-salvar:hover {
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        color: white;
+    }
+
+    .btn-voltar {
+        background: #6c757d;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .preview-card {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 20px;
+        border: 2px dashed #8b5cf6;
+    }
+
+    body.dark-mode .preview-card {
+        background: #363636;
+    }
+
+    .preview-card h5 {
+        color: #8b5cf6;
+        margin-bottom: 15px;
+    }
+
+    .preview-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .preview-item {
+        border-color: #404040;
+    }
+
+    .preview-item:last-child {
+        border-bottom: none;
+    }
+
+    .juros-multa-section {
+        background: #f8fafc;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 10px;
+    }
+
+    body.dark-mode .juros-multa-section {
+        background: #363636;
+    }
+
+    .required::after {
+        content: " *";
+        color: #ef4444;
+    }
+
+    .intervalo-info {
+        font-size: 0.8rem;
+        color: #718096;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="form-card">
+                <form method="POST" id="formCrediario">
+                    {% csrf_token %}
+                    
+                    <!-- Cliente e Descrição -->
+                    <div class="section-title">
+                        <i class="bi bi-person"></i> Cliente e Descrição
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Cliente</label>
+                            <select name="cliente" id="cliente" class="form-select" required>
+                                <option value="">Selecione o cliente...</option>
+                                {% for cli in clientes %}
+                                <option value="{{ cli.id }}">{{ cli.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Categoria</label>
+                            <select name="categoria" class="form-select" required>
+                                <option value="">Selecione...</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label required">Descrição</label>
+                        <input type="text" name="descricao" id="descricao" class="form-control" required
+                               placeholder="Ex: Compra de peças, Serviço mecânico...">
+                    </div>
+
+                    <!-- Valores e Parcelas -->
+                    <div class="section-title">
+                        <i class="bi bi-calculator"></i> Valores e Parcelas
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Valor Total</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" name="valor_total" id="valor_total" class="form-control" required
+                                       placeholder="0,00" onchange="calcularParcela()">
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">Nº de Parcelas</label>
+                            <input type="number" name="numero_parcelas" id="numero_parcelas" class="form-control" 
+                                   required min="1" max="48" value="1" onchange="calcularParcela()">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label required">1ª Parcela</label>
+                            <input type="date" name="data_primeira_parcela" id="data_primeira_parcela" 
+                                   class="form-control" required value="{{ today|date:'Y-m-d' }}">
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Intervalo entre Parcelas</label>
+                            <select name="intervalo_tipo" id="intervalo_tipo" class="form-select" required onchange="toggleIntervaloPersonalizado()">
+                                <option value="MENSAL">Mensal (30 dias)</option>
+                                <option value="QUINZENAL">Quinzenal (15 dias)</option>
+                                <option value="SEMANAL">Semanal (7 dias)</option>
+                                <option value="DECENAL">A cada 10 dias</option>
+                                <option value="PERSONALIZADO">Personalizado</option>
+                            </select>
+                            <p class="intervalo-info">Define o intervalo entre cada parcela</p>
+                        </div>
+                        <div class="col-md-6 mb-3" id="intervalo_dias_container" style="display: none;">
+                            <label class="form-label required">Dias entre Parcelas</label>
+                            <input type="number" name="intervalo_dias" id="intervalo_dias" class="form-control" 
+                                   min="1" max="365" value="30" placeholder="Ex: 7, 10, 15...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Forma de Cobrança</label>
+                            <select name="forma_cobranca" class="form-select" required>
+                                <option value="FIADO">Fiado</option>
+                                <option value="BOLETO">Boleto</option>
+                                <option value="CARNE">Carnê</option>
+                                <option value="CHEQUE">Cheque</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Juros e Multa -->
+                    <div class="section-title">
+                        <i class="bi bi-percent"></i> Juros e Multa (Opcional)
+                    </div>
+
+                    <div class="juros-multa-section">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="aplica_juros" class="form-check-input" id="aplicaJuros">
+                                    <label class="form-check-label" for="aplicaJuros">Aplicar juros por atraso</label>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" name="percentual_juros_dia" class="form-control"
+                                           value="{{ config.juros_padrao_dia }}" placeholder="0,00">
+                                    <span class="input-group-text">% ao dia</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="aplica_multa" class="form-check-input" id="aplicaMulta">
+                                    <label class="form-check-label" for="aplicaMulta">Aplicar multa por atraso</label>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" name="percentual_multa" class="form-control"
+                                           value="{{ config.multa_padrao }}" placeholder="0,00">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    <div class="section-title mt-4">
+                        <i class="bi bi-chat-left-text"></i> Observações
+                    </div>
+
+                    <div class="mb-4">
+                        <textarea name="observacoes" class="form-control" rows="3" placeholder="Observações adicionais..."></textarea>
+                    </div>
+
+                    <!-- Botões -->
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="{% url 'financeiro:lista_crediario' %}" class="btn btn-voltar">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-salvar">
+                            <i class="bi bi-check-lg"></i> Criar Crediário
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="col-lg-4">
+            <div class="form-card">
+                <div class="preview-card">
+                    <h5><i class="bi bi-eye"></i> Preview do Crediário</h5>
+                    
+                    <div class="preview-item">
+                        <span>Valor Total:</span>
+                        <strong id="preview_total">R$ 0,00</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span>Parcelas:</span>
+                        <strong id="preview_parcelas">1x</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span>Valor Parcela:</span>
+                        <strong id="preview_valor_parcela" style="color: #8b5cf6;">R$ 0,00</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span>1ª Parcela:</span>
+                        <strong id="preview_primeira">-</strong>
+                    </div>
+                    <div class="preview-item">
+                        <span>Última Parcela:</span>
+                        <strong id="preview_ultima">-</strong>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="text-muted"><i class="bi bi-info-circle"></i> Como funciona</h6>
+                    <ul class="small text-muted">
+                        <li>As parcelas serão geradas automaticamente</li>
+                        <li>Cada parcela terá a data de vencimento calculada</li>
+                        <li>Você poderá receber cada parcela individualmente</li>
+                        <li>Juros e multa serão aplicados automaticamente se configurados</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function calcularParcela() {
+    const valorTotal = parseFloat(document.getElementById('valor_total').value.replace(',', '.')) || 0;
+    const numParcelas = parseInt(document.getElementById('numero_parcelas').value) || 1;
+    const valorParcela = valorTotal / numParcelas;
+    
+    document.getElementById('preview_total').textContent = 'R$ ' + valorTotal.toFixed(2).replace('.', ',');
+    document.getElementById('preview_parcelas').textContent = numParcelas + 'x';
+    document.getElementById('preview_valor_parcela').textContent = 'R$ ' + valorParcela.toFixed(2).replace('.', ',');
+    
+    calcularDatas();
+}
+
+function calcularDatas() {
+    const dataPrimeira = document.getElementById('data_primeira_parcela').value;
+    const numParcelas = parseInt(document.getElementById('numero_parcelas').value) || 1;
+    const intervaloTipo = document.getElementById('intervalo_tipo').value;
+    let intervaloDias = 30;
+    
+    if (intervaloTipo === 'MENSAL') intervaloDias = 30;
+    else if (intervaloTipo === 'QUINZENAL') intervaloDias = 15;
+    else if (intervaloTipo === 'SEMANAL') intervaloDias = 7;
+    else if (intervaloTipo === 'DECENAL') intervaloDias = 10;
+    else intervaloDias = parseInt(document.getElementById('intervalo_dias').value) || 30;
+    
+    if (dataPrimeira) {
+        const primeira = new Date(dataPrimeira);
+        const ultima = new Date(primeira);
+        ultima.setDate(ultima.getDate() + (intervaloDias * (numParcelas - 1)));
+        
+        document.getElementById('preview_primeira').textContent = primeira.toLocaleDateString('pt-BR');
+        document.getElementById('preview_ultima').textContent = ultima.toLocaleDateString('pt-BR');
+    }
+}
+
+function toggleIntervaloPersonalizado() {
+    const intervaloTipo = document.getElementById('intervalo_tipo').value;
+    const container = document.getElementById('intervalo_dias_container');
+    
+    if (intervaloTipo === 'PERSONALIZADO') {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+    
+    calcularDatas();
+}
+
+// Eventos
+document.getElementById('valor_total').addEventListener('input', calcularParcela);
+document.getElementById('numero_parcelas').addEventListener('input', calcularParcela);
+document.getElementById('data_primeira_parcela').addEventListener('change', calcularDatas);
+document.getElementById('intervalo_dias').addEventListener('input', calcularDatas);
+
+// Inicializar
+calcularParcela();
+</script>
+{% endblock %}

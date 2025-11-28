@@ -144,7 +144,7 @@
         }
         
         .sidebar {
-            min-height: 100vh;
+            height: 100vh;
             background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
             color: white;
             position: fixed;
@@ -153,8 +153,28 @@
             width: 250px;
             padding-top: 20px;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
         }
-        
+
+        /* Scrollbar sutil */
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 4px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.4);
+        }
+            
         .sidebar .logo {
             text-align: center;
             padding: 20px;
@@ -350,9 +370,35 @@
                 <i class="bi bi-file-earmark-text"></i> Orçamentos
             </a>
 
-            <a class="nav-link {% if 'financeiro' in request.path %}active{% endif %}" href="{% url 'financeiro:dashboard' %}">
-                <i class="bi bi-wallet2"></i> Financeiro
+            <!-- Financeiro com Submenu -->
+            <a class="nav-link d-flex justify-content-between align-items-center {% if 'financeiro' in request.path %}active{% endif %}" 
+            data-bs-toggle="collapse" href="#menuFinanceiro" role="button" 
+            aria-expanded="{% if 'financeiro' in request.path %}true{% else %}false{% endif %}">
+                <span><i class="bi bi-wallet2"></i> Financeiro</span>
+                <i class="bi bi-chevron-down small"></i>
             </a>
+            <div class="collapse {% if 'financeiro' in request.path %}show{% endif %}" id="menuFinanceiro">
+                <nav class="nav flex-column ms-3" style="font-size: 0.9rem;">
+                    <a class="nav-link py-2" href="{% url 'financeiro:dashboard' %}">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                    <a class="nav-link py-2" href="{% url 'financeiro:lista_contas' %}">
+                        <i class="bi bi-cash-stack text-danger"></i> Despesas
+                    </a>
+                    <a class="nav-link py-2" href="{% url 'financeiro:lista_receitas' %}">
+                        <i class="bi bi-cash-coin text-success"></i> Receitas
+                    </a>
+                    <a class="nav-link py-2" href="{% url 'financeiro:lista_crediario' %}">
+                        <i class="bi bi-credit-card text-info"></i> Crediário
+                    </a>
+                    <a class="nav-link py-2" href="{% url 'financeiro:lista_despesas_fixas' %}">
+                        <i class="bi bi-calendar-check"></i> Despesas Fixas
+                    </a>
+                    <a class="nav-link py-2" href="{% url 'financeiro:lista_parcelados' %}">
+                        <i class="bi bi-card-list"></i> Parcelados
+                    </a>
+                </nav>
+            </div>
 
             <a class="nav-link {% if 'fornecedores' in request.path %}active{% endif %}" href="{% url 'lista_fornecedores' %}">
                 <i class="bi bi-building"></i> Fornecedores

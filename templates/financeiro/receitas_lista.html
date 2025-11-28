@@ -1,0 +1,511 @@
+{% extends 'base.html' %}
+
+{% block title %}Contas a Receber - Financeiro{% endblock %}
+
+{% block page_title %}Contas a Receber{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --bg-tertiary: #edf2f7;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --bg-tertiary: #404040;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 576px) {
+        .stats-row { grid-template-columns: 1fr; }
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .stat-icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .stat-icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .stat-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .stat-info h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .stat-info p {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 2px 0 0 0;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    .filtros-section {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .filtros-section .form-control,
+    .filtros-section .form-select {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 10px 14px;
+    }
+
+    .btn-filtrar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .btn-novo {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .btn-crediario {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .tabela-receitas {
+        width: 100%;
+    }
+
+    .tabela-receitas thead th {
+        background: var(--bg-secondary);
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.7rem;
+        letter-spacing: 0.5px;
+        padding: 14px 12px;
+        border-bottom: 2px solid var(--card-border);
+    }
+
+    .tabela-receitas tbody td {
+        padding: 14px 12px;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-primary);
+        vertical-align: middle;
+    }
+
+    .tabela-receitas tbody tr:hover {
+        background: var(--bg-secondary);
+    }
+
+    .status-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.pendente { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .status-badge.recebido { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .status-badge.atrasado { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+    .status-badge.cancelado { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+    .tipo-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .tipo-badge.venda { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .tipo-badge.servico { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .tipo-badge.avulso { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .tipo-badge.parcelado { background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+
+    .valor-receita {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #22c55e;
+    }
+
+    .cliente-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .cliente-info .nome {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .cliente-info .documento {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+
+    .acoes-btn {
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        margin: 0 2px;
+    }
+
+    .dropdown-menu {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        box-shadow: var(--shadow);
+    }
+
+    .dropdown-item {
+        color: var(--text-primary);
+    }
+
+    .dropdown-item:hover {
+        background: var(--bg-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <!-- Estatísticas -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon blue">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total|floatformat:2 }}</h3>
+                <p>Total Geral</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.recebidas|floatformat:2 }}</h3>
+                <p>Recebidas</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.pendentes|floatformat:2 }}</h3>
+                <p>Pendentes ({{ stats.qtd_pendentes }})</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.atrasadas|floatformat:2 }}</h3>
+                <p>Em Atraso ({{ stats.qtd_atrasadas }})</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Principal -->
+    <div class="main-card">
+        <!-- Filtros -->
+        <div class="filtros-section">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="busca" class="form-control" placeholder="Buscar..." value="{{ busca }}">
+                </div>
+                <div class="col-md-2">
+                    <select name="status" class="form-select">
+                        <option value="">Status</option>
+                        <option value="PENDENTE" {% if status_filtro == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+                        <option value="RECEBIDO" {% if status_filtro == 'RECEBIDO' %}selected{% endif %}>Recebido</option>
+                        <option value="ATRASADO" {% if status_filtro == 'ATRASADO' %}selected{% endif %}>Atrasado</option>
+                        <option value="CANCELADO" {% if status_filtro == 'CANCELADO' %}selected{% endif %}>Cancelado</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="cliente" class="form-select">
+                        <option value="">Cliente</option>
+                        {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}" {% if cliente_selecionado == cliente.id|stringformat:"i" %}selected{% endif %}>{{ cliente.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select name="forma_cobranca" class="form-select">
+                        <option value="">Forma Cobrança</option>
+                        <option value="BOLETO" {% if forma_cobranca_selecionada == 'BOLETO' %}selected{% endif %}>Boleto</option>
+                        <option value="FIADO" {% if forma_cobranca_selecionada == 'FIADO' %}selected{% endif %}>Fiado</option>
+                        <option value="CARTAO" {% if forma_cobranca_selecionada == 'CARTAO' %}selected{% endif %}>Cartão</option>
+                        <option value="PIX" {% if forma_cobranca_selecionada == 'PIX' %}selected{% endif %}>PIX</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-filtrar">
+                            <i class="bi bi-search"></i> Filtrar
+                        </button>
+                        <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Header da Tabela -->
+        <div class="table-header">
+            <h5><i class="bi bi-list-ul"></i> Receitas ({{ page_obj.paginator.count }})</h5>
+            <div class="d-flex gap-2">
+                <a href="{% url 'financeiro:lista_crediario' %}" class="btn btn-crediario">
+                    <i class="bi bi-credit-card"></i> Crediário
+                </a>
+                <a href="{% url 'financeiro:criar_receita' %}" class="btn btn-novo">
+                    <i class="bi bi-plus-lg"></i> Nova Receita
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-responsive">
+            <table class="tabela-receitas">
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Cliente</th>
+                        <th>Vencimento</th>
+                        <th>Valor</th>
+                        <th>Forma</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conta in page_obj %}
+                    <tr>
+                        <td>
+                            <div>
+                                <strong>{{ conta.descricao }}</strong>
+                                {% if conta.total_parcelas > 1 %}
+                                <span class="badge bg-secondary">{{ conta.parcela_atual }}/{{ conta.total_parcelas }}</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">
+                                <i class="{{ conta.categoria.icone }}" style="color: {{ conta.categoria.cor }}"></i>
+                                {{ conta.categoria.nome }}
+                            </small>
+                        </td>
+                        <td>
+                            {% if conta.cliente %}
+                            <div class="cliente-info">
+                                <span class="nome">{{ conta.cliente.nome }}</span>
+                                <span class="documento">{{ conta.cliente.cpf_cnpj|default:"-" }}</span>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ conta.data_vencimento|date:"d/m/Y" }}
+                            {% if conta.dias_atraso > 0 %}
+                            <br><small class="text-danger">{{ conta.dias_atraso }} dias</small>
+                            {% endif %}
+                        </td>
+                        <td class="valor-receita">R$ {{ conta.valor|floatformat:2 }}</td>
+                        <td>
+                            <span class="tipo-badge {{ conta.forma_cobranca|lower }}">
+                                {{ conta.get_forma_cobranca_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ conta.status|lower }}">
+                                {{ conta.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'financeiro:detalhe_receita' conta.id %}"><i class="bi bi-eye"></i> Detalhes</a></li>
+                                    {% if conta.status != 'RECEBIDO' and conta.status != 'CANCELADO' %}
+                                    <li><a class="dropdown-item" href="{% url 'financeiro:editar_receita' conta.id %}"><i class="bi bi-pencil"></i> Editar</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item text-success" href="#" data-bs-toggle="modal" data-bs-target="#modalReceber{{ conta.id }}">
+                                            <i class="bi bi-check-circle"></i> Receber
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form method="POST" action="{% url 'financeiro:cancelar_receita' conta.id %}" style="display:inline;">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Cancelar esta receita?')">
+                                                <i class="bi bi-x-circle"></i> Cancelar
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+
+                            <!-- Modal Receber -->
+                            {% if conta.status != 'RECEBIDO' and conta.status != 'CANCELADO' %}
+                            <div class="modal fade" id="modalReceber{{ conta.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="{% url 'financeiro:receber_conta' conta.id %}">
+                                            {% csrf_token %}
+                                            <div class="modal-header">
+                                                <h5 class="modal-title"><i class="bi bi-check-circle text-success"></i> Receber</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>{{ conta.descricao }}</strong></p>
+                                                <p>Valor: <strong class="text-success">R$ {{ conta.valor|floatformat:2 }}</strong></p>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="form-label">Data Recebimento</label>
+                                                    <input type="date" name="data_recebimento" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Forma de Pagamento</label>
+                                                    <select name="forma_pagamento" class="form-select">
+                                                        <option value="">Selecione...</option>
+                                                        {% for forma in formas_pagamento %}
+                                                        <option value="{{ forma.id }}">{{ forma.nome }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Valor Recebido</label>
+                                                    <input type="text" name="valor_recebido" class="form-control" value="{{ conta.valor|floatformat:2 }}">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                <button type="submit" class="btn btn-success">
+                                                    <i class="bi bi-check-lg"></i> Confirmar Recebimento
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="bi bi-inbox text-muted" style="font-size: 2rem;"></i>
+                            <p class="text-muted mt-2">Nenhuma receita encontrada</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&busca={{ busca }}&status={{ status_filtro }}">Anterior</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&busca={{ busca }}&status={{ status_filtro }}">Próxima</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

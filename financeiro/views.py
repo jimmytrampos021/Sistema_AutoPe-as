@@ -13,9 +13,12 @@ import json
 
 from .models import (
     CategoriaDespesa, FormaPagamento, DespesaFixa, ContaPagar,
-    CompraParcelada, FaturamentoMensal, ConfiguracaoTributo
+    CompraParcelada, FaturamentoMensal, ConfiguracaoTributo,
+    # NOVOS
+    CategoriaReceita, ContaReceber, VendaParcelada, ConfiguracaoFinanceiro
 )
-
+from clientes.models import Cliente
+from estoque.models import Fornecedor
 
 # ==========================================
 # DASHBOARD FINANCEIRO
@@ -335,6 +338,7 @@ def lista_despesas_fixas(request):
     context = {
         'despesas': despesas,
         'total_mensal': total_mensal,
+        'today': date.today(),
     }
     
     return render(request, 'financeiro/despesas_fixas_lista.html', context)
@@ -773,3 +777,639 @@ def api_grafico_mensal(request):
         })
     
     return JsonResponse({'dados': dados})
+
+
+# ==========================================
+# CONTAS A RECEBER (RECEITAS)
+# ==========================================
+
+@login_required
+def lista_contas_receber(request):
+    """Lista todas as contas a receber com filtros"""
+    busca = request.GET.get('busca', '')
+    status_filtro = request.GET.get('status', '')
+    tipo_filtro = request.GET.get('tipo', '')
+    categoria_id = request.GET.get('categoria', '')
+    cliente_id = request.GET.get('cliente', '')
+    forma_cobranca = request.GET.get('forma_cobranca', '')
+    mes = request.GET.get('mes', '')
+    ano = request.GET.get('ano', '')
+    
+    contas = ContaReceber.objects.all().select_related(
+        'categoria', 'cliente', 'venda', 'forma_pagamento', 'venda_parcelada'
+    )
+    
+    if busca:
+        contas = contas.filter(
+            Q(descricao__icontains=busca) |
+            Q(cliente__nome__icontains=busca) |
+            Q(documento_referencia__icontains=busca)
+        )
+    
+    if status_filtro:
+        contas = contas.filter(status=status_filtro)
+    
+    if tipo_filtro:
+        contas = contas.filter(tipo=tipo_filtro)
+    
+    if categoria_id:
+        contas = contas.filter(categoria_id=categoria_id)
+    
+    if cliente_id:
+        contas = contas.filter(cliente_id=cliente_id)
+    
+    if forma_cobranca:
+        contas = contas.filter(forma_cobranca=forma_cobranca)
+    
+    if mes and ano:
+        contas = contas.filter(data_vencimento__month=mes, data_vencimento__year=ano)
+    elif ano:
+        contas = contas.filter(data_vencimento__year=ano)
+    
+    # Atualizar status de contas atrasadas
+    hoje = date.today()
+    ContaReceber.objects.filter(
+        status='PENDENTE',
+        data_vencimento__lt=hoje
+    ).update(status='ATRASADO')
+    
+    contas = contas.order_by('data_vencimento')
+    
+    # Estatísticas
+    stats = {
+        'total': contas.aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total'],
+        'pendentes': contas.filter(status='PENDENTE').aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total'],
+        'recebidas': contas.filter(status='RECEBIDO').aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total'],
+        'atrasadas': contas.filter(status='ATRASADO').aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total'],
+        'qtd_total': contas.count(),
+        'qtd_pendentes': contas.filter(status='PENDENTE').count(),
+        'qtd_atrasadas': contas.filter(status='ATRASADO').count(),
+    }
+    
+    paginator = Paginator(contas, 30)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    categorias = CategoriaReceita.objects.filter(ativo=True).order_by('nome')
+    clientes = Cliente.objects.filter(ativo=True).order_by('nome')
+    anos_disponiveis = ContaReceber.objects.dates('data_vencimento', 'year', order='DESC')
+    formas_pagamento = FormaPagamento.objects.filter(
+        Q(tipo='AMBOS') | Q(tipo='RECEITA'), ativo=True
+    ).order_by('nome')
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'categorias': categorias,
+        'clientes': clientes,
+        'anos_disponiveis': anos_disponiveis,
+        'formas_pagamento': formas_pagamento,
+        'today': date.today(),
+        'busca': busca,
+        'status_filtro': status_filtro,
+        'tipo_filtro': tipo_filtro,
+        'categoria_selecionada': categoria_id,
+        'cliente_selecionado': cliente_id,
+        'forma_cobranca_selecionada': forma_cobranca,
+        'mes_selecionado': mes,
+        'ano_selecionado': ano,
+    }
+    
+    return render(request, 'financeiro/receitas_lista.html', context)
+
+
+@login_required
+def criar_conta_receber(request):
+    """Criar nova conta a receber"""
+    if request.method == 'POST':
+        try:
+            categoria = get_object_or_404(CategoriaReceita, id=request.POST.get('categoria'))
+            
+            cliente = None
+            if request.POST.get('cliente'):
+                cliente = get_object_or_404(Cliente, id=request.POST.get('cliente'))
+            
+            conta = ContaReceber.objects.create(
+                descricao=request.POST.get('descricao'),
+                categoria=categoria,
+                tipo=request.POST.get('tipo', 'AVULSO'),
+                valor=Decimal(request.POST.get('valor', '0').replace(',', '.')),
+                data_vencimento=request.POST.get('data_vencimento'),
+                forma_cobranca=request.POST.get('forma_cobranca', 'FIADO'),
+                cliente=cliente,
+                documento_referencia=request.POST.get('documento_referencia', ''),
+                aplica_juros=request.POST.get('aplica_juros') == 'on',
+                percentual_juros_dia=Decimal(request.POST.get('percentual_juros_dia', '0').replace(',', '.')),
+                aplica_multa=request.POST.get('aplica_multa') == 'on',
+                percentual_multa=Decimal(request.POST.get('percentual_multa', '0').replace(',', '.')),
+                observacoes=request.POST.get('observacoes', ''),
+                usuario_cadastro=request.user
+            )
+            
+            if 'comprovante' in request.FILES:
+                conta.comprovante = request.FILES['comprovante']
+                conta.save()
+            
+            messages.success(request, f'Receita "{conta.descricao}" criada com sucesso!')
+            return redirect('financeiro:lista_receitas')
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao criar receita: {str(e)}')
+    
+    categorias = CategoriaReceita.objects.filter(ativo=True).order_by('ordem', 'nome')
+    clientes = Cliente.objects.filter(ativo=True).order_by('nome')
+    config = ConfiguracaoFinanceiro.get_config()
+    
+    context = {
+        'categorias': categorias,
+        'clientes': clientes,
+        'config': config,
+        'today': date.today(),
+    }
+    
+    return render(request, 'financeiro/receita_form.html', context)
+
+
+@login_required
+def detalhe_conta_receber(request, conta_id):
+    """Detalhes de uma conta a receber"""
+    conta = get_object_or_404(
+        ContaReceber.objects.select_related(
+            'categoria', 'cliente', 'venda', 'ordem_servico', 
+            'forma_pagamento', 'venda_parcelada', 'usuario_cadastro'
+        ),
+        id=conta_id
+    )
+    
+    outras_parcelas = None
+    if conta.venda_parcelada:
+        outras_parcelas = conta.venda_parcelada.parcelas.exclude(id=conta_id).order_by('parcela_atual')
+    
+    formas_pagamento = FormaPagamento.objects.filter(
+        Q(tipo='AMBOS') | Q(tipo='RECEITA'), ativo=True
+    ).order_by('nome')
+    
+    context = {
+        'conta': conta,
+        'outras_parcelas': outras_parcelas,
+        'formas_pagamento': formas_pagamento,
+        'today': date.today(),
+    }
+    
+    return render(request, 'financeiro/receita_detalhe.html', context)
+
+
+@login_required
+def editar_conta_receber(request, conta_id):
+    """Editar conta a receber"""
+    conta = get_object_or_404(ContaReceber, id=conta_id)
+    
+    if conta.status == 'RECEBIDO':
+        messages.warning(request, 'Não é possível editar uma receita já recebida.')
+        return redirect('financeiro:detalhe_receita', conta_id=conta_id)
+    
+    if request.method == 'POST':
+        try:
+            conta.descricao = request.POST.get('descricao')
+            conta.categoria = get_object_or_404(CategoriaReceita, id=request.POST.get('categoria'))
+            conta.tipo = request.POST.get('tipo', 'AVULSO')
+            conta.valor = Decimal(request.POST.get('valor', '0').replace(',', '.'))
+            conta.data_vencimento = request.POST.get('data_vencimento')
+            conta.forma_cobranca = request.POST.get('forma_cobranca', 'FIADO')
+            
+            if request.POST.get('cliente'):
+                conta.cliente = get_object_or_404(Cliente, id=request.POST.get('cliente'))
+            else:
+                conta.cliente = None
+            
+            conta.documento_referencia = request.POST.get('documento_referencia', '')
+            conta.aplica_juros = request.POST.get('aplica_juros') == 'on'
+            conta.percentual_juros_dia = Decimal(request.POST.get('percentual_juros_dia', '0').replace(',', '.'))
+            conta.aplica_multa = request.POST.get('aplica_multa') == 'on'
+            conta.percentual_multa = Decimal(request.POST.get('percentual_multa', '0').replace(',', '.'))
+            conta.observacoes = request.POST.get('observacoes', '')
+            
+            if 'comprovante' in request.FILES:
+                conta.comprovante = request.FILES['comprovante']
+            
+            conta.save()
+            
+            messages.success(request, f'Receita "{conta.descricao}" atualizada!')
+            return redirect('financeiro:lista_receitas')
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao atualizar: {str(e)}')
+    
+    categorias = CategoriaReceita.objects.filter(ativo=True).order_by('ordem', 'nome')
+    clientes = Cliente.objects.filter(ativo=True).order_by('nome')
+    
+    context = {
+        'conta': conta,
+        'categorias': categorias,
+        'clientes': clientes,
+        'editando': True,
+    }
+    
+    return render(request, 'financeiro/receita_form.html', context)
+
+
+@login_required
+def receber_conta(request, conta_id):
+    """Registrar recebimento de uma conta"""
+    conta = get_object_or_404(ContaReceber, id=conta_id)
+    
+    if request.method == 'POST':
+        try:
+            conta.calcular_juros_multa()
+            
+            conta.data_recebimento = request.POST.get('data_recebimento') or date.today()
+            
+            if request.POST.get('forma_pagamento'):
+                conta.forma_pagamento = get_object_or_404(
+                    FormaPagamento, id=request.POST.get('forma_pagamento')
+                )
+            
+            valor_recebido = request.POST.get('valor_recebido', '')
+            if valor_recebido:
+                conta.valor_recebido = Decimal(valor_recebido.replace(',', '.'))
+            else:
+                conta.valor_recebido = conta.valor_total_devido
+            
+            conta.status = 'RECEBIDO'
+            conta.save()
+            
+            messages.success(request, f'Recebimento de R$ {conta.valor_recebido:.2f} registrado!')
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao registrar recebimento: {str(e)}')
+    
+    return redirect('financeiro:lista_receitas')
+
+
+@login_required
+def cancelar_receita(request, conta_id):
+    """Cancelar conta a receber"""
+    conta = get_object_or_404(ContaReceber, id=conta_id)
+    
+    if request.method == 'POST':
+        conta.status = 'CANCELADO'
+        conta.save()
+        messages.success(request, f'Receita "{conta.descricao}" cancelada!')
+    
+    return redirect('financeiro:lista_receitas')
+
+
+# ==========================================
+# VENDAS PARCELADAS (CREDIÁRIO)
+# ==========================================
+
+@login_required
+def lista_vendas_parceladas(request):
+    """Lista todas as vendas parceladas (crediário)"""
+    busca = request.GET.get('busca', '')
+    cliente_id = request.GET.get('cliente', '')
+    status_filtro = request.GET.get('status', '')
+    
+    vendas = VendaParcelada.objects.all().select_related(
+        'cliente', 'categoria', 'venda'
+    ).prefetch_related('parcelas')
+    
+    if busca:
+        vendas = vendas.filter(
+            Q(descricao__icontains=busca) |
+            Q(cliente__nome__icontains=busca)
+        )
+    
+    if cliente_id:
+        vendas = vendas.filter(cliente_id=cliente_id)
+    
+    if status_filtro == 'com_atraso':
+        vendas = vendas.filter(parcelas__status='ATRASADO').distinct()
+    elif status_filtro == 'em_dia':
+        vendas = vendas.exclude(parcelas__status='ATRASADO').filter(
+            parcelas__status='PENDENTE'
+        ).distinct()
+    elif status_filtro == 'quitado':
+        vendas = vendas.exclude(
+            parcelas__status__in=['PENDENTE', 'ATRASADO']
+        ).distinct()
+    
+    vendas = vendas.order_by('-data_cadastro')
+    
+    total_credito = vendas.aggregate(total=Coalesce(Sum('valor_total'), Decimal('0')))['total']
+    total_recebido = ContaReceber.objects.filter(
+        venda_parcelada__in=vendas,
+        status='RECEBIDO'
+    ).aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    total_pendente = ContaReceber.objects.filter(
+        venda_parcelada__in=vendas,
+        status__in=['PENDENTE', 'ATRASADO']
+    ).aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    total_atrasado = ContaReceber.objects.filter(
+        venda_parcelada__in=vendas,
+        status='ATRASADO'
+    ).aggregate(total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    
+    stats = {
+        'total_credito': total_credito,
+        'total_recebido': total_recebido,
+        'total_pendente': total_pendente,
+        'total_atrasado': total_atrasado,
+        'qtd_clientes': vendas.values('cliente').distinct().count(),
+    }
+    
+    paginator = Paginator(vendas, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    clientes = Cliente.objects.filter(
+        vendas_parceladas__isnull=False
+    ).distinct().order_by('nome')
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'clientes': clientes,
+        'busca': busca,
+        'cliente_selecionado': cliente_id,
+        'status_filtro': status_filtro,
+    }
+    
+    return render(request, 'financeiro/crediario_lista.html', context)
+
+
+@login_required
+def criar_venda_parcelada(request):
+    """Criar nova venda parcelada (crediário)"""
+    if request.method == 'POST':
+        try:
+            cliente = get_object_or_404(Cliente, id=request.POST.get('cliente'))
+            categoria = get_object_or_404(CategoriaReceita, id=request.POST.get('categoria'))
+            
+            venda_parcelada = VendaParcelada.objects.create(
+                descricao=request.POST.get('descricao'),
+                categoria=categoria,
+                cliente=cliente,
+                valor_total=Decimal(request.POST.get('valor_total', '0').replace(',', '.')),
+                numero_parcelas=int(request.POST.get('numero_parcelas', 1)),
+                data_primeira_parcela=request.POST.get('data_primeira_parcela'),
+                intervalo_tipo=request.POST.get('intervalo_tipo', 'MENSAL'),
+                intervalo_dias=int(request.POST.get('intervalo_dias', 30) or 30),
+                forma_cobranca=request.POST.get('forma_cobranca', 'FIADO'),
+                aplica_juros=request.POST.get('aplica_juros') == 'on',
+                percentual_juros_dia=Decimal(request.POST.get('percentual_juros_dia', '0').replace(',', '.') or '0'),
+                aplica_multa=request.POST.get('aplica_multa') == 'on',
+                percentual_multa=Decimal(request.POST.get('percentual_multa', '0').replace(',', '.') or '0'),
+                observacoes=request.POST.get('observacoes', ''),
+                usuario_cadastro=request.user
+            )
+            
+            venda_parcelada.gerar_parcelas()
+            
+            messages.success(
+                request, 
+                f'Crediário de {venda_parcelada.numero_parcelas}x de R$ {venda_parcelada.valor_parcela:.2f} '
+                f'para {cliente.nome} criado com sucesso!'
+            )
+            return redirect('financeiro:detalhe_crediario', venda_id=venda_parcelada.id)
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao criar crediário: {str(e)}')
+    
+    categorias = CategoriaReceita.objects.filter(ativo=True).order_by('ordem', 'nome')
+    clientes = Cliente.objects.filter(ativo=True).order_by('nome')
+    config = ConfiguracaoFinanceiro.get_config()
+    
+    context = {
+        'categorias': categorias,
+        'clientes': clientes,
+        'config': config,
+        'today': date.today(),
+    }
+    
+    return render(request, 'financeiro/crediario_form.html', context)
+
+
+
+@login_required
+def detalhe_venda_parcelada(request, venda_id):
+    """Detalhes de uma venda parcelada com todas as parcelas"""
+    venda = get_object_or_404(
+        VendaParcelada.objects.select_related('cliente', 'categoria', 'venda'),
+        id=venda_id
+    )
+    
+    parcelas = venda.parcelas.all().order_by('parcela_atual')
+    
+    stats = {
+        'total': venda.valor_total,
+        'recebido': parcelas.filter(status='RECEBIDO').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0'))
+        )['total'],
+        'pendente': parcelas.filter(status='PENDENTE').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0'))
+        )['total'],
+        'atrasado': parcelas.filter(status='ATRASADO').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0'))
+        )['total'],
+        'qtd_pagas': parcelas.filter(status='RECEBIDO').count(),
+        'qtd_pendentes': parcelas.filter(status='PENDENTE').count(),
+        'qtd_atrasadas': parcelas.filter(status='ATRASADO').count(),
+    }
+    
+    formas_pagamento = FormaPagamento.objects.filter(
+        Q(tipo='AMBOS') | Q(tipo='RECEITA'), ativo=True
+    ).order_by('nome')
+    
+    context = {
+        'venda': venda,
+        'parcelas': parcelas,
+        'stats': stats,
+        'formas_pagamento': formas_pagamento,
+        'today': date.today(),
+    }
+    
+    return render(request, 'financeiro/crediario_detalhe.html', context)
+
+
+@login_required
+def cancelar_venda_parcelada(request, venda_id):
+    """Cancelar venda parcelada e todas as parcelas pendentes"""
+    venda = get_object_or_404(VendaParcelada, id=venda_id)
+    
+    if request.method == 'POST':
+        parcelas_canceladas = venda.parcelas.filter(
+            status__in=['PENDENTE', 'ATRASADO']
+        ).update(status='CANCELADO')
+        
+        messages.success(
+            request, 
+            f'{parcelas_canceladas} parcelas canceladas do crediário de {venda.cliente.nome}!'
+        )
+    
+    return redirect('financeiro:lista_crediario')
+
+
+# ==========================================
+# CATEGORIAS DE RECEITA
+# ==========================================
+
+@login_required
+def lista_categorias_receita(request):
+    """Lista todas as categorias de receita"""
+    categorias = CategoriaReceita.objects.all().order_by('ordem', 'nome')
+    
+    context = {
+        'categorias': categorias,
+    }
+    
+    return render(request, 'financeiro/categorias_receita_lista.html', context)
+
+
+@login_required
+def criar_categoria_receita(request):
+    """Criar nova categoria de receita"""
+    if request.method == 'POST':
+        try:
+            categoria = CategoriaReceita.objects.create(
+                nome=request.POST.get('nome'),
+                tipo=request.POST.get('tipo', 'VENDA'),
+                icone=request.POST.get('icone', 'bi-cash'),
+                cor=request.POST.get('cor', '#22c55e'),
+                ordem=int(request.POST.get('ordem', 0) or 0),
+            )
+            
+            messages.success(request, f'Categoria "{categoria.nome}" criada com sucesso!')
+            return redirect('financeiro:lista_categorias_receita')
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao criar categoria: {str(e)}')
+    
+    return render(request, 'financeiro/categoria_receita_form.html', {})
+
+
+@login_required
+def editar_categoria_receita(request, categoria_id):
+    """Editar categoria de receita"""
+    categoria = get_object_or_404(CategoriaReceita, id=categoria_id)
+    
+    if request.method == 'POST':
+        try:
+            categoria.nome = request.POST.get('nome')
+            categoria.tipo = request.POST.get('tipo', 'VENDA')
+            categoria.icone = request.POST.get('icone', 'bi-cash')
+            categoria.cor = request.POST.get('cor', '#22c55e')
+            categoria.ordem = int(request.POST.get('ordem', 0) or 0)
+            categoria.ativo = request.POST.get('ativo') == 'on'
+            categoria.save()
+            
+            messages.success(request, f'Categoria "{categoria.nome}" atualizada!')
+            return redirect('financeiro:lista_categorias_receita')
+            
+        except Exception as e:
+            messages.error(request, f'Erro ao atualizar: {str(e)}')
+    
+    context = {
+        'categoria': categoria,
+        'editando': True,
+    }
+    
+    return render(request, 'financeiro/categoria_receita_form.html', context)
+
+
+@login_required
+def deletar_categoria_receita(request, categoria_id):
+    """Desativar categoria de receita"""
+    categoria = get_object_or_404(CategoriaReceita, id=categoria_id)
+    
+    if request.method == 'POST':
+        if ContaReceber.objects.filter(categoria=categoria).exists():
+            categoria.ativo = False
+            categoria.save()
+            messages.warning(request, f'Categoria "{categoria.nome}" desativada (possui receitas vinculadas).')
+        else:
+            categoria.delete()
+            messages.success(request, f'Categoria "{categoria.nome}" excluída!')
+    
+    return redirect('financeiro:lista_categorias_receita')
+
+
+# ==========================================
+# APIs
+# ==========================================
+
+@login_required
+def api_pendencias_cliente(request, cliente_id):
+    """API: Retorna pendências financeiras de um cliente"""
+    cliente = get_object_or_404(Cliente, id=cliente_id)
+    
+    pendencias = ContaReceber.objects.filter(
+        cliente=cliente,
+        status__in=['PENDENTE', 'ATRASADO']
+    ).order_by('data_vencimento')
+    
+    dados = {
+        'cliente': {
+            'id': cliente.id,
+            'nome': cliente.nome,
+        },
+        'resumo': {
+            'total_pendente': float(pendencias.aggregate(
+                total=Coalesce(Sum('valor'), Decimal('0'))
+            )['total']),
+            'qtd_parcelas': pendencias.count(),
+            'qtd_atrasadas': pendencias.filter(status='ATRASADO').count(),
+        },
+        'parcelas': [
+            {
+                'id': p.id,
+                'descricao': p.descricao,
+                'valor': float(p.valor),
+                'data_vencimento': p.data_vencimento.strftime('%d/%m/%Y'),
+                'status': p.status,
+                'dias_atraso': p.dias_atraso,
+                'parcela': f"{p.parcela_atual}/{p.total_parcelas}" if p.total_parcelas > 1 else None,
+            }
+            for p in pendencias
+        ]
+    }
+    
+    return JsonResponse(dados)
+
+
+@login_required
+def api_pendencias_fornecedor(request, fornecedor_id):
+    """API: Retorna pendências financeiras com um fornecedor"""
+    fornecedor = get_object_or_404(Fornecedor, id=fornecedor_id)
+    
+    pendencias = ContaPagar.objects.filter(
+        fornecedor=fornecedor,
+        status__in=['PENDENTE', 'ATRASADO']
+    ).order_by('data_vencimento')
+    
+    dados = {
+        'fornecedor': {
+            'id': fornecedor.id,
+            'nome': str(fornecedor),
+        },
+        'resumo': {
+            'total_pendente': float(pendencias.aggregate(
+                total=Coalesce(Sum('valor'), Decimal('0'))
+            )['total']),
+            'qtd_contas': pendencias.count(),
+            'qtd_atrasadas': pendencias.filter(status='ATRASADO').count(),
+        },
+        'contas': [
+            {
+                'id': c.id,
+                'descricao': c.descricao,
+                'valor': float(c.valor),
+                'data_vencimento': c.data_vencimento.strftime('%d/%m/%Y'),
+                'status': c.status,
+                'dias_atraso': c.dias_atraso,
+            }
+            for c in pendencias
+        ]
+    }
+    
+    return JsonResponse(dados)

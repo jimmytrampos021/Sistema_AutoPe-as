@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+
+{% block title %}Categorias de Receita - Financeiro{% endblock %}
+
+{% block page_title %}Categorias de Receita{% endblock %}
+
+{% block extra_css %}
+<style>
+    .main-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .main-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .btn-nova {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .categoria-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px;
+        border-radius: 10px;
+        background: #f8fafc;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+    }
+
+    body.dark-mode .categoria-item {
+        background: #363636;
+    }
+
+    .categoria-item:hover {
+        transform: translateX(5px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .categoria-info {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .categoria-icon {
+        width: 45px;
+        height: 45px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .categoria-nome {
+        font-weight: 600;
+        color: #1a202c;
+    }
+
+    body.dark-mode .categoria-nome {
+        color: #f0f0f0;
+    }
+
+    .categoria-tipo {
+        font-size: 0.8rem;
+        color: #718096;
+    }
+
+    .categoria-status {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .categoria-status.ativo {
+        background: rgba(34, 197, 94, 0.15);
+        color: #16a34a;
+    }
+
+    .categoria-status.inativo {
+        background: rgba(107, 114, 128, 0.15);
+        color: #6b7280;
+    }
+
+    .btn-acao {
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        margin-left: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="main-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="mb-0"><i class="bi bi-tags"></i> Categorias de Receita</h5>
+            <a href="{% url 'financeiro:criar_categoria_receita' %}" class="btn btn-nova">
+                <i class="bi bi-plus-lg"></i> Nova Categoria
+            </a>
+        </div>
+
+        {% for categoria in categorias %}
+        <div class="categoria-item">
+            <div class="categoria-info">
+                <div class="categoria-icon" style="background: {{ categoria.cor }}20; color: {{ categoria.cor }};">
+                    <i class="{{ categoria.icone }}"></i>
+                </div>
+                <div>
+                    <div class="categoria-nome">{{ categoria.nome }}</div>
+                    <div class="categoria-tipo">{{ categoria.get_tipo_display }} • Ordem: {{ categoria.ordem }}</div>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="categoria-status {% if categoria.ativo %}ativo{% else %}inativo{% endif %}">
+                    {% if categoria.ativo %}Ativo{% else %}Inativo{% endif %}
+                </span>
+                <a href="{% url 'financeiro:editar_categoria_receita' categoria.id %}" class="btn btn-outline-primary btn-acao">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="{% url 'financeiro:deletar_categoria_receita' categoria.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger btn-acao" onclick="return confirm('Excluir esta categoria?')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="bi bi-tags text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-3">Nenhuma categoria cadastrada</p>
+            <a href="{% url 'financeiro:criar_categoria_receita' %}" class="btn btn-nova mt-2">
+                <i class="bi bi-plus-lg"></i> Criar Primeira Categoria
+            </a>
+        </div>
+        {% endfor %}
+
+        <div class="mt-4">
+            <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Voltar para Receitas
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

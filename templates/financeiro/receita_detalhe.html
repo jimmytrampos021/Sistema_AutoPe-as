@@ -1,0 +1,422 @@
+{% extends 'base.html' %}
+
+{% block title %}Receita - {{ conta.descricao }}{% endblock %}
+
+{% block page_title %}Detalhe da Receita{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detalhe-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    body.dark-mode .detalhe-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #22c55e;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #22c55e;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .info-row {
+        border-color: #404040;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: #1a202c;
+        font-weight: 600;
+    }
+
+    body.dark-mode .info-value {
+        color: #f0f0f0;
+    }
+
+    .valor-grande {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #22c55e;
+    }
+
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .status-badge.pendente { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+    .status-badge.recebido { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .status-badge.atrasado { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+    .status-badge.cancelado { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+    .btn-receber {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-editar {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .btn-voltar {
+        background: #6c757d;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 30px;
+        border-radius: 8px;
+    }
+
+    .parcelas-table {
+        width: 100%;
+        margin-top: 15px;
+    }
+
+    .parcelas-table th {
+        background: #f7fafc;
+        padding: 12px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #718096;
+    }
+
+    body.dark-mode .parcelas-table th {
+        background: #363636;
+        color: #a0a0a0;
+    }
+
+    .parcelas-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .parcelas-table td {
+        border-color: #404040;
+    }
+
+    .alerta-atraso {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .alerta-atraso i {
+        font-size: 1.5rem;
+        color: #ef4444;
+    }
+
+    .alerta-atraso .info h5 {
+        margin: 0;
+        color: #dc2626;
+        font-weight: 600;
+    }
+
+    .alerta-atraso .info p {
+        margin: 0;
+        color: #991b1b;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Alerta de Atraso -->
+            {% if conta.status == 'ATRASADO' %}
+            <div class="alerta-atraso">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div class="info">
+                    <h5>Receita em Atraso!</h5>
+                    <p>{{ conta.dias_atraso }} dias de atraso. Venceu em {{ conta.data_vencimento|date:"d/m/Y" }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Card Principal -->
+            <div class="detalhe-card">
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div>
+                        <h4 class="mb-1">{{ conta.descricao }}</h4>
+                        {% if conta.total_parcelas > 1 %}
+                        <span class="badge bg-secondary">Parcela {{ conta.parcela_atual }}/{{ conta.total_parcelas }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="status-badge {{ conta.status|lower }}">
+                        {{ conta.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="section-title">
+                    <i class="bi bi-info-circle"></i> Informações
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Categoria</span>
+                    <span class="info-value">
+                        <i class="{{ conta.categoria.icone }}" style="color: {{ conta.categoria.cor }}"></i>
+                        {{ conta.categoria.nome }}
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Tipo</span>
+                    <span class="info-value">{{ conta.get_tipo_display }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Forma de Cobrança</span>
+                    <span class="info-value">{{ conta.get_forma_cobranca_display }}</span>
+                </div>
+
+                {% if conta.cliente %}
+                <div class="info-row">
+                    <span class="info-label">Cliente</span>
+                    <span class="info-value">{{ conta.cliente.nome }}</span>
+                </div>
+                {% endif %}
+
+                {% if conta.venda %}
+                <div class="info-row">
+                    <span class="info-label">Venda Vinculada</span>
+                    <span class="info-value">Venda #{{ conta.venda.numero }}</span>
+                </div>
+                {% endif %}
+
+                {% if conta.documento_referencia %}
+                <div class="info-row">
+                    <span class="info-label">Documento/NF</span>
+                    <span class="info-value">{{ conta.documento_referencia }}</span>
+                </div>
+                {% endif %}
+
+                <div class="info-row">
+                    <span class="info-label">Data Vencimento</span>
+                    <span class="info-value">{{ conta.data_vencimento|date:"d/m/Y" }}</span>
+                </div>
+
+                {% if conta.data_recebimento %}
+                <div class="info-row">
+                    <span class="info-label">Data Recebimento</span>
+                    <span class="info-value">{{ conta.data_recebimento|date:"d/m/Y" }}</span>
+                </div>
+                {% endif %}
+
+                {% if conta.forma_pagamento %}
+                <div class="info-row">
+                    <span class="info-label">Pago com</span>
+                    <span class="info-value">{{ conta.forma_pagamento.nome }}</span>
+                </div>
+                {% endif %}
+
+                {% if conta.observacoes %}
+                <div class="info-row">
+                    <span class="info-label">Observações</span>
+                    <span class="info-value">{{ conta.observacoes }}</span>
+                </div>
+                {% endif %}
+
+                <div class="info-row">
+                    <span class="info-label">Cadastrado em</span>
+                    <span class="info-value">{{ conta.data_cadastro|date:"d/m/Y H:i" }}</span>
+                </div>
+            </div>
+
+            <!-- Outras Parcelas -->
+            {% if outras_parcelas %}
+            <div class="detalhe-card">
+                <div class="section-title">
+                    <i class="bi bi-list-ol"></i> Outras Parcelas
+                </div>
+
+                <table class="parcelas-table">
+                    <thead>
+                        <tr>
+                            <th>Parcela</th>
+                            <th>Vencimento</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for parcela in outras_parcelas %}
+                        <tr>
+                            <td>{{ parcela.parcela_atual }}/{{ parcela.total_parcelas }}</td>
+                            <td>{{ parcela.data_vencimento|date:"d/m/Y" }}</td>
+                            <td>R$ {{ parcela.valor|floatformat:2 }}</td>
+                            <td>
+                                <span class="status-badge {{ parcela.status|lower }}">
+                                    {{ parcela.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Card Valor -->
+            <div class="detalhe-card text-center">
+                <p class="text-muted mb-2">Valor da Receita</p>
+                <p class="valor-grande">R$ {{ conta.valor|floatformat:2 }}</p>
+                
+                {% if conta.esta_atrasado and conta.aplica_juros or conta.aplica_multa %}
+                <hr>
+                <div class="text-start">
+                    {% if conta.aplica_juros %}
+                    <div class="info-row">
+                        <span class="info-label">Juros ({{ conta.percentual_juros_dia }}% x {{ conta.dias_atraso }} dias)</span>
+                        <span class="info-value text-danger">+ R$ {{ conta.valor_juros|floatformat:2 }}</span>
+                    </div>
+                    {% endif %}
+                    {% if conta.aplica_multa %}
+                    <div class="info-row">
+                        <span class="info-label">Multa ({{ conta.percentual_multa }}%)</span>
+                        <span class="info-value text-danger">+ R$ {{ conta.valor_multa|floatformat:2 }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="info-row">
+                        <span class="info-label"><strong>Total Devido</strong></span>
+                        <span class="info-value"><strong>R$ {{ conta.valor_total_devido|floatformat:2 }}</strong></span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if conta.status == 'RECEBIDO' %}
+                <hr>
+                <p class="text-muted mb-1">Valor Recebido</p>
+                <p class="valor-grande" style="color: #16a34a;">R$ {{ conta.valor_recebido|floatformat:2 }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Ações -->
+            <div class="detalhe-card">
+                <div class="section-title">
+                    <i class="bi bi-lightning"></i> Ações
+                </div>
+
+                <div class="d-grid gap-2">
+                    {% if conta.status != 'RECEBIDO' and conta.status != 'CANCELADO' %}
+                    <button type="button" class="btn btn-receber" data-bs-toggle="modal" data-bs-target="#modalReceber">
+                        <i class="bi bi-check-circle"></i> Registrar Recebimento
+                    </button>
+                    <a href="{% url 'financeiro:editar_receita' conta.id %}" class="btn btn-editar">
+                        <i class="bi bi-pencil"></i> Editar
+                    </a>
+                    <form method="POST" action="{% url 'financeiro:cancelar_receita' conta.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger w-100" onclick="return confirm('Cancelar esta receita?')">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-voltar">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Receber -->
+{% if conta.status != 'RECEBIDO' and conta.status != 'CANCELADO' %}
+<div class="modal fade" id="modalReceber" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'financeiro:receber_conta' conta.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-check-circle text-success"></i> Registrar Recebimento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>{{ conta.descricao }}</strong></p>
+                    <p>Valor Original: <strong>R$ {{ conta.valor|floatformat:2 }}</strong></p>
+                    {% if conta.esta_atrasado %}
+                    <p>Total com Juros/Multa: <strong class="text-danger">R$ {{ conta.valor_total_devido|floatformat:2 }}</strong></p>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Data do Recebimento</label>
+                        <input type="date" name="data_recebimento" class="form-control" value="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Forma de Pagamento</label>
+                        <select name="forma_pagamento" class="form-select">
+                            <option value="">Selecione...</option>
+                            {% for forma in formas_pagamento %}
+                            <option value="{{ forma.id }}">{{ forma.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor Recebido</label>
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" name="valor_recebido" class="form-control" 
+                                   value="{% if conta.esta_atrasado %}{{ conta.valor_total_devido|floatformat:2 }}{% else %}{{ conta.valor|floatformat:2 }}{% endif %}">
+                        </div>
+                        <small class="text-muted">Altere se houver desconto ou diferença</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-lg"></i> Confirmar Recebimento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

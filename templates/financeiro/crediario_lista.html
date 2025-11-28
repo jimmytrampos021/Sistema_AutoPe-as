@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Crediário - Financeiro{% endblock %}
+
+{% block page_title %}Crediário / Vendas a Prazo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fin-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-secondary: #4a5568;
+        --text-muted: #718096;
+        --bg-secondary: #f7fafc;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .fin-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-secondary: #c0c0c0;
+        --text-muted: #a0a0a0;
+        --bg-secondary: #363636;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    @media (max-width: 992px) {
+        .stats-row { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+    }
+
+    .stat-icon.purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .stat-icon.green { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .stat-icon.yellow { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .stat-icon.red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .stat-info h3 {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .stat-info p {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 2px 0 0 0;
+    }
+
+    .main-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+
+    .btn-novo {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 8px;
+    }
+
+    .crediario-card {
+        background: var(--bg-secondary);
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 15px;
+        border-left: 4px solid #8b5cf6;
+    }
+
+    .crediario-card.com-atraso {
+        border-left-color: #ef4444;
+    }
+
+    .crediario-card.quitado {
+        border-left-color: #22c55e;
+    }
+
+    .cliente-nome {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .crediario-info {
+        display: flex;
+        gap: 20px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+    }
+
+    .crediario-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .crediario-info-item span:first-child {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+    }
+
+    .crediario-info-item span:last-child {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .progress-parcelas {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        margin-top: 15px;
+    }
+
+    .progress-parcelas .progress-bar {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border-radius: 4px;
+    }
+
+    .parcelas-status {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+        font-size: 0.8rem;
+    }
+
+    .parcelas-status .pagas { color: #22c55e; }
+    .parcelas-status .pendentes { color: #eab308; }
+    .parcelas-status .atrasadas { color: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fin-container">
+    <!-- Estatísticas -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon purple">
+                <i class="bi bi-credit-card"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total_credito|floatformat:2 }}</h3>
+                <p>Total em Crediário</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total_recebido|floatformat:2 }}</h3>
+                <p>Recebido</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon yellow">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total_pendente|floatformat:2 }}</h3>
+                <p>A Receber</p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon red">
+                <i class="bi bi-exclamation-triangle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>R$ {{ stats.total_atrasado|floatformat:2 }}</h3>
+                <p>Em Atraso</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Principal -->
+    <div class="main-card">
+        <!-- Filtros e Ações -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+            <form method="GET" class="d-flex gap-2 flex-wrap">
+                <input type="text" name="busca" class="form-control" placeholder="Buscar cliente..." value="{{ busca }}" style="width: 200px;">
+                <select name="cliente" class="form-select" style="width: 180px;">
+                    <option value="">Todos os clientes</option>
+                    {% for cli in clientes %}
+                    <option value="{{ cli.id }}" {% if cliente_selecionado == cli.id|stringformat:"i" %}selected{% endif %}>{{ cli.nome }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" class="form-select" style="width: 150px;">
+                    <option value="">Todos</option>
+                    <option value="com_atraso" {% if status_filtro == 'com_atraso' %}selected{% endif %}>Com Atraso</option>
+                    <option value="em_dia" {% if status_filtro == 'em_dia' %}selected{% endif %}>Em Dia</option>
+                    <option value="quitado" {% if status_filtro == 'quitado' %}selected{% endif %}>Quitado</option>
+                </select>
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-search"></i>
+                </button>
+            </form>
+            <div class="d-flex gap-2">
+                <a href="{% url 'financeiro:lista_receitas' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-list"></i> Todas Receitas
+                </a>
+                <a href="{% url 'financeiro:criar_crediario' %}" class="btn btn-novo">
+                    <i class="bi bi-plus-lg"></i> Novo Crediário
+                </a>
+            </div>
+        </div>
+
+        <!-- Lista de Crediários -->
+        {% for venda in page_obj %}
+        <div class="crediario-card {% if venda.parcelas_em_atraso > 0 %}com-atraso{% elif venda.total_pendente == 0 %}quitado{% endif %}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <span class="cliente-nome">{{ venda.cliente.nome }}</span>
+                    <p class="text-muted mb-0">{{ venda.descricao }}</p>
+                </div>
+                <a href="{% url 'financeiro:detalhe_crediario' venda.id %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i> Ver Parcelas
+                </a>
+            </div>
+
+            <div class="crediario-info">
+                <div class="crediario-info-item">
+                    <span>Valor Total</span>
+                    <span>R$ {{ venda.valor_total|floatformat:2 }}</span>
+                </div>
+                <div class="crediario-info-item">
+                    <span>Parcelas</span>
+                    <span>{{ venda.numero_parcelas }}x de R$ {{ venda.valor_parcela|floatformat:2 }}</span>
+                </div>
+                <div class="crediario-info-item">
+                    <span>Forma</span>
+                    <span>{{ venda.get_forma_cobranca_display }}</span>
+                </div>
+                <div class="crediario-info-item">
+                    <span>Intervalo</span>
+                    <span>{{ venda.get_intervalo_tipo_display }}</span>
+                </div>
+                <div class="crediario-info-item">
+                    <span>Data</span>
+                    <span>{{ venda.data_cadastro|date:"d/m/Y" }}</span>
+                </div>
+            </div>
+
+            {% with pagas=venda.parcelas.all|dictsort:"status"|first %}
+            {% endwith %}
+            
+            <div class="progress-parcelas">
+                {% with total=venda.numero_parcelas recebidas=venda.parcelas.all %}
+                <div class="progress-bar" style="width: {% widthratio venda.total_recebido venda.valor_total 100 %}%"></div>
+                {% endwith %}
+            </div>
+
+            <div class="parcelas-status">
+                <span class="pagas"><i class="bi bi-check-circle"></i> {{ venda.parcelas.all|dictsortreversed:"status"|length }} recebidas</span>
+                <span class="pendentes"><i class="bi bi-clock"></i> a receber</span>
+                {% if venda.parcelas_em_atraso > 0 %}
+                <span class="atrasadas"><i class="bi bi-exclamation-triangle"></i> {{ venda.parcelas_em_atraso }} em atraso</span>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="bi bi-credit-card text-muted" style="font-size: 3rem;"></i>
+            <p class="text-muted mt-3">Nenhum crediário encontrado</p>
+            <a href="{% url 'financeiro:criar_crediario' %}" class="btn btn-novo mt-2">
+                <i class="bi bi-plus-lg"></i> Criar Primeiro Crediário
+            </a>
+        </div>
+        {% endfor %}
+
+        <!-- Paginação -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">{{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
