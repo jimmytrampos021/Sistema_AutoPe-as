@@ -395,6 +395,7 @@
                 <option value="DB">💳 Débito</option>
                 <option value="CC">💳 Crédito à Vista</option>
                 <option value="CP">💳 Crédito Parcelado</option>
+                <option value="CR">📋 Crediário/Fiado</option>
             </select>
         </div>
         
@@ -414,6 +415,25 @@
                 <option value="11">11x</option>
                 <option value="12">12x</option>
             </select>
+        </div>
+        <!-- Parcelas Crediário -->
+        <div id="parcelas-crediario-container" style="display: none;" class="mb-3">
+            <label class="form-label">Parcelas do Crediário</label>
+            <select id="parcelas-crediario" class="form-select">
+                <option value="1">1x (à vista)</option>
+                <option value="2">2x</option>
+                <option value="3">3x</option>
+                <option value="4">4x</option>
+                <option value="5">5x</option>
+                <option value="6">6x</option>
+                <option value="7">7x</option>
+                <option value="8">8x</option>
+                <option value="9">9x</option>
+                <option value="10">10x</option>
+                <option value="11">11x</option>
+                <option value="12">12x</option>
+            </select>
+            <small class="text-muted">Parcelas mensais no fiado</small>
         </div>
         
         <!-- Desconto/Acréscimo -->
@@ -859,32 +879,50 @@ $('#btn-limpar').on('click', function() {
     });
 });
 
-// Mostrar/ocultar campo de parcelas
 $('#forma-pagamento').on('change', function() {
+    const valor = $(this).val();
     const parcelasContainer = document.getElementById('parcelas-container');
-    if ($(this).val() === 'CP') {
+    const parcelasCrediarioContainer = document.getElementById('parcelas-crediario-container');
+    
+    if (valor === 'CP') {
         parcelasContainer.style.display = 'block';
-        $('#parcelas-container').slideDown();
+        parcelasCrediarioContainer.style.display = 'none';
+    } else if (valor === 'CR') {
+        parcelasContainer.style.display = 'none';
+        parcelasCrediarioContainer.style.display = 'block';
     } else {
         parcelasContainer.style.display = 'none';
-        $('#parcelas-container').slideUp();
+        parcelasCrediarioContainer.style.display = 'none';
     }
     atualizarCarrinho();
 });
 
 // Também adicionar listener com JavaScript puro (fallback)
 document.getElementById('forma-pagamento').addEventListener('change', function() {
+    const valor = this.value;
     const parcelasContainer = document.getElementById('parcelas-container');
-    if (this.value === 'CP') {
+    const parcelasCrediarioContainer = document.getElementById('parcelas-crediario-container');
+    
+    if (valor === 'CP') {
         parcelasContainer.style.display = 'block';
+        parcelasCrediarioContainer.style.display = 'none';
+    } else if (valor === 'CR') {
+        parcelasContainer.style.display = 'none';
+        parcelasCrediarioContainer.style.display = 'block';
     } else {
         parcelasContainer.style.display = 'none';
+        parcelasCrediarioContainer.style.display = 'none';
     }
     atualizarCarrinho();
 });
 
 // Atualizar quando mudar número de parcelas
 $('#numero-parcelas').on('change', function() {
+    atualizarCarrinho();
+});
+
+// Atualizar quando mudar parcelas do crediário
+$('#parcelas-crediario').on('change', function() {
     atualizarCarrinho();
 });
 
@@ -1081,34 +1119,90 @@ $('#btn-finalizar').on('click', function() {
         confirmButtonColor: '#198754'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Aqui você faria a chamada AJAX para salvar a venda
-            // Por enquanto, apenas simula sucesso
-            
+            // Preparar dados da venda
+            const dadosVenda = {
+                cliente_id: clienteId || null,
+                forma_pagamento: formaPagamento,
+                itens: carrinho.map(item => ({
+                    id: item.id,
+                    quantidade: item.quantidade,
+                    preco: item.preco,
+                    total: item.total
+                })),
+                subtotal: subtotal,
+                desconto: ajusteAtual.tipo === 'desconto' ? valorAjuste : 0,
+                acrescimo: ajusteAtual.tipo === 'acrescimo' ? valorAjuste : 0,
+                total: totalVenda,
+                parcelas: formaPagamento === 'CR' ? parseInt($('#parcelas-crediario').val()) || 1 : (formaPagamento === 'CP' ? parseInt($('#numero-parcelas').val()) : 1),
+                observacoes: ''
+            };
+
+            // Mostrar loading
             Swal.fire({
-                icon: 'success',
-                title: 'Venda Realizada!',
-                text: 'A venda foi registrada com sucesso.',
-                timer: 2000,
-                showConfirmButton: false
+                title: 'Processando...',
+                text: 'Salvando venda',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
             });
-            
-            setTimeout(() => {
-                carrinho = [];
-                atualizarCarrinho();
-                $('#cliente-select').val('');
-                $('#forma-pagamento').val('DI');
-                $('#parcelas-container').hide();
-                
-                // Limpar ajuste
-                $('#tipo-ajuste').val('');
-                $('#valor-ajuste').val('').prop('disabled', true);
-                $('#tipo-valor-ajuste').val('reais').prop('disabled', true);
-                ajusteAtual = { tipo: '', valor: 0, tipoValor: 'reais' };
-                $('#info-ajuste').hide();
-                
-                $('#search-produto').val('').focus();
-                ultimaBusca = '';
-            }, 2000);
+
+            // Enviar para o servidor
+            fetch('{% url "api_salvar_venda_pdv" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify(dadosVenda)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Venda Realizada!',
+                        html: `<strong>${data.numero}</strong><br>Venda registrada com sucesso!`,
+                        timer: 3000,
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    });
+
+                    // Limpar carrinho
+                    carrinho = [];
+                    atualizarCarrinho();
+                    $('#cliente-select').val('');
+                    $('#forma-pagamento').val('DI');
+                    $('#parcelas-container').hide();
+
+                    // Limpar ajuste
+                    $('#tipo-ajuste').val('');
+                    $('#valor-ajuste').val('').prop('disabled', true);
+                    $('#tipo-valor-ajuste').val('reais').prop('disabled', true);
+                    
+                    ajusteAtual = { tipo: '', valor: 0, tipoValor: 'reais' };
+                    $('#info-ajuste').hide();
+                    
+                    $('#search-produto').val('').focus();
+                    ultimaBusca = '';
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro!',
+                        text: data.error || 'Erro ao salvar venda',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: 'Erro de conexão ao salvar venda',
+                    confirmButtonText: 'OK'
+                });
+            });
         }
     });
 });

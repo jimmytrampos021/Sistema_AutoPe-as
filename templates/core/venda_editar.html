@@ -1,0 +1,381 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Venda {{ venda.numero }}{% endblock %}
+
+{% block page_title %}Editar Venda {{ venda.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .venda-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+    }
+
+    body.dark-mode .venda-card {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #3b82f6;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #3b82f6;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    body.dark-mode .info-row {
+        border-color: #404040;
+    }
+
+    .info-label {
+        color: #718096;
+        font-weight: 500;
+    }
+
+    .info-value {
+        color: #1a202c;
+        font-weight: 600;
+    }
+
+    body.dark-mode .info-value {
+        color: #f0f0f0;
+    }
+
+    .status-badge {
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .status-badge.aberta { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .status-badge.finalizada { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .status-badge.cancelada { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .valor-total {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #22c55e;
+    }
+
+    .itens-table {
+        width: 100%;
+    }
+
+    .itens-table thead th {
+        background: #f8fafc;
+        padding: 12px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #718096;
+        font-weight: 600;
+    }
+
+    body.dark-mode .itens-table thead th {
+        background: #363636;
+        color: #a0a0a0;
+    }
+
+    .itens-table tbody td {
+        padding: 12px;
+        border-bottom: 1px solid #e2e8f0;
+        vertical-align: middle;
+    }
+
+    body.dark-mode .itens-table tbody td {
+        border-color: #404040;
+    }
+
+    .btn-cancelar-venda {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 25px;
+        border-radius: 8px;
+    }
+
+    .btn-cancelar-venda:hover {
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        color: white;
+    }
+
+    .btn-salvar {
+        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 25px;
+        border-radius: 8px;
+    }
+
+    .btn-voltar {
+        background: #6c757d;
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px 25px;
+        border-radius: 8px;
+    }
+
+    .btn-remover-item {
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+    }
+
+    .btn-remover-item:hover {
+        background: #fecaca;
+        color: #b91c1c;
+    }
+
+    .alerta-cancelada {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .alerta-cancelada i {
+        font-size: 1.5rem;
+        color: #ef4444;
+    }
+
+    .parcelas-section {
+        background: #f0fdf4;
+        border-radius: 10px;
+        padding: 15px;
+        margin-top: 15px;
+    }
+
+    body.dark-mode .parcelas-section {
+        background: #1a2e1a;
+    }
+
+    .parcela-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dcfce7;
+    }
+
+    body.dark-mode .parcela-item {
+        border-color: #2d4a2d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% if venda.status == 'C' %}
+    <div class="alerta-cancelada">
+        <i class="bi bi-x-circle-fill"></i>
+        <div>
+            <strong>Venda Cancelada</strong>
+            <p class="mb-0">Esta venda foi cancelada e o estoque já foi devolvido.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-8">
+            <!-- Informações da Venda -->
+            <div class="venda-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h4 class="mb-1">Venda {{ venda.numero }}</h4>
+                        <small class="text-muted">{{ venda.data_venda|date:"d/m/Y H:i" }}</small>
+                    </div>
+                    <span class="status-badge {% if venda.status == 'A' %}aberta{% elif venda.status == 'F' %}finalizada{% else %}cancelada{% endif %}">
+                        {{ venda.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="section-title">
+                    <i class="bi bi-info-circle"></i> Informações
+                </div>
+
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="atualizar">
+
+                    <div class="info-row">
+                        <span class="info-label">Cliente</span>
+                        <span class="info-value">{{ venda.cliente.nome }}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Forma de Pagamento</span>
+                        <span class="info-value">{{ venda.get_forma_pagamento_display }}</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Vendedor</span>
+                        <span class="info-value">{{ venda.vendedor }}</span>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Observações</label>
+                        <textarea name="observacoes" class="form-control" rows="3" {% if venda.status == 'C' %}disabled{% endif %}>{{ venda.observacoes|default:'' }}</textarea>
+                    </div>
+
+                    {% if venda.status != 'C' %}
+                    <button type="submit" class="btn btn-salvar">
+                        <i class="bi bi-check-lg"></i> Salvar Alterações
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Itens da Venda -->
+            <div class="venda-card">
+                <div class="section-title">
+                    <i class="bi bi-cart"></i> Itens da Venda
+                </div>
+
+                <div class="table-responsive">
+                    <table class="itens-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Qtd</th>
+                                <th>Valor Unit.</th>
+                                <th>Total</th>
+                                {% if venda.status != 'C' %}
+                                <th>Ações</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in venda.itens.all %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.produto.codigo }}</strong><br>
+                                    <small>{{ item.produto.descricao }}</small>
+                                </td>
+                                <td>{{ item.quantidade }}</td>
+                                <td>R$ {{ item.valor_unitario|floatformat:2 }}</td>
+                                <td><strong>R$ {{ item.total|floatformat:2 }}</strong></td>
+                                {% if venda.status != 'C' %}
+                                <td>
+                                    <form method="POST" style="display:inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="remover_item">
+                                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        <button type="submit" class="btn-remover-item" onclick="return confirm('Remover este item e devolver ao estoque?')">
+                                            <i class="bi bi-trash"></i> Remover
+                                        </button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">
+                                    Nenhum item na venda
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Parcelas Financeiras -->
+            {% if parcelas %}
+            <div class="venda-card">
+                <div class="section-title">
+                    <i class="bi bi-credit-card"></i> Parcelas no Financeiro
+                </div>
+
+                <div class="parcelas-section">
+                    {% for parcela in parcelas %}
+                    <div class="parcela-item">
+                        <span>
+                            <strong>{{ parcela.parcela_atual }}/{{ parcela.total_parcelas }}</strong>
+                            - Venc: {{ parcela.data_vencimento|date:"d/m/Y" }}
+                        </span>
+                        <span>
+                            <span class="status-badge {% if parcela.status == 'RECEBIDO' %}finalizada{% elif parcela.status == 'CANCELADO' %}cancelada{% elif parcela.status == 'ATRASADO' %}cancelada{% else %}aberta{% endif %}">
+                                {{ parcela.get_status_display }}
+                            </span>
+                            R$ {{ parcela.valor|floatformat:2 }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-4">
+            <!-- Resumo -->
+            <div class="venda-card text-center">
+                <p class="text-muted mb-2">Total da Venda</p>
+                <p class="valor-total">R$ {{ venda.total|floatformat:2 }}</p>
+                
+                {% if venda.desconto > 0 %}
+                <hr>
+                <div class="info-row">
+                    <span class="info-label">Subtotal</span>
+                    <span class="info-value">R$ {{ venda.subtotal|floatformat:2 }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Desconto</span>
+                    <span class="info-value text-danger">- R$ {{ venda.desconto|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Ações -->
+            <div class="venda-card">
+                <div class="section-title">
+                    <i class="bi bi-lightning"></i> Ações
+                </div>
+
+                <div class="d-grid gap-2">
+                    <a href="{% url 'detalhe_venda' venda.id %}" class="btn btn-outline-primary">
+                        <i class="bi bi-eye"></i> Ver Detalhes
+                    </a>
+                    
+                    {% if venda.status != 'C' %}
+                    <form method="POST" id="form-cancelar">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancelar">
+                        <button type="submit" class="btn btn-cancelar-venda w-100" onclick="return confirm('ATENÇÃO: Cancelar esta venda?\n\nO estoque de todos os itens será devolvido e as parcelas pendentes serão canceladas.\n\nEsta ação não pode ser desfeita!')">
+                            <i class="bi bi-x-circle"></i> Cancelar Venda
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    <a href="{% url 'lista_vendas' %}" class="btn btn-voltar">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

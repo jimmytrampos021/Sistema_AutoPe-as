@@ -1,11 +1,14 @@
 from django.http import JsonResponse
 from vendas.models import Venda, OrdemServico
 from django.utils import timezone
+from datetime import date
 import json
 from estoque.forms import ProdutoForm
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from decimal import Decimal
+from django.db import transaction
 from django.core.paginator import Paginator
 from django.db.models import Sum, Count, F, Q, Avg, Min, Max, Prefetch
 from datetime import datetime, timedelta
@@ -2046,3 +2049,309 @@ def api_buscar_subcategorias(request):
     
 
     
+# ==========================================
+# API PARA SALVAR VENDA DO PDV
+# ==========================================
+from vendas.models import Venda, ItemVenda
+from financeiro.models import ContaReceber, VendaParcelada, CategoriaReceita
+import json
+
+@login_required
+def api_salvar_venda_pdv(request):
+    """API para salvar venda do PDV e criar parcelas no financeiro se necessário"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+    
+    try:
+        dados = json.loads(request.body)
+        
+        cliente_id = dados.get('cliente_id')
+        forma_pagamento = dados.get('forma_pagamento')
+        itens = dados.get('itens', [])
+        subtotal = Decimal(str(dados.get('subtotal', 0)))
+        desconto = Decimal(str(dados.get('desconto', 0)))
+        acrescimo = Decimal(str(dados.get('acrescimo', 0)))
+        total = Decimal(str(dados.get('total', 0)))
+        parcelas = int(dados.get('parcelas', 1))
+        observacoes = dados.get('observacoes', '')
+        
+        # Validações
+        if not itens:
+            return JsonResponse({'success': False, 'error': 'Carrinho vazio'})
+        
+        if not forma_pagamento:
+            return JsonResponse({'success': False, 'error': 'Forma de pagamento não informada'})
+        
+        # Se for crediário, cliente é obrigatório
+        if forma_pagamento == 'CR' and not cliente_id:
+            return JsonResponse({'success': False, 'error': 'Cliente obrigatório para crediário'})
+        
+        # Mapear forma de pagamento do PDV para o modelo
+        mapa_forma = {
+            'DI': 'DI',  # Dinheiro
+            'PI': 'PI',  # PIX
+            'DB': 'CD',  # Débito
+            'CC': 'CC',  # Crédito à vista
+            'CP': 'CC',  # Crédito parcelado (ainda é cartão de crédito)
+            'CR': 'CR',  # Crediário
+        }
+        forma_pagamento_db = mapa_forma.get(forma_pagamento, 'DI')
+        
+        with transaction.atomic():
+            # Gerar número da venda
+            ultima_venda = Venda.objects.order_by('-id').first()
+            if ultima_venda and ultima_venda.numero:
+                try:
+                    ultimo_num = int(ultima_venda.numero.replace('V', '').replace('-', ''))
+                    novo_num = ultimo_num + 1
+                except:
+                    novo_num = 1
+            else:
+                novo_num = 1
+            numero_venda = f"V{novo_num:06d}"
+            
+            # Buscar cliente se informado
+            cliente = None
+            if cliente_id:
+                cliente = Cliente.objects.filter(id=cliente_id).first()
+            
+            # Se não tem cliente, criar/buscar cliente genérico
+            if not cliente:
+                cliente, _ = Cliente.objects.get_or_create(
+                    cpf_cnpj='00000000000',
+                    defaults={
+                        'nome': 'Cliente não identificado',
+                        'ativo': True
+                    }
+                )
+            
+            # Criar a venda
+            venda = Venda.objects.create(
+                numero=numero_venda,
+                cliente=cliente,
+                forma_pagamento=forma_pagamento_db,
+                status='F',  # Finalizada
+                subtotal=subtotal,
+                desconto=desconto,
+                total=total,
+                observacoes=observacoes,
+                vendedor=request.user.username
+            )
+            
+            # Criar itens da venda e baixar estoque
+            for item in itens:
+                produto = Produto.objects.get(id=item['id'])
+                quantidade = Decimal(str(item['quantidade']))
+                preco_unitario = Decimal(str(item['preco']))
+                total_item = quantidade * preco_unitario
+                
+                ItemVenda.objects.create(
+                    venda=venda,
+                    produto=produto,
+                    quantidade=int(quantidade),
+                    valor_unitario=preco_unitario,
+                    total=total_item
+                )
+                
+                # Baixar estoque
+                produto.estoque_atual -= quantidade
+                produto.save()
+            
+            # Se for CREDIÁRIO, criar parcelas no financeiro
+            if forma_pagamento == 'CR' and parcelas > 0:
+                # Buscar ou criar categoria de receita padrão
+                categoria_receita, _ = CategoriaReceita.objects.get_or_create(
+                    nome='Vendas de Peças',
+                    defaults={
+                        'tipo': 'VENDA',
+                        'icone': 'bi-box-seam',
+                        'cor': '#22c55e'
+                    }
+                )
+                
+                # Criar VendaParcelada
+                venda_parcelada = VendaParcelada.objects.create(
+                    descricao=f'Venda {numero_venda}',
+                    categoria=categoria_receita,
+                    cliente=cliente,
+                    venda=venda,
+                    valor_total=total,
+                    numero_parcelas=parcelas,
+                    data_primeira_parcela=date.today() + timedelta(days=30),
+                    intervalo_tipo='MENSAL',
+                    forma_cobranca='FIADO',
+                    usuario_cadastro=request.user
+                )
+                
+                # Gerar as parcelas
+                venda_parcelada.gerar_parcelas()
+            
+            # Se for cartão de crédito parcelado no cartão (loja não recebe parcelado)
+            # Criar receita única pois a administradora paga à vista
+            elif forma_pagamento in ['DI', 'PI', 'DB', 'CC', 'CP']:
+                # Buscar ou criar categoria de receita padrão
+                categoria_receita, _ = CategoriaReceita.objects.get_or_create(
+                    nome='Vendas de Peças',
+                    defaults={
+                        'tipo': 'VENDA',
+                        'icone': 'bi-box-seam',
+                        'cor': '#22c55e'
+                    }
+                )
+                
+                # Criar receita única (já recebida)
+                ContaReceber.objects.create(
+                    descricao=f'Venda {numero_venda}',
+                    categoria=categoria_receita,
+                    tipo='VENDA',
+                    valor=total,
+                    data_vencimento=date.today(),
+                    data_recebimento=date.today(),
+                    status='RECEBIDO',
+                    forma_cobranca='DINHEIRO' if forma_pagamento in ['DI', 'PI'] else 'CARTAO',
+                    cliente=cliente if cliente.cpf_cnpj != '00000000000' else None,
+                    venda=venda,
+                    valor_recebido=total,
+                    usuario_cadastro=request.user
+                )
+        
+        return JsonResponse({
+            'success': True,
+            'venda_id': venda.id,
+            'numero': numero_venda,
+            'message': f'Venda {numero_venda} realizada com sucesso!'
+        })
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+
+# ==========================================
+# EDITAR E CANCELAR VENDA
+# ==========================================
+
+@login_required
+def editar_venda(request, venda_id):
+    """Editar venda existente"""
+    venda = get_object_or_404(Venda.objects.select_related('cliente').prefetch_related('itens__produto'), id=venda_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # CANCELAR VENDA
+        if action == 'cancelar':
+            if venda.status != 'C':  # Se ainda não está cancelada
+                with transaction.atomic():
+                    # Devolver estoque de todos os itens
+                    for item in venda.itens.all():
+                        item.produto.estoque_atual += item.quantidade
+                        item.produto.save()
+                    
+                    # Cancelar parcelas no financeiro (se houver)
+                    ContaReceber.objects.filter(venda=venda, status__in=['PENDENTE', 'ATRASADO']).update(status='CANCELADO')
+                    
+                    # Marcar venda como cancelada
+                    venda.status = 'C'
+                    venda.save()
+                    
+                    messages.success(request, f'Venda {venda.numero} cancelada e estoque devolvido!')
+            else:
+                messages.warning(request, 'Esta venda já está cancelada.')
+            
+            return redirect('lista_vendas')
+        
+        # ATUALIZAR DADOS DA VENDA
+        elif action == 'atualizar':
+            try:
+                venda.observacoes = request.POST.get('observacoes', '')
+                
+                # Atualizar cliente se informado
+                cliente_id = request.POST.get('cliente_id')
+                if cliente_id:
+                    venda.cliente = Cliente.objects.get(id=cliente_id)
+                
+                venda.save()
+                messages.success(request, f'Venda {venda.numero} atualizada!')
+                
+            except Exception as e:
+                messages.error(request, f'Erro ao atualizar: {str(e)}')
+            
+            return redirect('editar_venda', venda_id=venda.id)
+        
+        # REMOVER ITEM
+        elif action == 'remover_item':
+            item_id = request.POST.get('item_id')
+            try:
+                with transaction.atomic():
+                    item = venda.itens.get(id=item_id)
+                    
+                    # Devolver estoque
+                    item.produto.estoque_atual += item.quantidade
+                    item.produto.save()
+                    
+                    # Atualizar total da venda
+                    venda.total -= item.total
+                    venda.subtotal -= item.total
+                    venda.save()
+                    
+                    # Remover item
+                    item.delete()
+                    
+                    messages.success(request, f'Item removido e estoque devolvido!')
+                    
+            except Exception as e:
+                messages.error(request, f'Erro ao remover item: {str(e)}')
+            
+            return redirect('editar_venda', venda_id=venda.id)
+    
+    # GET - Exibir página
+    clientes = Cliente.objects.filter(ativo=True).order_by('nome')
+    
+    # Buscar parcelas financeiras vinculadas
+    parcelas = ContaReceber.objects.filter(venda=venda).order_by('parcela_atual')
+    
+    context = {
+        'venda': venda,
+        'clientes': clientes,
+        'parcelas': parcelas,
+    }
+    
+    return render(request, 'core/venda_editar.html', context)
+
+
+@login_required
+def api_cancelar_venda(request, venda_id):
+    """API para cancelar venda via AJAX"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+    
+    try:
+        venda = Venda.objects.get(id=venda_id)
+        
+        if venda.status == 'C':
+            return JsonResponse({'success': False, 'error': 'Venda já está cancelada'})
+        
+        with transaction.atomic():
+            # Devolver estoque
+            for item in venda.itens.all():
+                item.produto.estoque_atual += item.quantidade
+                item.produto.save()
+            
+            # Cancelar parcelas no financeiro
+            ContaReceber.objects.filter(venda=venda, status__in=['PENDENTE', 'ATRASADO']).update(status='CANCELADO')
+            
+            # Cancelar venda
+            venda.status = 'C'
+            venda.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Venda {venda.numero} cancelada com sucesso!'
+        })
+        
+    except Venda.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Venda não encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

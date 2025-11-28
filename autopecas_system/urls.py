@@ -82,7 +82,9 @@ urlpatterns = [
     # Vendas
     path('vendas/', core_views.lista_vendas, name='lista_vendas'),
     path('vendas/<int:venda_id>/', core_views.detalhe_venda, name='detalhe_venda'),
-    
+    path('vendas/<int:venda_id>/editar/', core_views.editar_venda, name='editar_venda'),
+    path('api/vendas/<int:venda_id>/cancelar/', core_views.api_cancelar_venda, name='api_cancelar_venda'),
+
     # Ordens de Serviço
     path('ordens-servico/', core_views.lista_ordens_servico, name='lista_ordens_servico'),
     path('ordens-servico/<int:os_id>/', core_views.detalhe_ordem_servico, name='detalhe_ordem_servico'),
@@ -101,6 +103,7 @@ urlpatterns = [
     # APIs de Busca
     # path('api/buscar-produtos/', core_views.buscar_produtos_rapido, name='buscar_produtos_rapido'),
     path('api/pdv/buscar-produtos/', core_views.api_buscar_produtos_pdv, name='api_buscar_produtos_pdv'),
+    path('api/pdv/salvar-venda/', core_views.api_salvar_venda_pdv, name='api_salvar_venda_pdv'),
     path('api/buscar-modelos/', core_views.buscar_modelos_por_montadora, name='buscar_modelos_por_montadora'),
     # Categorias
     path('categorias/', core_views.lista_categorias, name='lista_categorias'),

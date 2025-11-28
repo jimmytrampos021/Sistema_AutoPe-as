@@ -41,7 +41,7 @@
             <a href="{% url 'lista_vendas' %}" class="btn btn-secondary mb-2">
                 <i class="bi bi-arrow-left"></i> Voltar
             </a>
-            <a href="/admin/vendas/venda/{{ venda.id }}/change/" class="btn btn-warning mb-2">
+            <a href="{% url 'editar_venda' venda.id %}" class="btn btn-warning mb-2">
                 <i class="bi bi-pencil"></i> Editar
             </a>
         </div>
