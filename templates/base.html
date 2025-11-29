@@ -341,12 +341,12 @@
                 <i class="bi bi-speedometer2"></i> Dashboard
             </a>
             
-            <!-- ADICIONE ESTA LINHA -->
+        
             <a class="nav-link {% if 'clientes' in request.path %}active{% endif %}" href="{% url 'lista_clientes' %}">
                 <i class="bi bi-people"></i> Clientes
             </a>
             
-            <!-- ADICIONE ESTA LINHA -->
+            
             <a class="nav-link {% if 'estoque' in request.path %}active{% endif %}" href="{% url 'lista_estoque' %}">
                 <i class="bi bi-box-seam"></i> Estoque
             </a>
@@ -354,8 +354,12 @@
             <a class="nav-link {% if 'pdv' in request.path %}active{% endif %}" href="{% url 'pdv' %}">
                 <i class="bi bi-cart3"></i> PDV - Vendas
             </a>
+
+            <a class="nav-link py-2" href="{% url 'financeiro:dashboard_caixa' %}">
+                <i class="bi bi-safe text-primary"></i> Caixa
+            </a>
             
-            <!-- ADICIONE ESTA LINHA -->
+          
             <a class="nav-link {% if 'vendas' in request.path %}active{% endif %}" href="{% url 'lista_vendas' %}">
                 <i class="bi bi-receipt"></i> Vendas
             </a>

@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+
+{% block title %}Cartões Pendentes - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-credit-card me-2"></i>Recebimentos de Cartão Pendentes
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .resumo-card {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .resumo-card h6 {
+        color: #92400e;
+        margin-bottom: 5px;
+    }
+    
+    .resumo-card h3 {
+        color: #78350f;
+        margin: 0;
+    }
+    
+    .secao-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+    
+    .secao-card h5 {
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .secao-card h5.vencido {
+        color: #dc3545;
+        border-color: #dc3545;
+    }
+    
+    .secao-card h5.hoje {
+        color: #f59e0b;
+        border-color: #f59e0b;
+    }
+    
+    .secao-card h5.avencer {
+        color: #198754;
+        border-color: #198754;
+    }
+    
+    .cartao-item {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    
+    .cartao-item:hover {
+        background: #e9ecef;
+    }
+    
+    .cartao-item.vencido {
+        border-left: 4px solid #dc3545;
+        background: #fef2f2;
+    }
+    
+    .cartao-item.hoje {
+        border-left: 4px solid #f59e0b;
+        background: #fffbeb;
+    }
+    
+    .cartao-item .info {
+        flex: 1;
+    }
+    
+    .cartao-item .info h6 {
+        margin-bottom: 5px;
+    }
+    
+    .cartao-item .info small {
+        color: #6c757d;
+    }
+    
+    .cartao-item .valores {
+        text-align: right;
+        margin-right: 15px;
+    }
+    
+    .cartao-item .valores .bruto {
+        font-size: 12px;
+        color: #6c757d;
+        text-decoration: line-through;
+    }
+    
+    .cartao-item .valores .liquido {
+        font-size: 18px;
+        font-weight: bold;
+        color: #198754;
+    }
+    
+    .badge-tipo {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    
+    .badge-tipo.debito {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .badge-tipo.credito {
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+    
+    body.dark-mode .secao-card {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .secao-card h5 {
+        border-color: #444;
+    }
+    
+    body.dark-mode .cartao-item {
+        background: #3d3d3d;
+    }
+    
+    body.dark-mode .cartao-item:hover {
+        background: #4d4d4d;
+    }
+    
+    body.dark-mode .cartao-item.vencido {
+        background: #3d2d2d;
+    }
+    
+    body.dark-mode .cartao-item.hoje {
+        background: #3d3a2d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Resumo -->
+    <div class="resumo-card">
+        <div>
+            <h6><i class="bi bi-clock-history me-2"></i>Total Pendente de Recebimento</h6>
+            <h3>R$ {{ total_pendente|floatformat:2 }}</h3>
+        </div>
+        <a href="{% url 'financeiro:dashboard_caixa' %}" class="btn btn-outline-dark">
+            <i class="bi bi-arrow-left me-1"></i> Voltar ao Caixa
+        </a>
+    </div>
+    
+    <!-- Vencidos -->
+    {% if vencidos %}
+    <div class="secao-card">
+        <h5 class="vencido">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Vencidos ({{ vencidos.count }})
+        </h5>
+        
+        {% for cartao in vencidos %}
+        <div class="cartao-item vencido">
+            <div class="info">
+                <h6>
+                    <span class="badge-tipo {{ cartao.tipo|lower }}">{{ cartao.get_tipo_display }}</span>
+                    Venda {{ cartao.venda.numero }}
+                </h6>
+                <small>
+                    <i class="bi bi-calendar me-1"></i> Venda: {{ cartao.data_venda|date:"d/m/Y" }} |
+                    <i class="bi bi-calendar-x me-1"></i> Previsão: {{ cartao.data_previsao|date:"d/m/Y" }} |
+                    Taxa: {{ cartao.taxa_percentual }}%
+                </small>
+            </div>
+            <div class="valores">
+                <div class="bruto">R$ {{ cartao.valor_bruto|floatformat:2 }}</div>
+                <div class="liquido">R$ {{ cartao.valor_liquido|floatformat:2 }}</div>
+            </div>
+            <a href="{% url 'financeiro:confirmar_recebimento_cartao' cartao.id %}" 
+               class="btn btn-success btn-sm"
+               onclick="return confirm('Confirma o recebimento de R$ {{ cartao.valor_liquido|floatformat:2 }}?')">
+                <i class="bi bi-check-lg me-1"></i> Confirmar
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Vencendo Hoje -->
+    {% if vencendo_hoje %}
+    <div class="secao-card">
+        <h5 class="hoje">
+            <i class="bi bi-clock me-2"></i>
+            Vencendo Hoje ({{ vencendo_hoje.count }})
+        </h5>
+        
+        {% for cartao in vencendo_hoje %}
+        <div class="cartao-item hoje">
+            <div class="info">
+                <h6>
+                    <span class="badge-tipo {{ cartao.tipo|lower }}">{{ cartao.get_tipo_display }}</span>
+                    Venda {{ cartao.venda.numero }}
+                </h6>
+                <small>
+                    <i class="bi bi-calendar me-1"></i> Venda: {{ cartao.data_venda|date:"d/m/Y" }} |
+                    Taxa: {{ cartao.taxa_percentual }}%
+                </small>
+            </div>
+            <div class="valores">
+                <div class="bruto">R$ {{ cartao.valor_bruto|floatformat:2 }}</div>
+                <div class="liquido">R$ {{ cartao.valor_liquido|floatformat:2 }}</div>
+            </div>
+            <a href="{% url 'financeiro:confirmar_recebimento_cartao' cartao.id %}" 
+               class="btn btn-success btn-sm"
+               onclick="return confirm('Confirma o recebimento de R$ {{ cartao.valor_liquido|floatformat:2 }}?')">
+                <i class="bi bi-check-lg me-1"></i> Confirmar
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- A Vencer -->
+    {% if a_vencer %}
+    <div class="secao-card">
+        <h5 class="avencer">
+            <i class="bi bi-calendar-check me-2"></i>
+            A Vencer ({{ a_vencer.count }})
+        </h5>
+        
+        {% for cartao in a_vencer %}
+        <div class="cartao-item">
+            <div class="info">
+                <h6>
+                    <span class="badge-tipo {{ cartao.tipo|lower }}">{{ cartao.get_tipo_display }}</span>
+                    Venda {{ cartao.venda.numero }}
+                </h6>
+                <small>
+                    <i class="bi bi-calendar me-1"></i> Venda: {{ cartao.data_venda|date:"d/m/Y" }} |
+                    <i class="bi bi-calendar-event me-1"></i> Previsão: {{ cartao.data_previsao|date:"d/m/Y" }} |
+                    Taxa: {{ cartao.taxa_percentual }}%
+                </small>
+            </div>
+            <div class="valores">
+                <div class="bruto">R$ {{ cartao.valor_bruto|floatformat:2 }}</div>
+                <div class="liquido">R$ {{ cartao.valor_liquido|floatformat:2 }}</div>
+            </div>
+            <a href="{% url 'financeiro:confirmar_recebimento_cartao' cartao.id %}" 
+               class="btn btn-outline-success btn-sm"
+               onclick="return confirm('Confirma o recebimento antecipado de R$ {{ cartao.valor_liquido|floatformat:2 }}?')">
+                <i class="bi bi-check-lg me-1"></i> Confirmar
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <!-- Sem pendências -->
+    {% if not vencidos and not vencendo_hoje and not a_vencer %}
+    <div class="secao-card">
+        <div class="empty-state">
+            <i class="bi bi-check-circle text-success"></i>
+            <h5>Nenhum recebimento pendente!</h5>
+            <p>Todos os cartões já foram recebidos.</p>
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}

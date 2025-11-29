@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+
+{% block title %}Fechamento de Caixa - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-lock me-2"></i>Fechamento de Caixa
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .fechamento-card {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        margin-bottom: 20px;
+    }
+    
+    .fechamento-card h5 {
+        color: #1e3a8a;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .resumo-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f1f1f1;
+    }
+    
+    .resumo-item:last-child {
+        border-bottom: none;
+    }
+    
+    .resumo-item .label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .resumo-item .label i {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+    }
+    
+    .resumo-item .valor {
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .resumo-item .valor.entrada { color: #198754; }
+    .resumo-item .valor.saida { color: #dc3545; }
+    
+    .total-box {
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        margin-top: 15px;
+    }
+    
+    .total-box h6 {
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+    
+    .total-box h3 {
+        margin: 0;
+        font-size: 28px;
+    }
+    
+    .conferencia-box {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .conferencia-box.dinheiro {
+        border-left: 4px solid #198754;
+    }
+    
+    .conferencia-box.pix {
+        border-left: 4px solid #0d6efd;
+    }
+    
+    .diferenca-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .diferenca-badge.ok {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .diferenca-badge.sobra {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .diferenca-badge.falta {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .movimentacao-mini {
+        font-size: 13px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .movimentacao-mini.entrada {
+        border-left: 3px solid #198754;
+    }
+    
+    .movimentacao-mini.saida {
+        border-left: 3px solid #dc3545;
+    }
+    
+    .caixa-fechado {
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .caixa-fechado i {
+        font-size: 64px;
+        color: #198754;
+        margin-bottom: 20px;
+    }
+    
+    body.dark-mode .fechamento-card {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .fechamento-card h5 {
+        color: #93c5fd;
+        border-color: #444;
+    }
+    
+    body.dark-mode .conferencia-box {
+        background: #3d3d3d;
+    }
+    
+    body.dark-mode .resumo-item {
+        border-color: #444;
+    }
+    
+    body.dark-mode .movimentacao-mini {
+        background: #3d3d3d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    {% if fechamento.status == 'FECHADO' %}
+    <!-- Caixa já fechado -->
+    <div class="fechamento-card">
+        <div class="caixa-fechado">
+            <i class="bi bi-check-circle-fill"></i>
+            <h4>Caixa já fechado hoje!</h4>
+            <p class="text-muted">Fechado em {{ fechamento.data_fechamento|date:"d/m/Y" }} às {{ fechamento.data_fechamento|time:"H:i" }}</p>
+            <a href="{% url 'financeiro:dashboard_caixa' %}" class="btn btn-primary mt-3">
+                <i class="bi bi-arrow-left me-2"></i>Voltar ao Dashboard
+            </a>
+        </div>
+    </div>
+    
+    {% else %}
+    
+    <div class="row">
+        <!-- Resumo do Dia -->
+        <div class="col-lg-6 mb-4">
+            <div class="fechamento-card h-100">
+                <h5><i class="bi bi-clipboard-data me-2"></i>Resumo do Dia - {{ hoje|date:"d/m/Y" }}</h5>
+                
+                <h6 class="text-success mt-4 mb-3"><i class="bi bi-arrow-up-circle me-1"></i> Entradas</h6>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-cash" style="background: #d1fae5; color: #059669;"></i>
+                        <span>Vendas em Dinheiro</span>
+                    </div>
+                    <span class="valor entrada">R$ {{ fechamento.total_vendas_dinheiro|floatformat:2 }}</span>
+                </div>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-qr-code" style="background: #dbeafe; color: #2563eb;"></i>
+                        <span>Vendas em PIX</span>
+                    </div>
+                    <span class="valor entrada">R$ {{ fechamento.total_vendas_pix|floatformat:2 }}</span>
+                </div>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-credit-card" style="background: #fef3c7; color: #d97706;"></i>
+                        <span>Vendas em Débito</span>
+                    </div>
+                    <span class="valor entrada">R$ {{ fechamento.total_vendas_debito|floatformat:2 }}</span>
+                </div>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-credit-card-2-front" style="background: #ede9fe; color: #7c3aed;"></i>
+                        <span>Vendas em Crédito</span>
+                    </div>
+                    <span class="valor entrada">R$ {{ fechamento.total_vendas_credito|floatformat:2 }}</span>
+                </div>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-plus-circle" style="background: #d1fae5; color: #059669;"></i>
+                        <span>Suprimentos</span>
+                    </div>
+                    <span class="valor entrada">R$ {{ fechamento.total_suprimentos|floatformat:2 }}</span>
+                </div>
+                
+                <h6 class="text-danger mt-4 mb-3"><i class="bi bi-arrow-down-circle me-1"></i> Saídas</h6>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-dash-circle" style="background: #fee2e2; color: #dc2626;"></i>
+                        <span>Sangrias</span>
+                    </div>
+                    <span class="valor saida">R$ {{ fechamento.total_sangrias|floatformat:2 }}</span>
+                </div>
+                
+                <div class="resumo-item">
+                    <div class="label">
+                        <i class="bi bi-receipt" style="background: #fee2e2; color: #dc2626;"></i>
+                        <span>Pagamentos</span>
+                    </div>
+                    <span class="valor saida">R$ {{ fechamento.total_pagamentos|floatformat:2 }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Conferência e Fechamento -->
+        <div class="col-lg-6 mb-4">
+            <div class="fechamento-card">
+                <h5><i class="bi bi-calculator me-2"></i>Conferência de Valores</h5>
+                
+                <form method="post" id="formFechamento">
+                    {% csrf_token %}
+                    
+                    <!-- Dinheiro -->
+                    <div class="conferencia-box dinheiro">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Dinheiro em Mãos</h6>
+                            <span class="diferenca-badge ok" id="badgeDinheiro">Aguardando...</span>
+                        </div>
+                        
+                        <div class="row align-items-center">
+                            <div class="col-6">
+                                <small class="text-muted">Esperado pelo sistema:</small>
+                                <h5 class="mb-0 text-success">R$ {{ fechamento.saldo_esperado_dinheiro|floatformat:2 }}</h5>
+                                <input type="hidden" id="esperadoDinheiro" value="{{ fechamento.saldo_esperado_dinheiro }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Valor contado:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control" name="valor_dinheiro" 
+                                           id="valorDinheiro" placeholder="0,00" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 text-center" id="diferencaDinheiro" style="display: none;">
+                            <small>Diferença: <strong id="valorDiferencaDinheiro">R$ 0,00</strong></small>
+                        </div>
+                    </div>
+                    
+                    <!-- PIX -->
+                    <div class="conferencia-box pix">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0"><i class="bi bi-qr-code me-2"></i>PIX (conferir no app)</h6>
+                            <span class="diferenca-badge ok" id="badgePix">Aguardando...</span>
+                        </div>
+                        
+                        <div class="row align-items-center">
+                            <div class="col-6">
+                                <small class="text-muted">Esperado pelo sistema:</small>
+                                <h5 class="mb-0 text-primary">R$ {{ fechamento.saldo_esperado_pix|floatformat:2 }}</h5>
+                                <input type="hidden" id="esperadoPix" value="{{ fechamento.saldo_esperado_pix }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Valor no app:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control" name="valor_pix" 
+                                           id="valorPix" placeholder="0,00" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-2 text-center" id="diferencaPix" style="display: none;">
+                            <small>Diferença: <strong id="valorDiferencaPix">R$ 0,00</strong></small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="observacoes" class="form-label">Observações do Fechamento</label>
+                        <textarea class="form-control" name="observacoes" id="observacoes" rows="2"
+                                  placeholder="Anote aqui qualquer observação sobre o fechamento..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-lock me-2"></i>Fechar Caixa
+                        </button>
+                        <a href="{% url 'financeiro:dashboard_caixa' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Voltar
+                        </a>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Movimentações do Dia -->
+            {% if movimentacoes_dia %}
+            <div class="fechamento-card">
+                <h5><i class="bi bi-list-ul me-2"></i>Movimentações de Hoje</h5>
+                <div style="max-height: 250px; overflow-y: auto;">
+                    {% for mov in movimentacoes_dia %}
+                    <div class="movimentacao-mini {{ mov.tipo|lower }}">
+                        <span>
+                            {{ mov.hora|time:"H:i" }} - {{ mov.descricao|truncatechars:30 }}
+                        </span>
+                        <strong class="{% if mov.tipo == 'ENTRADA' %}text-success{% else %}text-danger{% endif %}">
+                            {% if mov.tipo == 'ENTRADA' %}+{% else %}-{% endif %}
+                            R$ {{ mov.valor|floatformat:2 }}
+                        </strong>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Função para formatar valor
+    function formatarMoeda(valor) {
+        return valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+    
+    // Função para converter string para número
+    function converterParaNumero(str) {
+        return parseFloat(str.replace('.', '').replace(',', '.')) || 0;
+    }
+    
+    // Função para atualizar diferença
+    function atualizarDiferenca(tipo) {
+        const esperado = parseFloat(document.getElementById('esperado' + tipo).value) || 0;
+        const informado = converterParaNumero(document.getElementById('valor' + tipo).value);
+        const diferenca = informado - esperado;
+        
+        const badgeEl = document.getElementById('badge' + tipo);
+        const diferencaEl = document.getElementById('diferenca' + tipo);
+        const valorDiferencaEl = document.getElementById('valorDiferenca' + tipo);
+        
+        if (informado > 0) {
+            diferencaEl.style.display = 'block';
+            valorDiferencaEl.textContent = 'R$ ' + formatarMoeda(diferenca);
+            
+            if (diferenca === 0) {
+                badgeEl.className = 'diferenca-badge ok';
+                badgeEl.textContent = '✓ Confere';
+                valorDiferencaEl.className = 'text-success';
+            } else if (diferenca > 0) {
+                badgeEl.className = 'diferenca-badge sobra';
+                badgeEl.textContent = 'Sobra: R$ ' + formatarMoeda(diferenca);
+                valorDiferencaEl.className = 'text-primary';
+            } else {
+                badgeEl.className = 'diferenca-badge falta';
+                badgeEl.textContent = 'Falta: R$ ' + formatarMoeda(Math.abs(diferenca));
+                valorDiferencaEl.className = 'text-danger';
+            }
+        } else {
+            diferencaEl.style.display = 'none';
+            badgeEl.className = 'diferenca-badge ok';
+            badgeEl.textContent = 'Aguardando...';
+        }
+    }
+    
+    // Máscara de valor para dinheiro
+    document.getElementById('valorDinheiro').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = (parseInt(value) / 100).toFixed(2);
+        if (!isNaN(value) && value !== 'NaN') {
+            e.target.value = value.replace('.', ',');
+        }
+        atualizarDiferenca('Dinheiro');
+    });
+    
+    // Máscara de valor para PIX
+    document.getElementById('valorPix').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = (parseInt(value) / 100).toFixed(2);
+        if (!isNaN(value) && value !== 'NaN') {
+            e.target.value = value.replace('.', ',');
+        }
+        atualizarDiferenca('Pix');
+    });
+    
+    // Confirmação de fechamento
+    document.getElementById('formFechamento')?.addEventListener('submit', function(e) {
+        const dinheiro = document.getElementById('valorDinheiro').value;
+        const pix = document.getElementById('valorPix').value;
+        
+        if (!confirm(`Confirma o fechamento do caixa?\n\nDinheiro informado: R$ ${dinheiro}\nPIX informado: R$ ${pix}\n\nEsta ação não pode ser desfeita.`)) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

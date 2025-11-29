@@ -89,4 +89,24 @@ urlpatterns = [
     path('api/grafico-mensal/', views.api_grafico_mensal, name='api_grafico_mensal'),
     path('api/cliente/<int:cliente_id>/pendencias/', views.api_pendencias_cliente, name='api_pendencias_cliente'),
     path('api/fornecedor/<int:fornecedor_id>/pendencias/', views.api_pendencias_fornecedor, name='api_pendencias_fornecedor'),
+
+    # ==========================================
+    # FLUXO DE CAIXA
+    # ==========================================
+    path('caixa/', views.dashboard_caixa, name='dashboard_caixa'),
+    path('caixa/movimentacoes/', views.lista_movimentacoes, name='lista_movimentacoes'),
+    path('caixa/sangria/', views.registrar_sangria, name='registrar_sangria'),
+    path('caixa/suprimento/', views.registrar_suprimento, name='registrar_suprimento'),
+    path('caixa/transferencia/', views.registrar_transferencia, name='registrar_transferencia'),
+    path('caixa/fechamento/', views.fechamento_caixa, name='fechamento_caixa'),
+    path('caixa/fechamento/historico/', views.historico_fechamentos, name='historico_fechamentos'),
+    path('caixa/cartoes-pendentes/', views.cartoes_pendentes, name='cartoes_pendentes'),
+    path('caixa/cartoes-pendentes/confirmar/<int:recebimento_id>/', views.confirmar_recebimento_cartao, name='confirmar_recebimento_cartao'),
+    path('caixa/contas/', views.gerenciar_contas_financeiras, name='gerenciar_contas'),
+    path('caixa/contas/<int:conta_id>/atualizar-saldo/', views.atualizar_saldo_inicial, name='atualizar_saldo_inicial'),
+    
+    # APIs do Caixa
+    path('caixa/api/resumo/', views.api_resumo_caixa, name='api_resumo_caixa'),
+    path('caixa/api/grafico-fluxo/', views.api_grafico_fluxo, name='api_grafico_fluxo'),
+    path('caixa/api/processar-vendas-dia/', views.api_processar_vendas_dia, name='api_processar_vendas_dia'),
 ]

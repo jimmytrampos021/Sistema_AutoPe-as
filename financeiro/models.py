@@ -895,3 +895,503 @@ class ConfiguracaoFinanceiro(models.Model):
         """Retorna a configuração atual ou cria uma padrão"""
         config, created = cls.objects.get_or_create(pk=1)
         return config
+    
+
+
+# ==========================================
+# MODELO: CONTA FINANCEIRA (CARTEIRAS)
+# ==========================================
+class ContaFinanceira(models.Model):
+    """Contas/Carteiras financeiras da loja"""
+    TIPO_CHOICES = [
+        ('BANCO', 'Conta Bancária'),
+        ('DINHEIRO', 'Dinheiro em Mãos'),
+    ]
+    
+    nome = models.CharField(max_length=100, verbose_name='Nome')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name='Tipo')
+    saldo_inicial = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                        verbose_name='Saldo Inicial')
+    saldo_atual = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                      verbose_name='Saldo Atual')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+    icone = models.CharField(max_length=50, default='bi-wallet', verbose_name='Ícone')
+    cor = models.CharField(max_length=20, default='#6c757d', verbose_name='Cor')
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Conta Financeira'
+        verbose_name_plural = 'Contas Financeiras'
+        ordering = ['nome']
+    
+    def __str__(self):
+        return f"{self.nome} - R$ {self.saldo_atual:.2f}"
+    
+    def atualizar_saldo(self, valor, tipo_operacao):
+        """Atualiza o saldo da conta (ENTRADA ou SAIDA)"""
+        if tipo_operacao == 'ENTRADA':
+            self.saldo_atual += valor
+        elif tipo_operacao == 'SAIDA':
+            self.saldo_atual -= valor
+        self.save()
+    
+    @classmethod
+    def get_saldo_total(cls):
+        """Retorna o saldo total de todas as contas ativas"""
+        return cls.objects.filter(ativo=True).aggregate(
+            total=models.Sum('saldo_atual')
+        )['total'] or Decimal('0')
+
+
+# ==========================================
+# MODELO: MOVIMENTAÇÃO DE CAIXA
+# ==========================================
+class MovimentacaoCaixa(models.Model):
+    """Registro de todas as movimentações financeiras"""
+    TIPO_CHOICES = [
+        ('ENTRADA', 'Entrada'),
+        ('SAIDA', 'Saída'),
+    ]
+    
+    CATEGORIA_CHOICES = [
+        ('VENDA', 'Venda'),
+        ('SANGRIA', 'Sangria'),
+        ('SUPRIMENTO', 'Suprimento'),
+        ('TRANSFERENCIA', 'Transferência'),
+        ('PAGAMENTO', 'Pagamento de Conta'),
+        ('RECEBIMENTO', 'Recebimento de Conta'),
+        ('AJUSTE', 'Ajuste de Caixa'),
+        ('DEPOSITO', 'Depósito Bancário'),
+    ]
+    
+    FORMA_PAGAMENTO_CHOICES = [
+        ('DINHEIRO', 'Dinheiro'),
+        ('PIX', 'PIX'),
+        ('DEBITO', 'Cartão Débito'),
+        ('CREDITO', 'Cartão Crédito'),
+    ]
+    
+    conta = models.ForeignKey(ContaFinanceira, on_delete=models.PROTECT,
+                              verbose_name='Conta', related_name='movimentacoes')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name='Tipo')
+    categoria = models.CharField(max_length=15, choices=CATEGORIA_CHOICES, verbose_name='Categoria')
+    
+    descricao = models.CharField(max_length=200, verbose_name='Descrição')
+    valor = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Valor')
+    
+    # Campos para vendas
+    forma_pagamento = models.CharField(max_length=10, choices=FORMA_PAGAMENTO_CHOICES,
+                                       blank=True, null=True, verbose_name='Forma de Pagamento')
+    valor_bruto = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True,
+                                      verbose_name='Valor Bruto (antes da taxa)')
+    taxa_percentual = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True,
+                                          verbose_name='Taxa (%)')
+    valor_taxa = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
+                                     verbose_name='Valor da Taxa')
+    
+    # Referências
+    venda = models.ForeignKey('vendas.Venda', on_delete=models.SET_NULL,
+                              blank=True, null=True, verbose_name='Venda',
+                              related_name='movimentacoes_caixa')
+    conta_pagar = models.ForeignKey(ContaPagar, on_delete=models.SET_NULL,
+                                    blank=True, null=True, verbose_name='Conta a Pagar',
+                                    related_name='movimentacoes_caixa')
+    conta_receber = models.ForeignKey(ContaReceber, on_delete=models.SET_NULL,
+                                      blank=True, null=True, verbose_name='Conta a Receber',
+                                      related_name='movimentacoes_caixa')
+    
+    # Para transferências entre contas
+    conta_destino = models.ForeignKey(ContaFinanceira, on_delete=models.SET_NULL,
+                                      blank=True, null=True, verbose_name='Conta Destino',
+                                      related_name='transferencias_recebidas')
+    
+    # Controle
+    data = models.DateField(verbose_name='Data')
+    hora = models.TimeField(auto_now_add=True, verbose_name='Hora')
+    observacoes = models.TextField(blank=True, null=True, verbose_name='Observações')
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True,
+                                verbose_name='Usuário')
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Movimentação de Caixa'
+        verbose_name_plural = 'Movimentações de Caixa'
+        ordering = ['-data', '-hora']
+    
+    def __str__(self):
+        sinal = '+' if self.tipo == 'ENTRADA' else '-'
+        return f"{self.data} | {sinal} R$ {self.valor:.2f} | {self.descricao}"
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Atualizar saldo da conta automaticamente apenas em novos registros
+        if is_new:
+            self.conta.atualizar_saldo(self.valor, self.tipo)
+            
+            # Se for transferência, atualizar conta destino também
+            if self.categoria == 'TRANSFERENCIA' and self.conta_destino:
+                self.conta_destino.atualizar_saldo(self.valor, 'ENTRADA')
+
+
+# ==========================================
+# MODELO: RECEBIMENTO DE CARTÃO (PENDENTES)
+# ==========================================
+class RecebimentoCartao(models.Model):
+    """Controle de recebimentos de cartão pendentes"""
+    STATUS_CHOICES = [
+        ('PENDENTE', 'Pendente'),
+        ('RECEBIDO', 'Recebido'),
+        ('CANCELADO', 'Cancelado'),
+    ]
+    
+    TIPO_CHOICES = [
+        ('DEBITO', 'Débito'),
+        ('CREDITO', 'Crédito'),
+    ]
+    
+    venda = models.ForeignKey('vendas.Venda', on_delete=models.CASCADE,
+                              verbose_name='Venda', related_name='recebimentos_cartao')
+    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, verbose_name='Tipo')
+    parcelas = models.IntegerField(default=1, verbose_name='Parcelas')
+    
+    valor_bruto = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Valor Bruto')
+    taxa_percentual = models.DecimalField(max_digits=5, decimal_places=2, verbose_name='Taxa (%)')
+    valor_taxa = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Valor da Taxa')
+    valor_liquido = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Valor Líquido')
+    
+    data_venda = models.DateField(verbose_name='Data da Venda')
+    data_previsao = models.DateField(verbose_name='Previsão de Recebimento')
+    data_recebimento = models.DateField(blank=True, null=True, verbose_name='Data do Recebimento')
+    
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDENTE',
+                              verbose_name='Status')
+    
+    conta_destino = models.ForeignKey(ContaFinanceira, on_delete=models.PROTECT,
+                                      verbose_name='Conta Destino')
+    
+    movimentacao = models.ForeignKey(MovimentacaoCaixa, on_delete=models.SET_NULL,
+                                     blank=True, null=True, verbose_name='Movimentação',
+                                     related_name='recebimentos_cartao')
+    
+    observacoes = models.TextField(blank=True, null=True, verbose_name='Observações')
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Recebimento de Cartão'
+        verbose_name_plural = 'Recebimentos de Cartão'
+        ordering = ['data_previsao', '-data_venda']
+    
+    def __str__(self):
+        return f"{self.tipo} - R$ {self.valor_liquido:.2f} - {self.data_previsao}"
+    
+    def confirmar_recebimento(self, data_recebimento=None, usuario=None):
+        """Confirma o recebimento e cria a movimentação"""
+        if self.status == 'RECEBIDO':
+            return None
+        
+        self.status = 'RECEBIDO'
+        self.data_recebimento = data_recebimento or date.today()
+        
+        # Criar movimentação de entrada
+        movimentacao = MovimentacaoCaixa.objects.create(
+            conta=self.conta_destino,
+            tipo='ENTRADA',
+            categoria='VENDA',
+            descricao=f"Recebimento {self.tipo} - Venda {self.venda.numero}",
+            valor=self.valor_liquido,
+            forma_pagamento=self.tipo,
+            valor_bruto=self.valor_bruto,
+            taxa_percentual=self.taxa_percentual,
+            valor_taxa=self.valor_taxa,
+            venda=self.venda,
+            data=self.data_recebimento,
+            usuario=usuario
+        )
+        
+        self.movimentacao = movimentacao
+        self.save()
+        
+        return movimentacao
+
+
+# ==========================================
+# MODELO: FECHAMENTO DE CAIXA
+# ==========================================
+class FechamentoCaixa(models.Model):
+    """Registro de fechamento de caixa diário"""
+    STATUS_CHOICES = [
+        ('ABERTO', 'Aberto'),
+        ('FECHADO', 'Fechado'),
+    ]
+    
+    data = models.DateField(unique=True, verbose_name='Data')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='ABERTO',
+                              verbose_name='Status')
+    
+    # Valores esperados (calculados pelo sistema)
+    saldo_inicial_dinheiro = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                  verbose_name='Saldo Inicial Dinheiro')
+    saldo_inicial_banco = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                               verbose_name='Saldo Inicial Banco')
+    
+    # Entradas do dia
+    total_vendas_dinheiro = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                 verbose_name='Vendas em Dinheiro')
+    total_vendas_pix = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                            verbose_name='Vendas em PIX')
+    total_vendas_debito = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                               verbose_name='Vendas em Débito')
+    total_vendas_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                verbose_name='Vendas em Crédito')
+    total_suprimentos = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                             verbose_name='Suprimentos')
+    total_recebimentos = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                              verbose_name='Outros Recebimentos')
+    
+    # Saídas do dia
+    total_sangrias = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                          verbose_name='Sangrias')
+    total_pagamentos = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                            verbose_name='Pagamentos')
+    
+    # Saldos esperados (calculados)
+    saldo_esperado_dinheiro = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                   verbose_name='Saldo Esperado Dinheiro')
+    saldo_esperado_pix = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                              verbose_name='Saldo Esperado PIX')
+    
+    # Valores informados no fechamento
+    valor_informado_dinheiro = models.DecimalField(max_digits=12, decimal_places=2,
+                                                    blank=True, null=True,
+                                                    verbose_name='Valor Informado Dinheiro')
+    valor_informado_pix = models.DecimalField(max_digits=12, decimal_places=2,
+                                               blank=True, null=True,
+                                               verbose_name='Valor Informado PIX')
+    
+    # Diferenças
+    diferenca_dinheiro = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                              verbose_name='Diferença Dinheiro')
+    diferenca_pix = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                         verbose_name='Diferença PIX')
+    
+    # Controle
+    observacoes = models.TextField(blank=True, null=True, verbose_name='Observações')
+    usuario_fechamento = models.ForeignKey(User, on_delete=models.SET_NULL,
+                                            blank=True, null=True,
+                                            verbose_name='Usuário do Fechamento')
+    data_fechamento = models.DateTimeField(blank=True, null=True, verbose_name='Data/Hora Fechamento')
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Fechamento de Caixa'
+        verbose_name_plural = 'Fechamentos de Caixa'
+        ordering = ['-data']
+    
+    def __str__(self):
+        return f"Fechamento {self.data.strftime('%d/%m/%Y')} - {self.get_status_display()}"
+    
+    def calcular_totais(self):
+        """Calcula os totais baseado nas movimentações do dia"""
+        movimentacoes = MovimentacaoCaixa.objects.filter(data=self.data)
+        
+        # Vendas por forma de pagamento
+        self.total_vendas_dinheiro = movimentacoes.filter(
+            categoria='VENDA', forma_pagamento='DINHEIRO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        self.total_vendas_pix = movimentacoes.filter(
+            categoria='VENDA', forma_pagamento='PIX'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        self.total_vendas_debito = movimentacoes.filter(
+            categoria='VENDA', forma_pagamento='DEBITO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        self.total_vendas_credito = movimentacoes.filter(
+            categoria='VENDA', forma_pagamento='CREDITO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        # Suprimentos
+        self.total_suprimentos = movimentacoes.filter(
+            categoria='SUPRIMENTO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        # Sangrias
+        self.total_sangrias = movimentacoes.filter(
+            categoria='SANGRIA'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        # Pagamentos
+        self.total_pagamentos = movimentacoes.filter(
+            categoria='PAGAMENTO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        # Recebimentos (outros)
+        self.total_recebimentos = movimentacoes.filter(
+            categoria='RECEBIMENTO'
+        ).aggregate(total=models.Sum('valor'))['total'] or Decimal('0')
+        
+        # Calcular saldos esperados
+        self.saldo_esperado_dinheiro = (
+            self.saldo_inicial_dinheiro +
+            self.total_vendas_dinheiro +
+            self.total_suprimentos -
+            self.total_sangrias -
+            self.total_pagamentos
+        )
+        
+        self.saldo_esperado_pix = self.total_vendas_pix
+        
+        self.save()
+    
+    def fechar_caixa(self, valor_dinheiro, valor_pix, usuario=None, observacoes=''):
+        """Realiza o fechamento do caixa"""
+        self.valor_informado_dinheiro = valor_dinheiro
+        self.valor_informado_pix = valor_pix
+        
+        self.diferenca_dinheiro = valor_dinheiro - self.saldo_esperado_dinheiro
+        self.diferenca_pix = valor_pix - self.saldo_esperado_pix
+        
+        self.status = 'FECHADO'
+        self.usuario_fechamento = usuario
+        self.data_fechamento = timezone.now()
+        self.observacoes = observacoes
+        
+        self.save()
+    
+    @classmethod
+    def get_ou_criar_hoje(cls):
+        """Retorna o fechamento de hoje ou cria um novo"""
+        hoje = date.today()
+        fechamento, created = cls.objects.get_or_create(
+            data=hoje,
+            defaults={
+                'saldo_inicial_dinheiro': ContaFinanceira.objects.filter(
+                    tipo='DINHEIRO', ativo=True
+                ).aggregate(total=models.Sum('saldo_atual'))['total'] or Decimal('0'),
+                'saldo_inicial_banco': ContaFinanceira.objects.filter(
+                    tipo='BANCO', ativo=True
+                ).aggregate(total=models.Sum('saldo_atual'))['total'] or Decimal('0'),
+            }
+        )
+        return fechamento
+
+
+# ==========================================
+# MODELO: RESUMO DIÁRIO DE VENDAS
+# ==========================================
+class ResumoDiarioVendas(models.Model):
+    """Consolidação diária das vendas para o fluxo de caixa"""
+    data = models.DateField(unique=True, verbose_name='Data')
+    
+    # Totais por forma de pagamento (valor bruto)
+    total_dinheiro = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                          verbose_name='Total Dinheiro')
+    total_pix = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                     verbose_name='Total PIX')
+    total_debito_bruto = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                              verbose_name='Total Débito (Bruto)')
+    total_credito_bruto = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                               verbose_name='Total Crédito (Bruto)')
+    
+    # Taxas
+    taxa_pix = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                    verbose_name='Taxa PIX')
+    taxa_debito = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                       verbose_name='Taxa Débito')
+    taxa_credito = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                        verbose_name='Taxa Crédito')
+    
+    # Valores líquidos
+    total_pix_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                             verbose_name='Total PIX (Líquido)')
+    total_debito_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                verbose_name='Total Débito (Líquido)')
+    total_credito_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                                 verbose_name='Total Crédito (Líquido)')
+    
+    # Total geral
+    total_bruto = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                       verbose_name='Total Bruto')
+    total_taxas = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                                       verbose_name='Total Taxas')
+    total_liquido = models.DecimalField(max_digits=12, decimal_places=2, default=0,
+                                         verbose_name='Total Líquido')
+    
+    # Quantidade de vendas
+    quantidade_vendas = models.IntegerField(default=0, verbose_name='Qtd. Vendas')
+    
+    # Controle
+    processado = models.BooleanField(default=False, verbose_name='Processado no Caixa')
+    data_cadastro = models.DateTimeField(auto_now_add=True)
+    data_atualizacao = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Resumo Diário de Vendas'
+        verbose_name_plural = 'Resumos Diários de Vendas'
+        ordering = ['-data']
+    
+    def __str__(self):
+        return f"Resumo {self.data.strftime('%d/%m/%Y')} - R$ {self.total_liquido:.2f}"
+    
+    @classmethod
+    def consolidar_dia(cls, data):
+        """Consolida as vendas de um dia específico"""
+        from vendas.models import Venda
+        
+        vendas = Venda.objects.filter(
+            data_venda__date=data,
+            status='F'
+        )
+        
+        resumo, created = cls.objects.get_or_create(data=data)
+        
+        # Calcular totais por forma de pagamento
+        resumo.total_dinheiro = vendas.filter(
+            forma_pagamento='DI'
+        ).aggregate(total=models.Sum('total'))['total'] or Decimal('0')
+        
+        resumo.total_pix = vendas.filter(
+            forma_pagamento='PI'
+        ).aggregate(total=models.Sum('total'))['total'] or Decimal('0')
+        
+        resumo.total_debito_bruto = vendas.filter(
+            forma_pagamento='CD'
+        ).aggregate(total=models.Sum('total'))['total'] or Decimal('0')
+        
+        resumo.total_credito_bruto = vendas.filter(
+            forma_pagamento='CC'
+        ).aggregate(total=models.Sum('total'))['total'] or Decimal('0')
+        
+        # Buscar taxas
+        taxa_pix = TaxaCartao.get_taxa('PIX', 1)
+        taxa_debito = TaxaCartao.get_taxa('DEBITO', 1)
+        taxa_credito = TaxaCartao.get_taxa('CREDITO', 1)
+        
+        # Calcular taxas
+        resumo.taxa_pix = resumo.total_pix * (taxa_pix / Decimal('100'))
+        resumo.taxa_debito = resumo.total_debito_bruto * (taxa_debito / Decimal('100'))
+        resumo.taxa_credito = resumo.total_credito_bruto * (taxa_credito / Decimal('100'))
+        
+        # Calcular valores líquidos
+        resumo.total_pix_liquido = resumo.total_pix - resumo.taxa_pix
+        resumo.total_debito_liquido = resumo.total_debito_bruto - resumo.taxa_debito
+        resumo.total_credito_liquido = resumo.total_credito_bruto - resumo.taxa_credito
+        
+        # Totais gerais
+        resumo.total_bruto = (
+            resumo.total_dinheiro +
+            resumo.total_pix +
+            resumo.total_debito_bruto +
+            resumo.total_credito_bruto
+        )
+        resumo.total_taxas = resumo.taxa_pix + resumo.taxa_debito + resumo.taxa_credito
+        resumo.total_liquido = resumo.total_bruto - resumo.total_taxas
+        
+        resumo.quantidade_vendas = vendas.count()
+        
+        resumo.save()
+        return resumo

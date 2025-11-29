@@ -1413,3 +1413,574 @@ def api_pendencias_fornecedor(request, fornecedor_id):
     }
     
     return JsonResponse(dados)
+
+
+# ==========================================
+# FLUXO DE CAIXA - VIEWS
+# ==========================================
+
+from .models import (
+    ContaFinanceira, MovimentacaoCaixa, RecebimentoCartao,
+    FechamentoCaixa, ResumoDiarioVendas, TaxaCartao
+)
+
+
+@login_required
+def dashboard_caixa(request):
+    """Dashboard principal do fluxo de caixa"""
+    hoje = date.today()
+    
+    # Contas financeiras
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    conta_dinheiro = contas.filter(tipo='DINHEIRO').first()
+    conta_banco = contas.filter(tipo='BANCO').first()
+    
+    saldo_total = contas.aggregate(total=Sum('saldo_atual'))['total'] or Decimal('0')
+    
+    # Movimentações de hoje
+    movimentacoes_hoje = MovimentacaoCaixa.objects.filter(data=hoje)
+    
+    entradas_hoje = movimentacoes_hoje.filter(tipo='ENTRADA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0'))
+    )['total']
+    
+    saidas_hoje = movimentacoes_hoje.filter(tipo='SAIDA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0'))
+    )['total']
+    
+    # Vendas de hoje (do modelo Venda)
+    from vendas.models import Venda
+    vendas_hoje = Venda.objects.filter(data_venda__date=hoje, status='F')
+    total_vendas_hoje = vendas_hoje.aggregate(total=Coalesce(Sum('total'), Decimal('0')))['total']
+    qtd_vendas_hoje = vendas_hoje.count()
+    
+    # Vendas por forma de pagamento hoje
+    vendas_dinheiro = vendas_hoje.filter(forma_pagamento='DI').aggregate(
+        total=Coalesce(Sum('total'), Decimal('0')))['total']
+    vendas_pix = vendas_hoje.filter(forma_pagamento='PI').aggregate(
+        total=Coalesce(Sum('total'), Decimal('0')))['total']
+    vendas_debito = vendas_hoje.filter(forma_pagamento='CD').aggregate(
+        total=Coalesce(Sum('total'), Decimal('0')))['total']
+    vendas_credito = vendas_hoje.filter(forma_pagamento='CC').aggregate(
+        total=Coalesce(Sum('total'), Decimal('0')))['total']
+    
+    # Cartões pendentes
+    cartoes_pendentes = RecebimentoCartao.objects.filter(status='PENDENTE')
+    total_cartoes_pendentes = cartoes_pendentes.aggregate(
+        total=Coalesce(Sum('valor_liquido'), Decimal('0')))['total']
+    cartoes_vencendo_hoje = cartoes_pendentes.filter(data_previsao__lte=hoje).count()
+    
+    # Últimas movimentações
+    ultimas_movimentacoes = MovimentacaoCaixa.objects.all()[:10]
+    
+    # Fechamento de hoje
+    fechamento_hoje = FechamentoCaixa.objects.filter(data=hoje).first()
+    
+    # Dados para gráfico - últimos 7 dias
+    dados_grafico = []
+    for i in range(6, -1, -1):
+        dia = hoje - timedelta(days=i)
+        movs_dia = MovimentacaoCaixa.objects.filter(data=dia)
+        entradas = movs_dia.filter(tipo='ENTRADA').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0')))['total']
+        saidas = movs_dia.filter(tipo='SAIDA').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0')))['total']
+        dados_grafico.append({
+            'data': dia.strftime('%d/%m'),
+            'entradas': float(entradas),
+            'saidas': float(saidas),
+        })
+    
+    # Movimentações do mês
+    primeiro_dia_mes = date(hoje.year, hoje.month, 1)
+    movimentacoes_mes = MovimentacaoCaixa.objects.filter(data__gte=primeiro_dia_mes)
+    
+    entradas_mes = movimentacoes_mes.filter(tipo='ENTRADA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    saidas_mes = movimentacoes_mes.filter(tipo='SAIDA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    
+    context = {
+        'contas': contas,
+        'conta_dinheiro': conta_dinheiro,
+        'conta_banco': conta_banco,
+        'saldo_total': saldo_total,
+        'entradas_hoje': entradas_hoje,
+        'saidas_hoje': saidas_hoje,
+        'total_vendas_hoje': total_vendas_hoje,
+        'qtd_vendas_hoje': qtd_vendas_hoje,
+        'vendas_dinheiro': vendas_dinheiro,
+        'vendas_pix': vendas_pix,
+        'vendas_debito': vendas_debito,
+        'vendas_credito': vendas_credito,
+        'total_cartoes_pendentes': total_cartoes_pendentes,
+        'cartoes_vencendo_hoje': cartoes_vencendo_hoje,
+        'ultimas_movimentacoes': ultimas_movimentacoes,
+        'fechamento_hoje': fechamento_hoje,
+        'dados_grafico': json.dumps(dados_grafico),
+        'entradas_mes': entradas_mes,
+        'saidas_mes': saidas_mes,
+        'hoje': hoje,
+    }
+    
+    return render(request, 'financeiro/caixa/dashboard.html', context)
+
+
+@login_required
+def lista_movimentacoes(request):
+    """Lista todas as movimentações com filtros"""
+    movimentacoes = MovimentacaoCaixa.objects.all()
+    
+    # Filtros
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+    tipo = request.GET.get('tipo')
+    categoria = request.GET.get('categoria')
+    conta = request.GET.get('conta')
+    
+    if data_inicio:
+        movimentacoes = movimentacoes.filter(data__gte=data_inicio)
+    if data_fim:
+        movimentacoes = movimentacoes.filter(data__lte=data_fim)
+    if tipo:
+        movimentacoes = movimentacoes.filter(tipo=tipo)
+    if categoria:
+        movimentacoes = movimentacoes.filter(categoria=categoria)
+    if conta:
+        movimentacoes = movimentacoes.filter(conta_id=conta)
+    
+    # Totais
+    total_entradas = movimentacoes.filter(tipo='ENTRADA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    total_saidas = movimentacoes.filter(tipo='SAIDA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    
+    # Paginação
+    paginator = Paginator(movimentacoes, 50)
+    page = request.GET.get('page')
+    movimentacoes = paginator.get_page(page)
+    
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    
+    context = {
+        'movimentacoes': movimentacoes,
+        'total_entradas': total_entradas,
+        'total_saidas': total_saidas,
+        'saldo': total_entradas - total_saidas,
+        'contas': contas,
+        'filtros': {
+            'data_inicio': data_inicio,
+            'data_fim': data_fim,
+            'tipo': tipo,
+            'categoria': categoria,
+            'conta': conta,
+        }
+    }
+    
+    return render(request, 'financeiro/caixa/movimentacoes.html', context)
+
+
+@login_required
+def registrar_sangria(request):
+    """Registra uma sangria (retirada de dinheiro)"""
+    if request.method == 'POST':
+        valor = Decimal(request.POST.get('valor', '0').replace(',', '.'))
+        motivo = request.POST.get('motivo', '')
+        conta_id = request.POST.get('conta')
+        
+        if valor <= 0:
+            messages.error(request, 'O valor deve ser maior que zero.')
+            return redirect('financeiro:dashboard_caixa')
+        
+        conta = get_object_or_404(ContaFinanceira, id=conta_id)
+        
+        MovimentacaoCaixa.objects.create(
+            conta=conta,
+            tipo='SAIDA',
+            categoria='SANGRIA',
+            descricao=f'Sangria: {motivo}',
+            valor=valor,
+            data=date.today(),
+            observacoes=motivo,
+            usuario=request.user
+        )
+        
+        messages.success(request, f'Sangria de R$ {valor:.2f} registrada com sucesso!')
+        return redirect('financeiro:dashboard_caixa')
+    
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    return render(request, 'financeiro/caixa/sangria.html', {'contas': contas})
+
+
+@login_required
+def registrar_suprimento(request):
+    """Registra um suprimento (entrada de dinheiro externo)"""
+    if request.method == 'POST':
+        valor = Decimal(request.POST.get('valor', '0').replace(',', '.'))
+        motivo = request.POST.get('motivo', '')
+        conta_id = request.POST.get('conta')
+        
+        if valor <= 0:
+            messages.error(request, 'O valor deve ser maior que zero.')
+            return redirect('financeiro:dashboard_caixa')
+        
+        conta = get_object_or_404(ContaFinanceira, id=conta_id)
+        
+        MovimentacaoCaixa.objects.create(
+            conta=conta,
+            tipo='ENTRADA',
+            categoria='SUPRIMENTO',
+            descricao=f'Suprimento: {motivo}',
+            valor=valor,
+            data=date.today(),
+            observacoes=motivo,
+            usuario=request.user
+        )
+        
+        messages.success(request, f'Suprimento de R$ {valor:.2f} registrado com sucesso!')
+        return redirect('financeiro:dashboard_caixa')
+    
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    return render(request, 'financeiro/caixa/suprimento.html', {'contas': contas})
+
+
+@login_required
+def registrar_transferencia(request):
+    """Registra transferência entre contas"""
+    if request.method == 'POST':
+        valor = Decimal(request.POST.get('valor', '0').replace(',', '.'))
+        conta_origem_id = request.POST.get('conta_origem')
+        conta_destino_id = request.POST.get('conta_destino')
+        observacoes = request.POST.get('observacoes', '')
+        
+        if valor <= 0:
+            messages.error(request, 'O valor deve ser maior que zero.')
+            return redirect('financeiro:dashboard_caixa')
+        
+        if conta_origem_id == conta_destino_id:
+            messages.error(request, 'As contas de origem e destino devem ser diferentes.')
+            return redirect('financeiro:registrar_transferencia')
+        
+        conta_origem = get_object_or_404(ContaFinanceira, id=conta_origem_id)
+        conta_destino = get_object_or_404(ContaFinanceira, id=conta_destino_id)
+        
+        # Criar movimentação de saída na origem
+        MovimentacaoCaixa.objects.create(
+            conta=conta_origem,
+            tipo='SAIDA',
+            categoria='TRANSFERENCIA',
+            descricao=f'Transferência para {conta_destino.nome}',
+            valor=valor,
+            data=date.today(),
+            conta_destino=conta_destino,
+            observacoes=observacoes,
+            usuario=request.user
+        )
+        
+        messages.success(request, f'Transferência de R$ {valor:.2f} realizada com sucesso!')
+        return redirect('financeiro:dashboard_caixa')
+    
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    return render(request, 'financeiro/caixa/transferencia.html', {'contas': contas})
+
+
+@login_required
+def fechamento_caixa(request):
+    """Tela de fechamento de caixa"""
+    hoje = date.today()
+    
+    # Buscar ou criar fechamento do dia
+    fechamento = FechamentoCaixa.get_ou_criar_hoje()
+    fechamento.calcular_totais()
+    
+    if request.method == 'POST':
+        valor_dinheiro = Decimal(request.POST.get('valor_dinheiro', '0').replace(',', '.'))
+        valor_pix = Decimal(request.POST.get('valor_pix', '0').replace(',', '.'))
+        observacoes = request.POST.get('observacoes', '')
+        
+        fechamento.fechar_caixa(valor_dinheiro, valor_pix, request.user, observacoes)
+        
+        messages.success(request, 'Fechamento de caixa realizado com sucesso!')
+        return redirect('financeiro:dashboard_caixa')
+    
+    # Movimentações do dia para conferência
+    movimentacoes_dia = MovimentacaoCaixa.objects.filter(data=hoje).order_by('-hora')
+    
+    context = {
+        'fechamento': fechamento,
+        'movimentacoes_dia': movimentacoes_dia,
+        'hoje': hoje,
+    }
+    
+    return render(request, 'financeiro/caixa/fechamento.html', context)
+
+
+@login_required
+def historico_fechamentos(request):
+    """Histórico de fechamentos de caixa"""
+    fechamentos = FechamentoCaixa.objects.all()
+    
+    # Filtros
+    mes = request.GET.get('mes')
+    ano = request.GET.get('ano')
+    
+    if mes and ano:
+        fechamentos = fechamentos.filter(data__month=mes, data__year=ano)
+    
+    paginator = Paginator(fechamentos, 30)
+    page = request.GET.get('page')
+    fechamentos = paginator.get_page(page)
+    
+    context = {
+        'fechamentos': fechamentos,
+    }
+    
+    return render(request, 'financeiro/caixa/historico_fechamentos.html', context)
+
+
+@login_required
+def cartoes_pendentes(request):
+    """Lista cartões pendentes de recebimento"""
+    pendentes = RecebimentoCartao.objects.filter(status='PENDENTE').order_by('data_previsao')
+    
+    hoje = date.today()
+    
+    # Agrupar por status de vencimento
+    vencidos = pendentes.filter(data_previsao__lt=hoje)
+    vencendo_hoje = pendentes.filter(data_previsao=hoje)
+    a_vencer = pendentes.filter(data_previsao__gt=hoje)
+    
+    # Totais
+    total_pendente = pendentes.aggregate(total=Coalesce(Sum('valor_liquido'), Decimal('0')))['total']
+    
+    context = {
+        'vencidos': vencidos,
+        'vencendo_hoje': vencendo_hoje,
+        'a_vencer': a_vencer,
+        'total_pendente': total_pendente,
+        'hoje': hoje,
+    }
+    
+    return render(request, 'financeiro/caixa/cartoes_pendentes.html', context)
+
+
+@login_required
+def confirmar_recebimento_cartao(request, recebimento_id):
+    """Confirma o recebimento de um cartão"""
+    recebimento = get_object_or_404(RecebimentoCartao, id=recebimento_id)
+    
+    if recebimento.status == 'RECEBIDO':
+        messages.warning(request, 'Este recebimento já foi confirmado.')
+        return redirect('financeiro:cartoes_pendentes')
+    
+    recebimento.confirmar_recebimento(usuario=request.user)
+    
+    messages.success(request, f'Recebimento de R$ {recebimento.valor_liquido:.2f} confirmado!')
+    return redirect('financeiro:cartoes_pendentes')
+
+
+@login_required
+def gerenciar_contas_financeiras(request):
+    """Gerenciar contas financeiras"""
+    contas = ContaFinanceira.objects.all()
+    
+    context = {
+        'contas': contas,
+    }
+    
+    return render(request, 'financeiro/caixa/contas.html', context)
+
+
+@login_required
+def atualizar_saldo_inicial(request, conta_id):
+    """Atualiza o saldo inicial de uma conta"""
+    conta = get_object_or_404(ContaFinanceira, id=conta_id)
+    
+    if request.method == 'POST':
+        novo_saldo = Decimal(request.POST.get('saldo', '0').replace(',', '.'))
+        
+        # Calcular a diferença
+        diferenca = novo_saldo - conta.saldo_atual
+        
+        # Atualizar saldos
+        conta.saldo_inicial = novo_saldo
+        conta.saldo_atual = novo_saldo
+        conta.save()
+        
+        # Registrar ajuste se houver diferença
+        if diferenca != 0:
+            tipo = 'ENTRADA' if diferenca > 0 else 'SAIDA'
+            MovimentacaoCaixa.objects.create(
+                conta=conta,
+                tipo=tipo,
+                categoria='AJUSTE',
+                descricao=f'Ajuste de saldo inicial',
+                valor=abs(diferenca),
+                data=date.today(),
+                usuario=request.user
+            )
+        
+        messages.success(request, f'Saldo de {conta.nome} atualizado para R$ {novo_saldo:.2f}')
+        return redirect('financeiro:gerenciar_contas')
+    
+    return render(request, 'financeiro/caixa/atualizar_saldo.html', {'conta': conta})
+
+
+# ==========================================
+# APIs DO CAIXA
+# ==========================================
+
+@login_required
+def api_resumo_caixa(request):
+    """API que retorna resumo do caixa"""
+    hoje = date.today()
+    
+    contas = ContaFinanceira.objects.filter(ativo=True)
+    saldo_total = contas.aggregate(total=Sum('saldo_atual'))['total'] or Decimal('0')
+    
+    movimentacoes_hoje = MovimentacaoCaixa.objects.filter(data=hoje)
+    entradas = movimentacoes_hoje.filter(tipo='ENTRADA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    saidas = movimentacoes_hoje.filter(tipo='SAIDA').aggregate(
+        total=Coalesce(Sum('valor'), Decimal('0')))['total']
+    
+    return JsonResponse({
+        'saldo_total': float(saldo_total),
+        'entradas_hoje': float(entradas),
+        'saidas_hoje': float(saidas),
+        'contas': [
+            {'nome': c.nome, 'saldo': float(c.saldo_atual), 'tipo': c.tipo}
+            for c in contas
+        ]
+    })
+
+
+@login_required
+def api_grafico_fluxo(request):
+    """API que retorna dados para gráfico de fluxo"""
+    dias = int(request.GET.get('dias', 7))
+    hoje = date.today()
+    
+    dados = []
+    for i in range(dias - 1, -1, -1):
+        dia = hoje - timedelta(days=i)
+        movs = MovimentacaoCaixa.objects.filter(data=dia)
+        
+        entradas = movs.filter(tipo='ENTRADA').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0')))['total']
+        saidas = movs.filter(tipo='SAIDA').aggregate(
+            total=Coalesce(Sum('valor'), Decimal('0')))['total']
+        
+        dados.append({
+            'data': dia.strftime('%d/%m'),
+            'entradas': float(entradas),
+            'saidas': float(saidas),
+        })
+    
+    return JsonResponse({'dados': dados})
+
+
+@login_required
+def api_processar_vendas_dia(request):
+    """Processa as vendas do dia e cria movimentações no caixa"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido'}, status=405)
+    
+    data_str = request.POST.get('data', date.today().isoformat())
+    data = date.fromisoformat(data_str)
+    
+    # Consolidar vendas do dia
+    resumo = ResumoDiarioVendas.consolidar_dia(data)
+    
+    if resumo.processado:
+        return JsonResponse({'message': 'Vendas já processadas', 'resumo_id': resumo.id})
+    
+    # Buscar contas
+    conta_dinheiro = ContaFinanceira.objects.filter(tipo='DINHEIRO', ativo=True).first()
+    conta_banco = ContaFinanceira.objects.filter(tipo='BANCO', ativo=True).first()
+    
+    if not conta_dinheiro or not conta_banco:
+        return JsonResponse({'error': 'Contas financeiras não configuradas'}, status=400)
+    
+    # Criar movimentações
+    # Dinheiro -> Dinheiro em Mãos
+    if resumo.total_dinheiro > 0:
+        MovimentacaoCaixa.objects.create(
+            conta=conta_dinheiro,
+            tipo='ENTRADA',
+            categoria='VENDA',
+            descricao=f'Vendas em Dinheiro - {data.strftime("%d/%m/%Y")}',
+            valor=resumo.total_dinheiro,
+            forma_pagamento='DINHEIRO',
+            data=data,
+            usuario=request.user
+        )
+    
+    # PIX -> Santander (já com taxa descontada)
+    if resumo.total_pix > 0:
+        MovimentacaoCaixa.objects.create(
+            conta=conta_banco,
+            tipo='ENTRADA',
+            categoria='VENDA',
+            descricao=f'Vendas em PIX - {data.strftime("%d/%m/%Y")}',
+            valor=resumo.total_pix_liquido,
+            valor_bruto=resumo.total_pix,
+            taxa_percentual=TaxaCartao.get_taxa('PIX', 1),
+            valor_taxa=resumo.taxa_pix,
+            forma_pagamento='PIX',
+            data=data,
+            usuario=request.user
+        )
+    
+    # Débito -> Criar recebimento pendente (D+1)
+    if resumo.total_debito_bruto > 0:
+        from vendas.models import Venda
+        vendas_debito = Venda.objects.filter(data_venda__date=data, forma_pagamento='CD', status='F')
+        for venda in vendas_debito:
+            taxa = TaxaCartao.get_taxa('DEBITO', 1)
+            valor_taxa = venda.total * (taxa / Decimal('100'))
+            RecebimentoCartao.objects.create(
+                venda=venda,
+                tipo='DEBITO',
+                parcelas=1,
+                valor_bruto=venda.total,
+                taxa_percentual=taxa,
+                valor_taxa=valor_taxa,
+                valor_liquido=venda.total - valor_taxa,
+                data_venda=data,
+                data_previsao=data + timedelta(days=1),
+                conta_destino=conta_banco
+            )
+    
+    # Crédito -> Criar recebimento pendente (D+30)
+    if resumo.total_credito_bruto > 0:
+        from vendas.models import Venda
+        vendas_credito = Venda.objects.filter(data_venda__date=data, forma_pagamento='CC', status='F')
+        for venda in vendas_credito:
+            taxa = TaxaCartao.get_taxa('CREDITO', 1)
+            valor_taxa = venda.total * (taxa / Decimal('100'))
+            RecebimentoCartao.objects.create(
+                venda=venda,
+                tipo='CREDITO',
+                parcelas=1,
+                valor_bruto=venda.total,
+                taxa_percentual=taxa,
+                valor_taxa=valor_taxa,
+                valor_liquido=venda.total - valor_taxa,
+                data_venda=data,
+                data_previsao=data + timedelta(days=30),
+                conta_destino=conta_banco
+            )
+    
+    resumo.processado = True
+    resumo.save()
+    
+    return JsonResponse({
+        'success': True,
+        'message': f'Vendas de {data.strftime("%d/%m/%Y")} processadas',
+        'resumo': {
+            'total_bruto': float(resumo.total_bruto),
+            'total_taxas': float(resumo.total_taxas),
+            'total_liquido': float(resumo.total_liquido),
+        }
+    })

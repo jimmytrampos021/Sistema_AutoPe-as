@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}Transferência entre Contas - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-arrow-left-right me-2"></i>Transferência entre Contas
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        max-width: 550px;
+        margin: 0 auto;
+    }
+    
+    .form-card .icon-header {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+    }
+    
+    .form-card .icon-header i {
+        font-size: 40px;
+        color: #2563eb;
+    }
+    
+    .form-card h4 {
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    
+    .form-card .subtitle {
+        text-align: center;
+        color: #6c757d;
+        margin-bottom: 30px;
+    }
+    
+    .conta-box {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s;
+    }
+    
+    .conta-box.origem {
+        border-color: #fca5a5;
+        background: #fef2f2;
+    }
+    
+    .conta-box.destino {
+        border-color: #86efac;
+        background: #f0fdf4;
+    }
+    
+    .conta-box select {
+        font-weight: 600;
+    }
+    
+    .seta-transferencia {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        color: #6c757d;
+        padding: 10px 0;
+    }
+    
+    .saldo-display {
+        font-size: 14px;
+        margin-top: 10px;
+        padding: 8px;
+        background: rgba(0,0,0,0.05);
+        border-radius: 8px;
+    }
+    
+    body.dark-mode .form-card {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .conta-box {
+        background: #3d3d3d;
+        border-color: #555;
+    }
+    
+    body.dark-mode .conta-box.origem {
+        background: #3d2d2d;
+        border-color: #dc3545;
+    }
+    
+    body.dark-mode .conta-box.destino {
+        background: #2d3d2d;
+        border-color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="form-card">
+                <div class="icon-header">
+                    <i class="bi bi-arrow-left-right"></i>
+                </div>
+                <h4>Transferência entre Contas</h4>
+                <p class="subtitle">Mover dinheiro de uma conta para outra</p>
+                
+                <form method="post" id="formTransferencia">
+                    {% csrf_token %}
+                    
+                    <!-- Conta Origem -->
+                    <div class="conta-box origem mb-2">
+                        <label class="form-label mb-2">
+                            <i class="bi bi-box-arrow-up text-danger"></i> 
+                            <strong>De (Origem)</strong>
+                        </label>
+                        <select class="form-select" name="conta_origem" id="contaOrigem" required>
+                            <option value="">Selecione a conta de origem...</option>
+                            {% for conta in contas %}
+                            <option value="{{ conta.id }}" data-saldo="{{ conta.saldo_atual }}">
+                                {{ conta.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="saldo-display" id="saldoOrigem" style="display: none;">
+                            Saldo: <strong id="valorSaldoOrigem">R$ 0,00</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Seta -->
+                    <div class="seta-transferencia">
+                        <i class="bi bi-arrow-down"></i>
+                    </div>
+                    
+                    <!-- Conta Destino -->
+                    <div class="conta-box destino mb-4">
+                        <label class="form-label mb-2">
+                            <i class="bi bi-box-arrow-in-down text-success"></i> 
+                            <strong>Para (Destino)</strong>
+                        </label>
+                        <select class="form-select" name="conta_destino" id="contaDestino" required>
+                            <option value="">Selecione a conta de destino...</option>
+                            {% for conta in contas %}
+                            <option value="{{ conta.id }}" data-saldo="{{ conta.saldo_atual }}">
+                                {{ conta.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="saldo-display" id="saldoDestino" style="display: none;">
+                            Saldo atual: <strong id="valorSaldoDestino">R$ 0,00</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="valor" class="form-label">Valor a Transferir *</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text bg-primary text-white">R$</span>
+                            <input type="text" class="form-control" name="valor" id="valor" 
+                                   placeholder="0,00" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="observacoes" class="form-label">Observações (opcional)</label>
+                        <textarea class="form-control" name="observacoes" id="observacoes" rows="2" 
+                                  placeholder="Ex: Depósito bancário, etc."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-arrow-left-right me-2"></i>Realizar Transferência
+                        </button>
+                        <a href="{% url 'financeiro:dashboard_caixa' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Voltar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Função para formatar valor
+    function formatarValor(valor) {
+        return parseFloat(valor).toLocaleString('pt-BR', {minimumFractionDigits: 2});
+    }
+    
+    // Mostrar saldo da conta origem
+    document.getElementById('contaOrigem').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const saldo = selected.dataset.saldo;
+        const saldoDiv = document.getElementById('saldoOrigem');
+        const valorSpan = document.getElementById('valorSaldoOrigem');
+        
+        if (saldo) {
+            valorSpan.textContent = 'R$ ' + formatarValor(saldo);
+            saldoDiv.style.display = 'block';
+        } else {
+            saldoDiv.style.display = 'none';
+        }
+    });
+    
+    // Mostrar saldo da conta destino
+    document.getElementById('contaDestino').addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const saldo = selected.dataset.saldo;
+        const saldoDiv = document.getElementById('saldoDestino');
+        const valorSpan = document.getElementById('valorSaldoDestino');
+        
+        if (saldo) {
+            valorSpan.textContent = 'R$ ' + formatarValor(saldo);
+            saldoDiv.style.display = 'block';
+        } else {
+            saldoDiv.style.display = 'none';
+        }
+    });
+    
+    // Máscara de valor
+    document.getElementById('valor').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = (parseInt(value) / 100).toFixed(2);
+        if (!isNaN(value)) {
+            e.target.value = value.replace('.', ',');
+        }
+    });
+    
+    // Validação e confirmação
+    document.getElementById('formTransferencia').addEventListener('submit', function(e) {
+        const origem = document.getElementById('contaOrigem');
+        const destino = document.getElementById('contaDestino');
+        
+        if (origem.value === destino.value) {
+            e.preventDefault();
+            alert('As contas de origem e destino devem ser diferentes!');
+            return;
+        }
+        
+        const valor = document.getElementById('valor').value;
+        const nomeOrigem = origem.options[origem.selectedIndex].text;
+        const nomeDestino = destino.options[destino.selectedIndex].text;
+        
+        if (!confirm(`Confirma a transferência?\n\nValor: R$ ${valor}\nDe: ${nomeOrigem}\nPara: ${nomeDestino}`)) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

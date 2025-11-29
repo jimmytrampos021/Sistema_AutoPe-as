@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Ajustar Saldo - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-pencil-square me-2"></i>Ajustar Saldo
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .conta-info {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+        text-align: center;
+    }
+    
+    .conta-info .icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        font-size: 24px;
+        color: white;
+    }
+    
+    .conta-info h5 {
+        margin-bottom: 5px;
+    }
+    
+    .conta-info .saldo-atual {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1e3a8a;
+    }
+    
+    body.dark-mode .form-card {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+    
+    body.dark-mode .conta-info {
+        background: #3d3d3d;
+    }
+    
+    body.dark-mode .conta-info .saldo-atual {
+        color: #93c5fd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="form-card">
+                
+                <div class="conta-info">
+                    <div class="icon">
+                        <i class="bi {{ conta.icone }}"></i>
+                    </div>
+                    <h5>{{ conta.nome }}</h5>
+                    <small class="text-muted">{{ conta.get_tipo_display }}</small>
+                    <div class="saldo-atual mt-2">
+                        R$ {{ conta.saldo_atual|floatformat:2 }}
+                    </div>
+                    <small class="text-muted">Saldo atual</small>
+                </div>
+                
+                <form method="post" id="formSaldo">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="saldo" class="form-label">Novo Saldo</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control" name="saldo" id="saldo" 
+                                   placeholder="0,00" required
+                                   value="{{ conta.saldo_atual|floatformat:2|default:'0,00' }}">
+                        </div>
+                        <small class="text-muted">
+                            Digite o valor real que está na conta agora.
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Atenção:</strong> Este ajuste será registrado como movimentação de ajuste no histórico.
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-check-lg me-2"></i>Salvar Novo Saldo
+                        </button>
+                        <a href="{% url 'financeiro:gerenciar_contas' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Máscara de valor
+    document.getElementById('saldo').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        value = (parseInt(value) / 100).toFixed(2);
+        if (!isNaN(value) && value !== 'NaN') {
+            e.target.value = value.replace('.', ',');
+        }
+    });
+    
+    // Confirmação
+    document.getElementById('formSaldo').addEventListener('submit', function(e) {
+        const novoSaldo = document.getElementById('saldo').value;
+        if (!confirm(`Confirma o ajuste do saldo para R$ ${novoSaldo}?`)) {
+            e.preventDefault();
+        }
+    });
+</script>
+{% endblock %}

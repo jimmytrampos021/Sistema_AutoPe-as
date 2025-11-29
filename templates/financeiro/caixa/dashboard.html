@@ -1,0 +1,695 @@
+{% extends 'base.html' %}
+
+{% block title %}Fluxo de Caixa - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-cash-coin me-2"></i>Fluxo de Caixa
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .saldo-card {
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .saldo-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 100%;
+        height: 200%;
+        background: rgba(255,255,255,0.1);
+        transform: rotate(30deg);
+    }
+    
+    .saldo-card.dinheiro {
+        background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+    }
+    
+    .saldo-card.banco {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    }
+    
+    .saldo-card.total {
+        background: linear-gradient(135deg, #0d6efd 0%, #6610f2 100%);
+    }
+    
+    .saldo-card .icon-bg {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 80px;
+        opacity: 0.2;
+    }
+    
+    .saldo-card h6 {
+        font-size: 14px;
+        opacity: 0.9;
+        margin-bottom: 5px;
+    }
+    
+    .saldo-card h2 {
+        font-size: 32px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .quick-action {
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.3s;
+        border: 2px solid transparent;
+        cursor: pointer;
+        text-decoration: none;
+        display: block;
+    }
+    
+    .quick-action:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+    
+    .quick-action.sangria {
+        background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+        border-color: #fc8181;
+    }
+    
+    .quick-action.sangria:hover {
+        background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+    }
+    
+    .quick-action.suprimento {
+        background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+        border-color: #68d391;
+    }
+    
+    .quick-action.suprimento:hover {
+        background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+    }
+    
+    .quick-action.transferencia {
+        background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+        border-color: #63b3ed;
+    }
+    
+    .quick-action.transferencia:hover {
+        background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+    }
+    
+    .quick-action.fechamento {
+        background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
+        border-color: #b794f4;
+    }
+    
+    .quick-action.fechamento:hover {
+        background: linear-gradient(135deg, #e9d8fd 0%, #d6bcfa 100%);
+    }
+
+    .quick-action.contas {
+        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        border-color: #38bdf8;
+    }
+
+    .quick-action.contas:hover {
+        background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
+    }
+
+    .quick-action.contas i { color: #0284c7; }
+    
+    .quick-action i {
+        font-size: 32px;
+        margin-bottom: 10px;
+        display: block;
+    }
+    
+    .quick-action.sangria i { color: #e53e3e; }
+    .quick-action.suprimento i { color: #38a169; }
+    .quick-action.transferencia i { color: #3182ce; }
+    .quick-action.fechamento i { color: #805ad5; }
+    
+    .quick-action span {
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .vendas-resumo {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    
+    .vendas-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .vendas-item:last-child {
+        border-bottom: none;
+    }
+    
+    .vendas-item .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+    }
+    
+    .vendas-item .icon.dinheiro { background: #d1fae5; color: #059669; }
+    .vendas-item .icon.pix { background: #dbeafe; color: #2563eb; }
+    .vendas-item .icon.debito { background: #fef3c7; color: #d97706; }
+    .vendas-item .icon.credito { background: #ede9fe; color: #7c3aed; }
+    
+    .grafico-container {
+        background: white;
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    
+    .movimentacao-item {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 8px;
+        background: #f8f9fa;
+        transition: all 0.2s;
+    }
+    
+    .movimentacao-item:hover {
+        background: #e9ecef;
+    }
+    
+    .movimentacao-item.entrada {
+        border-left: 4px solid #198754;
+    }
+    
+    .movimentacao-item.saida {
+        border-left: 4px solid #dc3545;
+    }
+    
+    .movimentacao-item .valor {
+        font-weight: bold;
+        font-size: 16px;
+    }
+    
+    .movimentacao-item .valor.entrada { color: #198754; }
+    .movimentacao-item .valor.saida { color: #dc3545; }
+    
+    .alerta-card {
+        border-radius: 12px;
+        padding: 15px 20px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .alerta-card.warning {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 1px solid #fcd34d;
+    }
+    
+    .alerta-card.success {
+        background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+        border: 1px solid #6ee7b7;
+    }
+    
+    .alerta-card i {
+        font-size: 24px;
+        margin-right: 15px;
+    }
+    
+    .alerta-card.warning i { color: #f59e0b; }
+    .alerta-card.success i { color: #10b981; }
+
+   /* Dark mode melhorado */
+    body.dark-mode .saldo-card h6 {
+        opacity: 0.95;
+    }
+
+    body.dark-mode .quick-action {
+        background: #2d2d2d !important;
+        border-color: #555 !important;
+    }
+
+    body.dark-mode .quick-action span {
+        color: #f0f0f0 !important;
+    }
+
+    body.dark-mode .quick-action.sangria {
+        background: linear-gradient(135deg, #3d2d2d 0%, #4d3535 100%) !important;
+        border-color: #dc3545 !important;
+    }
+
+    body.dark-mode .quick-action.suprimento {
+        background: linear-gradient(135deg, #2d3d2d 0%, #354d35 100%) !important;
+        border-color: #198754 !important;
+    }
+
+    body.dark-mode .quick-action.transferencia {
+        background: linear-gradient(135deg, #2d3545 0%, #354050 100%) !important;
+        border-color: #0d6efd !important;
+    }
+
+    body.dark-mode .quick-action.fechamento {
+        background: linear-gradient(135deg, #3d2d4d 0%, #453555 100%) !important;
+        border-color: #6f42c1 !important;
+    }
+
+    body.dark-mode .quick-action.contas {
+        background: linear-gradient(135deg, #2d3d45 0%, #354550 100%) !important;
+        border-color: #0dcaf0 !important;
+    }
+
+    body.dark-mode .vendas-resumo,
+    body.dark-mode .grafico-container {
+        background: #2d2d2d;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .vendas-resumo h5,
+    body.dark-mode .grafico-container h5 {
+        color: #f0f0f0;
+    }
+
+    body.dark-mode .movimentacao-item {
+        background: #3d3d3d;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .movimentacao-item:hover {
+        background: #4d4d4d;
+    }
+
+    body.dark-mode .movimentacao-item .text-muted {
+        color: #adb5bd !important;
+    }
+
+    body.dark-mode .vendas-item {
+        border-color: #444;
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .vendas-item span {
+        color: #e0e0e0;
+    }
+
+    body.dark-mode .vendas-item strong {
+        color: #f0f0f0;
+    }
+
+    body.dark-mode .resumo-box h6 {
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .alerta-card {
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .alerta-card strong,
+    body.dark-mode .alerta-card small {
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .badge {
+        color: #fff;
+    }
+
+    body.dark-mode .text-muted {
+        color: #adb5bd !important;
+    }
+
+    body.dark-mode .btn-outline-primary {
+        color: #6ea8fe;
+        border-color: #6ea8fe;
+    }
+
+    body.dark-mode .btn-outline-primary:hover {
+        background: #6ea8fe;
+        color: #1a1a1a;
+    }
+
+    body.dark-mode .btn-outline-secondary {
+        color: #adb5bd;
+        border-color: #adb5bd;
+    }
+
+    body.dark-mode .btn-outline-warning {
+        color: #ffda6a;
+        border-color: #ffda6a;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Alertas -->
+    {% if cartoes_vencendo_hoje > 0 %}
+    <div class="alerta-card warning">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div>
+            <strong>{{ cartoes_vencendo_hoje }} cartão(ões) para receber hoje!</strong>
+            <br><small>Total pendente: R$ {{ total_cartoes_pendentes|floatformat:2 }}</small>
+        </div>
+        <a href="{% url 'financeiro:cartoes_pendentes' %}" class="btn btn-warning btn-sm ms-auto">Ver Pendentes</a>
+    </div>
+    {% endif %}
+    
+    {% if fechamento_hoje and fechamento_hoje.status == 'FECHADO' %}
+    <div class="alerta-card success">
+        <i class="bi bi-check-circle-fill"></i>
+        <div>
+            <strong>Caixa fechado hoje!</strong>
+            <br><small>Fechado às {{ fechamento_hoje.data_fechamento|time:"H:i" }}</small>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Cards de Saldo -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="saldo-card dinheiro">
+                <i class="bi bi-cash-stack icon-bg"></i>
+                <h6><i class="bi bi-cash-stack me-1"></i> Dinheiro em Mãos</h6>
+                <h2>R$ {{ conta_dinheiro.saldo_atual|floatformat:2|default:"0,00" }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="saldo-card banco">
+                <i class="bi bi-bank icon-bg"></i>
+                <h6><i class="bi bi-bank me-1"></i> Santander</h6>
+                <h2>R$ {{ conta_banco.saldo_atual|floatformat:2|default:"0,00" }}</h2>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="saldo-card total">
+                <i class="bi bi-wallet2 icon-bg"></i>
+                <h6><i class="bi bi-wallet2 me-1"></i> Saldo Total</h6>
+                <h2>R$ {{ saldo_total|floatformat:2 }}</h2>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ações Rápidas -->
+    <div class="row mb-4">
+        <div class="col-lg col-6 mb-3">
+            <a href="{% url 'financeiro:registrar_sangria' %}" class="quick-action sangria">
+                <i class="bi bi-dash-circle"></i>
+                <span>Sangria</span>
+            </a>
+        </div>
+        <div class="col-lg col-6 mb-3">
+            <a href="{% url 'financeiro:registrar_suprimento' %}" class="quick-action suprimento">
+                <i class="bi bi-plus-circle"></i>
+                <span>Suprimento</span>
+            </a>
+        </div>
+        <div class="col-lg col-6 mb-3">
+            <a href="{% url 'financeiro:registrar_transferencia' %}" class="quick-action transferencia">
+                <i class="bi bi-arrow-left-right"></i>
+                <span>Transferência</span>
+            </a>
+        </div>
+        <div class="col-lg col-6 mb-3">
+            <a href="{% url 'financeiro:fechamento_caixa' %}" class="quick-action fechamento">
+                <i class="bi bi-lock"></i>
+                <span>Fechar Caixa</span>
+            </a>
+        </div>
+        <div class="col-lg col-6 mb-3">
+            <a href="{% url 'financeiro:gerenciar_contas' %}" class="quick-action contas">
+                <i class="bi bi-wallet2"></i>
+                <span>Contas</span>
+            </a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Vendas de Hoje -->
+        <div class="col-lg-4 mb-4">
+            <div class="vendas-resumo h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-cart-check me-2"></i>Vendas de Hoje</h5>
+                    <span class="badge bg-primary">{{ qtd_vendas_hoje }} vendas</span>
+                </div>
+                
+                <div class="text-center py-3 mb-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                    <small>Total do Dia</small>
+                    <h3 class="mb-0">R$ {{ total_vendas_hoje|floatformat:2 }}</h3>
+                </div>
+                
+                <div class="vendas-item">
+                    <div class="d-flex align-items-center">
+                        <div class="icon dinheiro"><i class="bi bi-cash"></i></div>
+                        <span>Dinheiro</span>
+                    </div>
+                    <strong>R$ {{ vendas_dinheiro|floatformat:2 }}</strong>
+                </div>
+                
+                <div class="vendas-item">
+                    <div class="d-flex align-items-center">
+                        <div class="icon pix"><i class="bi bi-qr-code"></i></div>
+                        <span>PIX</span>
+                    </div>
+                    <strong>R$ {{ vendas_pix|floatformat:2 }}</strong>
+                </div>
+                
+                <div class="vendas-item">
+                    <div class="d-flex align-items-center">
+                        <div class="icon debito"><i class="bi bi-credit-card"></i></div>
+                        <span>Débito</span>
+                    </div>
+                    <strong>R$ {{ vendas_debito|floatformat:2 }}</strong>
+                </div>
+                
+                <div class="vendas-item">
+                    <div class="d-flex align-items-center">
+                        <div class="icon credito"><i class="bi bi-credit-card-2-front"></i></div>
+                        <span>Crédito</span>
+                    </div>
+                    <strong>R$ {{ vendas_credito|floatformat:2 }}</strong>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gráfico de Fluxo -->
+        <div class="col-lg-8 mb-4">
+            <div class="grafico-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Fluxo de Caixa - Últimos 7 Dias</h5>
+                    <div>
+                        <span class="badge bg-success me-2"><i class="bi bi-arrow-up"></i> Entradas</span>
+                        <span class="badge bg-danger"><i class="bi bi-arrow-down"></i> Saídas</span>
+                    </div>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="graficoFluxo"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Resumo do Mês -->
+        <div class="col-lg-4 mb-4">
+            <div class="grafico-container">
+                <h5 class="mb-4"><i class="bi bi-calendar-month me-2"></i>Resumo do Mês</h5>
+                <div style="height: 200px;">
+                    <canvas id="graficoMes"></canvas>
+                </div>
+                <div class="row mt-3 text-center">
+                    <div class="col-6">
+                        <small class="text-muted">Entradas</small>
+                        <h5 class="text-success mb-0">R$ {{ entradas_mes|floatformat:2 }}</h5>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Saídas</small>
+                        <h5 class="text-danger mb-0">R$ {{ saidas_mes|floatformat:2 }}</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Últimas Movimentações -->
+        <div class="col-lg-8 mb-4">
+            <div class="grafico-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Últimas Movimentações</h5>
+                    <a href="{% url 'financeiro:lista_movimentacoes' %}" class="btn btn-outline-primary btn-sm">
+                        Ver Todas <i class="bi bi-arrow-right"></i>
+                    </a>
+                </div>
+                
+                {% if ultimas_movimentacoes %}
+                    {% for mov in ultimas_movimentacoes %}
+                    <div class="movimentacao-item {{ mov.tipo|lower }}">
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ mov.descricao|truncatechars:40 }}</strong>
+                                <span class="valor {{ mov.tipo|lower }}">
+                                    {% if mov.tipo == 'ENTRADA' %}+{% else %}-{% endif %}
+                                    R$ {{ mov.valor|floatformat:2 }}
+                                </span>
+                            </div>
+                            <small class="text-muted">
+                                {{ mov.data|date:"d/m/Y" }} {{ mov.hora|time:"H:i" }} • 
+                                {{ mov.conta.nome }} • 
+                                <span class="badge bg-secondary">{{ mov.get_categoria_display }}</span>
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox" style="font-size: 48px;"></i>
+                        <p class="mt-2">Nenhuma movimentação registrada ainda.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Linha de Links Rápidos -->
+    <div class="row">
+        <div class="col-12">
+            <div class="grafico-container">
+                <div class="d-flex flex-wrap justify-content-center gap-3">
+                    <a href="{% url 'financeiro:lista_movimentacoes' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-list-ul me-1"></i> Todas Movimentações
+                    </a>
+                    <a href="{% url 'financeiro:cartoes_pendentes' %}" class="btn btn-outline-warning">
+                        <i class="bi bi-credit-card me-1"></i> Cartões Pendentes
+                        {% if total_cartoes_pendentes > 0 %}
+                        <span class="badge bg-warning text-dark">R$ {{ total_cartoes_pendentes|floatformat:0 }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'financeiro:historico_fechamentos' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-journal-check me-1"></i> Histórico de Fechamentos
+                    </a>
+                    <a href="{% url 'financeiro:gerenciar_contas' %}" class="btn btn-outline-info">
+                        <i class="bi bi-gear me-1"></i> Gerenciar Contas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Dados do gráfico de fluxo
+    const dadosFluxo = {{ dados_grafico|safe }};
+    
+    // Gráfico de Fluxo (Barras)
+    const ctxFluxo = document.getElementById('graficoFluxo').getContext('2d');
+    new Chart(ctxFluxo, {
+        type: 'bar',
+        data: {
+            labels: dadosFluxo.map(d => d.data),
+            datasets: [
+                {
+                    label: 'Entradas',
+                    data: dadosFluxo.map(d => d.entradas),
+                    backgroundColor: 'rgba(25, 135, 84, 0.8)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                },
+                {
+                    label: 'Saídas',
+                    data: dadosFluxo.map(d => d.saidas),
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR');
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Gráfico de Rosca (Entradas vs Saídas do Mês)
+    const entradasMes = {{ entradas_mes|default:"0" }};
+    const saidasMes = {{ saidas_mes|default:"0" }};
+    
+    const ctxMes = document.getElementById('graficoMes').getContext('2d');
+    new Chart(ctxMes, {
+        type: 'doughnut',
+        data: {
+            labels: ['Entradas', 'Saídas'],
+            datasets: [{
+                data: [entradasMes, saidasMes],
+                backgroundColor: [
+                    'rgba(25, 135, 84, 0.8)',
+                    'rgba(220, 53, 69, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(25, 135, 84, 1)',
+                    'rgba(220, 53, 69, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.label + ': R$ ' + context.raw.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
