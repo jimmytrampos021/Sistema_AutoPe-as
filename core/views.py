@@ -103,6 +103,8 @@ def dashboard(request):
     
     return render(request, 'core/dashboard.html', context)
 
+
+
 @login_required
 def pdv(request):
     """Ponto de Venda - Interface de vendas rápida OTIMIZADA"""
