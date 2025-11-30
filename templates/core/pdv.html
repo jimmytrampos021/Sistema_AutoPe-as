@@ -826,10 +826,9 @@ function calcularDiferencaCasco() {
 }
 
 // Confirmar e adicionar bateria ao carrinho
-$('#btn-confirmar-casco').on('click', function() {
+$(document).on('click', '#btn-confirmar-casco', function() {
     // Fechar modal
     bootstrap.Modal.getInstance(document.getElementById('modalCasco')).hide();
-    
     // Adicionar ao carrinho com informações do casco
     adicionarBateriaAoCarrinho(cascoAtual);
 });
