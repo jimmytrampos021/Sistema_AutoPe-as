@@ -261,7 +261,7 @@
                                             <input type="number" step="0.01" name="preco_custo" 
                                                 id="preco_custo"
                                                 class="form-control form-control-lg" 
-                                                value="{% if editando and produto.preco_custo %}{{ produto.preco_custo }}{% else %}0.00{% endif %}" required>
+                                                value="{{ form.preco_custo.value|default:'0.00' }}">
                                         </div>
                                     </div>
                                     
@@ -271,10 +271,10 @@
                                         </label>
                                         <div class="input-group">
                                             <span class="input-group-text">R$</span>
-                                            <input type="number" step="0.01" name="preco_venda_dinheiro" 
+                                            <input type="number" step="0.01" name="preco_venda_dinheiro"
                                                 id="preco_venda_dinheiro"
-                                                class="form-control form-control-lg" 
-                                                value="{% if editando and produto.preco_venda_dinheiro %}{{ produto.preco_venda_dinheiro }}{% else %}0.00{% endif %}" required>
+                                                class="form-control form-control-lg"
+                                                value="{{ form.preco_venda_dinheiro.value|default:'0.00' }}">
                                         </div>
                                         <div id="margem-lucro-info" class="mt-2"></div>
                                     </div>
