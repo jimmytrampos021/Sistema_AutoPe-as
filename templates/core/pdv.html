@@ -503,6 +503,7 @@
 
 {% block extra_js %}
 <script>
+    
 let carrinho = [];
 let buscaTimeout = null;
 let ultimaBusca = '';
@@ -511,6 +512,45 @@ let ajusteAtual = {
     valor: 0,      // valor numérico
     tipoValor: 'reais'  // 'reais' ou 'percent'
 };
+
+// ============================================
+// VARIÁVEIS GLOBAIS - SISTEMA DE CASCO
+// ============================================
+let amperagensBateria = []; // Cache das amperagens
+let cascoAtual = {
+    produtoId: null,
+    produtoInfo: null,
+    amperagemVendidaId: null,
+    trouxeCasco: null,
+    amperagemCascoId: null,
+    valorCascoVendido: 0,
+    valorCascoRecebido: 0,
+    diferenca: 0
+};
+
+// ============================================
+// CARREGAR AMPERAGENS AO INICIAR
+// ============================================
+function carregarAmperagens() {
+    fetch('/api/baterias/amperagens/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                amperagensBateria = data.amperagens;
+                
+                // Popular select do modal
+                const select = $('#casco-amperagem-select');
+                select.html('<option value="">Selecione a amperagem...</option>');
+                
+                data.amperagens.forEach(amp => {
+                    select.append(`<option value="${amp.id}" data-valor="${amp.valor_casco_troca}">
+                        ${amp.amperagem} ${amp.nome_tecnico ? '(' + amp.nome_tecnico + ')' : ''} - R$ ${amp.valor_casco_troca.toFixed(2)}
+                    </option>`);
+                });
+            }
+        })
+        .catch(error => console.error('Erro ao carregar amperagens:', error));
+}
 
 // ============================================
 // BUSCA AJAX DE PRODUTOS
@@ -601,21 +641,29 @@ function renderizarProdutos(produtos) {
         const badgeSemEstoque = semEstoque ? '<span class="badge-sem-estoque">SEM ESTOQUE</span>' : '';
         const codigoBarras = produto.codigo_barras ? ` | <small>${produto.codigo_barras}</small>` : '';
         
+        // Badge de bateria
+        const isBateria = produto.amperagem_bateria_id && produto.amperagem_bateria_id > 0;
+        const badgeBateria = isBateria ? `<span class="badge-bateria"><i class="bi bi-battery-charging"></i> ${produto.amperagem_nome || 'Bateria'}</span>` : '';
+        
         const html = `
             <div class="produto-card ${semEstoque ? 'sem-estoque' : ''}" 
                  data-id="${produto.id}" 
                  data-codigo="${produto.codigo}"
-                 data-codigo-barras="${produto.codigo_barras}"
+                 data-codigo-barras="${produto.codigo_barras || ''}"
                  data-descricao="${produto.descricao}" 
                  data-preco="${produto.preco_venda_dinheiro}"
-                 data-preco-debito="${produto.preco_venda_debito}"
-                 data-preco-credito="${produto.preco_venda_credito}"
+                 data-preco-debito="${produto.preco_venda_debito || produto.preco_venda_dinheiro}"
+                 data-preco-credito="${produto.preco_venda_credito || produto.preco_venda_dinheiro}"
                  data-estoque="${produto.estoque_atual}"
                  data-imposto="${produto.aplicar_imposto_4}"
                  data-customizado="${produto.preco_customizado_cartao}"
-                 data-precos-credito='${JSON.stringify(produto.precos_credito)}'>
+                 data-precos-credito='${JSON.stringify(produto.precos_credito || {})}'
+                 data-is-bateria="${isBateria}"
+                 data-amperagem-id="${produto.amperagem_bateria_id || ''}"
+                 data-amperagem-nome="${produto.amperagem_nome || ''}"
+                 data-valor-casco="${produto.valor_casco || 0}">
                 <div class="produto-codigo">
-                    ${produto.codigo}${codigoBarras}${badgeSemEstoque}
+                    ${produto.codigo}${codigoBarras}${badgeSemEstoque}${badgeBateria}
                 </div>
                 <div class="produto-nome">${produto.descricao}</div>
                 <div class="row">
@@ -636,9 +684,245 @@ function renderizarProdutos(produtos) {
 }
 
 // ============================================
+// SISTEMA DE CASCO - MODAL
+// ============================================
+
+// Abrir modal de casco
+function abrirModalCasco(produto) {
+    // Resetar estado
+    cascoAtual = {
+        produtoId: produto.id,
+        produtoInfo: produto,
+        amperagemVendidaId: produto.amperagem_id,
+        trouxeCasco: null,
+        amperagemCascoId: null,
+        valorCascoVendido: produto.valor_casco || 0,
+        valorCascoRecebido: 0,
+        diferenca: 0
+    };
+    
+    // Preencher informações no modal
+    $('#casco-bateria-nome').text(produto.descricao);
+    $('#casco-amperagem-vendida').text(produto.amperagem_nome || 'N/A');
+    $('#casco-valor-vendido').text(cascoAtual.valorCascoVendido.toFixed(2));
+    
+    // Resetar seleções
+    $('.btn-casco-opcao').removeClass('active');
+    $('#casco-amperagem-container').hide();
+    $('#casco-amperagem-select').val('');
+    $('#casco-resultado').hide();
+    $('#btn-confirmar-casco').prop('disabled', true);
+    
+    // Pré-selecionar a mesma amperagem no select
+    if (produto.amperagem_id) {
+        $('#casco-amperagem-select').val(produto.amperagem_id);
+    }
+    
+    // Abrir modal
+    const modal = new bootstrap.Modal(document.getElementById('modalCasco'));
+    modal.show();
+}
+
+// Clique nos botões SIM/NÃO
+$(document).on('click', '.btn-casco-opcao', function() {
+    const opcao = $(this).data('opcao');
+    
+    // Marcar como ativo
+    $('.btn-casco-opcao').removeClass('active');
+    $(this).addClass('active');
+    
+    cascoAtual.trouxeCasco = (opcao === 'sim');
+    
+    if (opcao === 'sim') {
+        // Mostrar seleção de amperagem
+        $('#casco-amperagem-container').slideDown();
+        
+        // Se já tem amperagem selecionada, calcular
+        if ($('#casco-amperagem-select').val()) {
+            calcularDiferencaCasco();
+        }
+    } else {
+        // Esconder seleção e calcular direto (sem casco)
+        $('#casco-amperagem-container').slideUp();
+        cascoAtual.amperagemCascoId = null;
+        cascoAtual.valorCascoRecebido = 0;
+        calcularDiferencaCasco();
+    }
+});
+
+// Mudança na seleção de amperagem
+$('#casco-amperagem-select').on('change', function() {
+    if (cascoAtual.trouxeCasco) {
+        calcularDiferencaCasco();
+    }
+});
+
+// Calcular diferença de casco
+function calcularDiferencaCasco() {
+    const amperagemVendidaId = cascoAtual.amperagemVendidaId;
+    const trouxeCasco = cascoAtual.trouxeCasco;
+    const amperagemCascoId = $('#casco-amperagem-select').val();
+    
+    let url = `/api/baterias/calcular-casco/?amperagem_vendida_id=${amperagemVendidaId}&trouxe_casco=${trouxeCasco}`;
+    
+    if (trouxeCasco && amperagemCascoId) {
+        url += `&amperagem_casco_id=${amperagemCascoId}`;
+        cascoAtual.amperagemCascoId = amperagemCascoId;
+    }
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cascoAtual.valorCascoVendido = data.valor_casco_vendido;
+                cascoAtual.valorCascoRecebido = data.valor_casco_recebido;
+                cascoAtual.diferenca = data.diferenca;
+                
+                // Mostrar resultado
+                const resultadoEl = $('#casco-resultado');
+                const textoEl = $('#casco-resultado-texto');
+                
+                resultadoEl.removeClass('alert-success alert-warning alert-danger');
+                
+                if (data.diferenca > 0) {
+                    // Acréscimo
+                    resultadoEl.addClass('alert-danger');
+                    textoEl.html(`
+                        <strong><i class="bi bi-arrow-up-circle"></i> ACRÉSCIMO</strong><br>
+                        Cliente paga <strong>+ R$ ${data.diferenca.toFixed(2)}</strong><br>
+                        <small>${data.mensagem}</small>
+                    `);
+                } else if (data.diferenca < 0) {
+                    // Desconto
+                    resultadoEl.addClass('alert-success');
+                    textoEl.html(`
+                        <strong><i class="bi bi-arrow-down-circle"></i> DESCONTO</strong><br>
+                        Cliente recebe <strong>- R$ ${Math.abs(data.diferenca).toFixed(2)}</strong><br>
+                        <small>${data.mensagem}</small>
+                    `);
+                } else {
+                    // Troca normal
+                    resultadoEl.addClass('alert-success');
+                    textoEl.html(`
+                        <strong><i class="bi bi-check-circle"></i> TROCA NORMAL</strong><br>
+                        Sem acréscimo ou desconto<br>
+                        <small>${data.mensagem}</small>
+                    `);
+                }
+                
+                resultadoEl.slideDown();
+                $('#btn-confirmar-casco').prop('disabled', false);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: data.error || 'Erro ao calcular casco'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao calcular casco:', error);
+        });
+}
+
+// Confirmar e adicionar bateria ao carrinho
+$('#btn-confirmar-casco').on('click', function() {
+    // Fechar modal
+    bootstrap.Modal.getInstance(document.getElementById('modalCasco')).hide();
+    
+    // Adicionar ao carrinho com informações do casco
+    adicionarBateriaAoCarrinho(cascoAtual);
+});
+
+// Adicionar bateria ao carrinho (com info de casco)
+function adicionarBateriaAoCarrinho(infoCasco) {
+    const produto = infoCasco.produtoInfo;
+    
+    // Verificar se já existe no carrinho
+    const itemExistente = carrinho.find(item => item.id === produto.id);
+    
+    // Calcular preço com ajuste de casco
+    let precoBase = parseFloat(produto.preco);
+    let precoFinal = precoBase + infoCasco.diferenca;
+    
+    let precoDebitoFinal = parseFloat(produto.preco_debito || produto.preco) + infoCasco.diferenca;
+    let precoCreditoFinal = parseFloat(produto.preco_credito || produto.preco) + infoCasco.diferenca;
+    
+    if (itemExistente) {
+        // Se já existe, perguntar se quer adicionar outra unidade
+        Swal.fire({
+            icon: 'question',
+            title: 'Bateria já no carrinho',
+            text: 'Deseja adicionar mais uma unidade? (Nova verificação de casco será necessária)',
+            showCancelButton: true,
+            confirmButtonText: 'Sim, adicionar',
+            cancelButtonText: 'Não'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                itemExistente.quantidade += 1;
+                itemExistente.total = itemExistente.quantidade * itemExistente.preco;
+                atualizarCarrinho();
+            }
+        });
+    } else {
+        // Adicionar novo item
+        carrinho.push({
+            id: produto.id,
+            codigo: produto.codigo,
+            descricao: produto.descricao,
+            preco: precoFinal,
+            preco_original: precoBase,
+            preco_debito: precoDebitoFinal,
+            preco_credito: precoCreditoFinal,
+            preco_customizado: produto.preco_customizado,
+            precos_credito: produto.precos_credito || {},
+            quantidade: 1,
+            total: precoFinal,
+            estoque: produto.estoque,
+            // Informações específicas de bateria
+            is_bateria: true,
+            info_casco: {
+                trouxe_casco: infoCasco.trouxeCasco,
+                amperagem_vendida_id: infoCasco.amperagemVendidaId,
+                amperagem_casco_id: infoCasco.amperagemCascoId,
+                valor_casco_vendido: infoCasco.valorCascoVendido,
+                valor_casco_recebido: infoCasco.valorCascoRecebido,
+                diferenca: infoCasco.diferenca
+            }
+        });
+        
+        atualizarCarrinho();
+        
+        // Feedback visual
+        let mensagem = '';
+        if (infoCasco.trouxeCasco) {
+            if (infoCasco.diferenca > 0) {
+                mensagem = `Bateria adicionada COM troca (+R$ ${infoCasco.diferenca.toFixed(2)} diferença)`;
+            } else if (infoCasco.diferenca < 0) {
+                mensagem = `Bateria adicionada COM troca (-R$ ${Math.abs(infoCasco.diferenca).toFixed(2)} desconto)`;
+            } else {
+                mensagem = `Bateria adicionada COM troca (mesmo valor)`;
+            }
+        } else {
+            mensagem = `Bateria adicionada SEM troca (+R$ ${infoCasco.diferenca.toFixed(2)})`;
+        }
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'Bateria Adicionada!',
+            text: mensagem,
+            timer: 2500,
+            showConfirmButton: false
+        });
+    }
+}
+
+// ============================================
 // ADICIONAR PRODUTO AO CARRINHO
 // ============================================
 $(document).on('click', '.produto-card', function() {
+    const isBateria = $(this).data('is-bateria') === true || $(this).data('is-bateria') === 'true';
+    
     const produto = {
         id: parseInt($(this).data('id')),
         codigo: $(this).data('codigo'),
@@ -651,9 +935,26 @@ $(document).on('click', '.produto-card', function() {
         preco_customizado: $(this).data('customizado') === true || $(this).data('customizado') === 'True',
         precos_credito: $(this).data('precos-credito') || {},
         quantidade: 1,
-        semEstoque: parseFloat($(this).data('estoque')) <= 0
+        semEstoque: parseFloat($(this).data('estoque')) <= 0,
+        // Dados de bateria
+        is_bateria: isBateria,
+        amperagem_id: $(this).data('amperagem-id') || null,
+        amperagem_nome: $(this).data('amperagem-nome') || null,
+        valor_casco: parseFloat($(this).data('valor-casco')) || 0
     };
     
+    // Se é bateria, abrir modal de casco
+    if (isBateria && produto.amperagem_id) {
+        abrirModalCasco(produto);
+        return; // Não adiciona direto, espera confirmação do modal
+    }
+    
+    // Produto normal - adicionar diretamente
+    adicionarProdutoNormal(produto);
+});
+
+// Adicionar produto normal (não bateria)
+function adicionarProdutoNormal(produto) {
     // Verificar se já existe no carrinho
     const existente = carrinho.find(item => item.id === produto.id);
     
@@ -692,9 +993,9 @@ $(document).on('click', '.produto-card', function() {
     atualizarCarrinho();
     
     // Feedback visual
-    $(this).addClass('selected');
-    setTimeout(() => $(this).removeClass('selected'), 300);
-});
+    $(`.produto-card[data-id="${produto.id}"]`).addClass('selected');
+    setTimeout(() => $(`.produto-card[data-id="${produto.id}"]`).removeClass('selected'), 300);
+}
 
 // ============================================
 // ATUALIZAR VISUALIZAÇÃO DO CARRINHO
@@ -750,10 +1051,26 @@ function atualizarCarrinho() {
             infoParcela = `<span class="badge-parcela">${numeroParcelas}x R$ ${valorParcela.toFixed(2)}</span>`;
         }
         
+        // Badge de bateria com info de casco
+        let badgeCasco = '';
+        if (item.is_bateria && item.info_casco) {
+            if (item.info_casco.trouxe_casco) {
+                if (item.info_casco.diferenca > 0) {
+                    badgeCasco = `<span class="badge-bateria" style="background:#ffc107;color:#000;"><i class="bi bi-battery-charging"></i> +R$${item.info_casco.diferenca.toFixed(2)}</span>`;
+                } else if (item.info_casco.diferenca < 0) {
+                    badgeCasco = `<span class="badge-bateria com-troca"><i class="bi bi-battery-charging"></i> -R$${Math.abs(item.info_casco.diferenca).toFixed(2)}</span>`;
+                } else {
+                    badgeCasco = `<span class="badge-bateria com-troca"><i class="bi bi-battery-charging"></i> Troca</span>`;
+                }
+            } else {
+                badgeCasco = `<span class="badge-bateria sem-troca"><i class="bi bi-battery-charging"></i> Sem troca +R$${item.info_casco.diferenca.toFixed(2)}</span>`;
+            }
+        }
+        
         container.append(`
             <div class="carrinho-item ${semEstoqueClass}" data-id="${item.id}">
                 <div style="flex: 1;">
-                    <strong>${item.descricao}</strong>${infoParcela}
+                    <strong>${item.descricao}</strong>${infoParcela}${badgeCasco}
                     <br>
                     <small class="text-muted">R$ ${precoFinal.toFixed(2)} cada</small>
                     ${alertaEstoque}
@@ -816,6 +1133,24 @@ $(document).on('click', '.btn-aumentar', function() {
     const id = $(this).data('id');
     const item = carrinho.find(i => i.id === id);
     if (item) {
+        // Se for bateria, perguntar sobre casco novamente
+        if (item.is_bateria) {
+            Swal.fire({
+                icon: 'question',
+                title: 'Adicionar mais uma bateria?',
+                text: 'Para baterias, cada unidade precisa de verificação de casco. Deseja continuar?',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, mesma condição',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    item.quantidade++;
+                    atualizarCarrinho();
+                }
+            });
+            return;
+        }
+        
         item.quantidade++;
         
         if (item.quantidade > item.estoque && item.estoque > 0) {
@@ -1100,6 +1435,17 @@ $('#btn-finalizar').on('click', function() {
                       <strong>${tipoTexto}:</strong> ${sinal} R$ ${valorAjuste.toFixed(2)}`;
     }
     
+    // Info de baterias
+    const baterias = carrinho.filter(item => item.is_bateria);
+    let infoBaterias = '';
+    if (baterias.length > 0) {
+        infoBaterias = '<br><strong>🔋 Baterias:</strong><br>';
+        baterias.forEach(bat => {
+            const statusCasco = bat.info_casco.trouxe_casco ? 'Com troca' : 'Sem troca';
+            infoBaterias += `• ${bat.descricao}: ${statusCasco}<br>`;
+        });
+    }
+    
     // Confirmação final
     Swal.fire({
         title: 'Confirmar Venda?',
@@ -1107,7 +1453,7 @@ $('#btn-finalizar').on('click', function() {
             <div style="text-align: left;">
                 <strong>Cliente:</strong> ${clienteInfo}<br>
                 <strong>Forma de Pagamento:</strong> ${formaPagamentoTexto}${infoAdicional}<br>
-                <strong>Total de itens:</strong> ${carrinho.length}${infoAjuste}<br>
+                <strong>Total de itens:</strong> ${carrinho.length}${infoAjuste}${infoBaterias}<br>
                 <strong>Valor Total:</strong> R$ ${totalVenda.toFixed(2)}
                 ${mensagemEstoque}
             </div>
@@ -1127,7 +1473,10 @@ $('#btn-finalizar').on('click', function() {
                     id: item.id,
                     quantidade: item.quantidade,
                     preco: item.preco,
-                    total: item.total
+                    total: item.preco * item.quantidade,
+                    // Info de bateria
+                    is_bateria: item.is_bateria || false,
+                    info_casco: item.info_casco || null
                 })),
                 subtotal: subtotal,
                 desconto: ajusteAtual.tipo === 'desconto' ? valorAjuste : 0,
@@ -1233,9 +1582,151 @@ $(document).on('keydown', function(e) {
 // Focar no campo de busca ao carregar
 $(document).ready(function() {
     $('#search-produto').focus();
+    carregarAmperagens();
 });
 </script>
 
 <!-- SweetAlert2 para alertas bonitos -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+<!-- Modal de Troca de Casco -->
+<div class="modal fade" id="modalCasco" tabindex="-1" aria-labelledby="modalCascoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="modalCascoLabel">
+                    <i class="bi bi-battery-charging"></i> Troca de Casco - Bateria
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Info da bateria sendo vendida -->
+                <div class="alert alert-info mb-3">
+                    <strong>Bateria:</strong> <span id="casco-bateria-nome"></span><br>
+                    <strong>Amperagem:</strong> <span id="casco-amperagem-vendida"></span><br>
+                    <strong>Valor do Casco:</strong> R$ <span id="casco-valor-vendido">0,00</span>
+                </div>
+                
+                <!-- Pergunta principal -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Cliente trouxe casco para troca?</label>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success flex-fill btn-casco-opcao" data-opcao="sim">
+                            <i class="bi bi-check-circle"></i> SIM, trouxe casco
+                        </button>
+                        <button type="button" class="btn btn-danger flex-fill btn-casco-opcao" data-opcao="nao">
+                            <i class="bi bi-x-circle"></i> NÃO trouxe
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Seleção de amperagem do casco (aparece se trouxe) -->
+                <div id="casco-amperagem-container" style="display: none;">
+                    <label class="form-label fw-bold">Qual a amperagem do casco trazido?</label>
+                    <select id="casco-amperagem-select" class="form-select form-select-lg mb-3">
+                        <option value="">Selecione a amperagem...</option>
+                    </select>
+                </div>
+                
+                <!-- Resultado do cálculo -->
+                <div id="casco-resultado" class="alert mb-0" style="display: none;">
+                    <div id="casco-resultado-texto"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmar-casco" disabled>
+                    <i class="bi bi-check-lg"></i> Confirmar e Adicionar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Estilos do Modal de Casco */
+#modalCasco .btn-casco-opcao {
+    padding: 15px;
+    font-size: 16px;
+}
+
+#modalCasco .btn-casco-opcao.active {
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.3);
+}
+
+#modalCasco .btn-casco-opcao[data-opcao="sim"].active {
+    background-color: #146c43 !important;
+    border-color: #146c43 !important;
+}
+
+#modalCasco .btn-casco-opcao[data-opcao="nao"].active {
+    background-color: #b02a37 !important;
+    border-color: #b02a37 !important;
+}
+
+#casco-resultado.alert-success {
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+    color: #0f5132;
+}
+
+#casco-resultado.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffecb5;
+    color: #664d03;
+}
+
+#casco-resultado.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
+/* Dark mode */
+body.dark-mode #modalCasco .modal-content {
+    background-color: #2d2d2d;
+    color: #e0e0e0;
+}
+
+body.dark-mode #modalCasco .modal-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode #modalCasco .modal-footer {
+    border-top-color: #444;
+}
+
+body.dark-mode #modalCasco .alert-info {
+    background-color: #1a3a4a;
+    border-color: #2a4a5a;
+    color: #7dd3fc;
+}
+
+body.dark-mode #modalCasco .form-select {
+    background-color: #1a1a1a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+/* Badge de bateria no carrinho */
+.badge-bateria {
+    background-color: #ffc107;
+    color: #000;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    margin-left: 5px;
+}
+
+.badge-bateria.com-troca {
+    background-color: #198754;
+    color: white;
+}
+
+.badge-bateria.sem-troca {
+    background-color: #dc3545;
+    color: white;
+}
+</style>
 {% endblock %}

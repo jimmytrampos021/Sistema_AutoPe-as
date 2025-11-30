@@ -13,16 +13,21 @@ from django.core.paginator import Paginator
 from django.db.models import Sum, Count, F, Q, Avg, Min, Max, Prefetch
 from datetime import datetime, timedelta
 from clientes.models import Cliente, Veiculo
+from estoque.models import Grupo, Subgrupo
+from estoque.models import AmperagemBateria
 from estoque.models import (
     Produto, Categoria, Subcategoria, Fabricante,
     Fornecedor, CotacaoFornecedor, Montadora, 
     VeiculoModelo, VeiculoVersao,
-    MovimentacaoEstoque,  # ✅ CORRIGIDO: Adicionado import que faltava
+    MovimentacaoEstoque,AmperagemBateria, EstoqueCasco,
+    MovimentacaoCasco, ItemVendaBateria,  # ✅ CORRIGIDO: Adicionado import que faltava
 )
 from vendas.models import (
     Venda, ItemVenda, OrdemServico, PecaOS,   # ← ADICIONE ItemVenda aqui
     ServicoOS, Orcamento, ItemOrcamento
 )
+
+
 
 
 # ============================================
@@ -152,7 +157,7 @@ def api_buscar_produtos_pdv(request):
             )
     
     # Buscar produtos que contenham TODAS as palavras
-    produtos = Produto.objects.filter(filtros).select_related('categoria', 'fabricante')[:50]
+    produtos = Produto.objects.filter(filtros).select_related('categoria', 'fabricante', 'amperagem_bateria')[:50]
     
     # Serializa os produtos para JSON
     produtos_data = []
@@ -183,6 +188,13 @@ def api_buscar_produtos_pdv(request):
             },
             'categoria': p.categoria.nome if p.categoria else '',
             'fabricante': p.fabricante.nome if p.fabricante else '',
+
+            # ========== CAMPOS DE BATERIA ==========
+            'amperagem_bateria_id': p.amperagem_bateria_id if p.amperagem_bateria else None,
+            'amperagem_nome': p.amperagem_bateria.amperagem if p.amperagem_bateria else None,
+            'valor_casco': float(p.amperagem_bateria.valor_casco_troca) if p.amperagem_bateria else 0,
+            'is_bateria': p.amperagem_bateria is not None,
+            # ========================================
         })
     
     return JsonResponse({
@@ -494,7 +506,9 @@ def criar_produto(request):
     context = {
         'form': form,
         'montadoras': montadoras,
+        'categorias': Categoria.objects.filter(ativo=True).order_by('nome'),
         'editando': False,
+        'amperagens': AmperagemBateria.objects.filter(ativo=True).order_by('ordem'),
     }
     return render(request, 'core/produto_form.html', context)
 
@@ -533,7 +547,10 @@ def editar_produto(request, produto_id):
         'form': form,
         'produto': produto,
         'montadoras': montadoras,
+        'categorias': Categoria.objects.filter(ativo=True).order_by('nome'),
         'editando': True,
+        'produto': produto,
+        'amperagens': AmperagemBateria.objects.filter(ativo=True).order_by('ordem'),
     }
     return render(request, 'core/produto_form.html', context)
 
@@ -1816,9 +1833,10 @@ def lista_categorias(request):
     
     # Estatísticas
     stats = {
-        'total_categorias': categorias.count(),
+        'total_categorias': Categoria.objects.filter(ativo=True).count(),
         'total_subcategorias': Subcategoria.objects.filter(ativo=True).count(),
-        'categorias_sem_produtos': categorias.filter(produtos__isnull=True).distinct().count(),
+        'total_grupos': Grupo.objects.filter(ativo=True).count(),
+        'total_subgrupos': Subgrupo.objects.filter(ativo=True).count(),
     }
     
     context = {
@@ -2357,3 +2375,426 @@ def api_cancelar_venda(request, venda_id):
         return JsonResponse({'success': False, 'error': 'Venda não encontrada'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+
+
+@login_required
+def api_buscar_grupos(request):
+    """API: Buscar grupos de uma subcategoria"""
+    from estoque.models import Grupo
+    
+    subcategoria_id = request.GET.get('subcategoria_id')
+    
+    if not subcategoria_id:
+        return JsonResponse({'success': False, 'grupos': []})
+    
+    try:
+        grupos = Grupo.objects.filter(
+            subcategoria_id=subcategoria_id,
+            ativo=True
+        ).order_by('nome')
+        
+        resultados = [
+            {
+                'id': g.id,
+                'nome': g.nome,
+            }
+            for g in grupos
+        ]
+        
+        return JsonResponse({'success': True, 'grupos': resultados})
+    
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def api_buscar_subgrupos(request):
+    """API: Buscar subgrupos de um grupo"""
+    from estoque.models import Subgrupo
+    
+    grupo_id = request.GET.get('grupo_id')
+    
+    if not grupo_id:
+        return JsonResponse({'success': False, 'subgrupos': []})
+    
+    try:
+        subgrupos = Subgrupo.objects.filter(
+            grupo_id=grupo_id,
+            ativo=True
+        ).order_by('nome')
+        
+        resultados = [
+            {
+                'id': s.id,
+                'nome': s.nome,
+            }
+            for s in subgrupos
+        ]
+        
+        return JsonResponse({'success': True, 'subgrupos': resultados})
+    
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+def criar_grupo(request, subcategoria_id):
+    """Criar novo grupo dentro de uma subcategoria"""
+    subcategoria = get_object_or_404(Subcategoria, id=subcategoria_id)
+    
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        descricao = request.POST.get('descricao', '').strip()
+        ativo = request.POST.get('ativo') == 'on'
+        
+        if not nome:
+            messages.error(request, 'O nome do grupo é obrigatório!')
+        elif Grupo.objects.filter(subcategoria=subcategoria, nome__iexact=nome).exists():
+            messages.error(request, f'Já existe um grupo "{nome}" nesta subcategoria!')
+        else:
+            Grupo.objects.create(
+                subcategoria=subcategoria,
+                nome=nome,
+                descricao=descricao,
+                ativo=ativo
+            )
+            messages.success(request, f'Grupo "{nome}" criado com sucesso!')
+            return redirect('lista_categorias')
+    
+    context = {
+        'subcategoria': subcategoria,
+        'editando': False,
+    }
+    return render(request, 'core/grupo_form.html', context)
+
+
+@login_required
+def editar_grupo(request, grupo_id):
+    """Editar grupo existente"""
+    grupo = get_object_or_404(Grupo, id=grupo_id)
+    
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        descricao = request.POST.get('descricao', '').strip()
+        ativo = request.POST.get('ativo') == 'on'
+        
+        if not nome:
+            messages.error(request, 'O nome do grupo é obrigatório!')
+        elif Grupo.objects.filter(subcategoria=grupo.subcategoria, nome__iexact=nome).exclude(id=grupo.id).exists():
+            messages.error(request, f'Já existe um grupo "{nome}" nesta subcategoria!')
+        else:
+            grupo.nome = nome
+            grupo.descricao = descricao
+            grupo.ativo = ativo
+            grupo.save()
+            messages.success(request, f'Grupo "{nome}" atualizado com sucesso!')
+            return redirect('lista_categorias')
+    
+    context = {
+        'grupo': grupo,
+        'subcategoria': grupo.subcategoria,
+        'editando': True,
+    }
+    return render(request, 'core/grupo_form.html', context)
+
+
+@login_required
+def deletar_grupo(request, grupo_id):
+    """Deletar grupo"""
+    grupo = get_object_or_404(Grupo, id=grupo_id)
+    nome = grupo.nome
+    
+    # Verificar se tem subgrupos
+    if grupo.subgrupos.exists():
+        messages.error(request, f'Não é possível remover o grupo "{nome}" pois possui subgrupos vinculados!')
+    # Verificar se tem produtos
+    elif grupo.produtos.exists():
+        messages.error(request, f'Não é possível remover o grupo "{nome}" pois possui produtos vinculados!')
+    else:
+        grupo.delete()
+        messages.success(request, f'Grupo "{nome}" removido com sucesso!')
+    
+    return redirect('lista_categorias')
+
+
+# ============================================================
+# SUBGRUPO - CRUD
+# ============================================================
+
+@login_required
+def criar_subgrupo(request, grupo_id):
+    """Criar novo subgrupo dentro de um grupo"""
+    grupo = get_object_or_404(Grupo, id=grupo_id)
+    
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        descricao = request.POST.get('descricao', '').strip()
+        ativo = request.POST.get('ativo') == 'on'
+        
+        if not nome:
+            messages.error(request, 'O nome do subgrupo é obrigatório!')
+        elif Subgrupo.objects.filter(grupo=grupo, nome__iexact=nome).exists():
+            messages.error(request, f'Já existe um subgrupo "{nome}" neste grupo!')
+        else:
+            Subgrupo.objects.create(
+                grupo=grupo,
+                nome=nome,
+                descricao=descricao,
+                ativo=ativo
+            )
+            messages.success(request, f'Subgrupo "{nome}" criado com sucesso!')
+            return redirect('lista_categorias')
+    
+    context = {
+        'grupo': grupo,
+        'editando': False,
+    }
+    return render(request, 'core/subgrupo_form.html', context)
+
+
+@login_required
+def editar_subgrupo(request, subgrupo_id):
+    """Editar subgrupo existente"""
+    subgrupo = get_object_or_404(Subgrupo, id=subgrupo_id)
+    
+    if request.method == 'POST':
+        nome = request.POST.get('nome', '').strip()
+        descricao = request.POST.get('descricao', '').strip()
+        ativo = request.POST.get('ativo') == 'on'
+        
+        if not nome:
+            messages.error(request, 'O nome do subgrupo é obrigatório!')
+        elif Subgrupo.objects.filter(grupo=subgrupo.grupo, nome__iexact=nome).exclude(id=subgrupo.id).exists():
+            messages.error(request, f'Já existe um subgrupo "{nome}" neste grupo!')
+        else:
+            subgrupo.nome = nome
+            subgrupo.descricao = descricao
+            subgrupo.ativo = ativo
+            subgrupo.save()
+            messages.success(request, f'Subgrupo "{nome}" atualizado com sucesso!')
+            return redirect('lista_categorias')
+    
+    context = {
+        'subgrupo': subgrupo,
+        'grupo': subgrupo.grupo,
+        'editando': True,
+    }
+    return render(request, 'core/subgrupo_form.html', context)
+
+
+@login_required
+def deletar_subgrupo(request, subgrupo_id):
+    """Deletar subgrupo"""
+    subgrupo = get_object_or_404(Subgrupo, id=subgrupo_id)
+    nome = subgrupo.nome
+    
+    # Verificar se tem produtos
+    if subgrupo.produtos.exists():
+        messages.error(request, f'Não é possível remover o subgrupo "{nome}" pois possui produtos vinculados!')
+    else:
+        subgrupo.delete()
+        messages.success(request, f'Subgrupo "{nome}" removido com sucesso!')
+    
+    return redirect('lista_categorias')
+
+
+
+@login_required
+def api_amperagens_bateria(request):
+    """Retorna lista de amperagens para o modal de troca de casco"""
+    amperagens = AmperagemBateria.objects.filter(ativo=True).order_by('ordem')
+    
+    dados = [
+        {
+            'id': a.id,
+            'amperagem': a.amperagem,
+            'nome_tecnico': a.nome_tecnico or '',
+            'valor_casco_troca': float(a.valor_casco_troca),
+            'peso_kg': float(a.peso_kg),
+        }
+        for a in amperagens
+    ]
+    
+    return JsonResponse({'success': True, 'amperagens': dados})
+
+
+# ============================================================
+# API: Calcular diferença de casco
+# ============================================================
+@login_required
+def api_calcular_casco(request):
+    """
+    Calcula a diferença de valor do casco.
+    
+    Parâmetros:
+    - amperagem_vendida_id: ID da amperagem da bateria vendida
+    - trouxe_casco: 'true' ou 'false'
+    - amperagem_casco_id: ID da amperagem do casco trazido (se trouxe)
+    
+    Retorna:
+    - diferenca: valor positivo (acréscimo) ou negativo (desconto)
+    - valor_casco_vendido: valor do casco da bateria vendida
+    - valor_casco_recebido: valor do casco trazido (se trouxe)
+    """
+    amperagem_vendida_id = request.GET.get('amperagem_vendida_id')
+    trouxe_casco = request.GET.get('trouxe_casco', 'false') == 'true'
+    amperagem_casco_id = request.GET.get('amperagem_casco_id')
+    
+    if not amperagem_vendida_id:
+        return JsonResponse({'success': False, 'error': 'Amperagem da bateria não informada'})
+    
+    try:
+        amperagem_vendida = AmperagemBateria.objects.get(id=amperagem_vendida_id)
+        valor_casco_vendido = float(amperagem_vendida.valor_casco_troca)
+        
+        if not trouxe_casco:
+            # Cliente não trouxe casco = paga o valor do casco
+            return JsonResponse({
+                'success': True,
+                'trouxe_casco': False,
+                'valor_casco_vendido': valor_casco_vendido,
+                'valor_casco_recebido': 0,
+                'diferenca': valor_casco_vendido,  # Acréscimo
+                'mensagem': f'Acréscimo de R$ {valor_casco_vendido:.2f} (sem casco)'
+            })
+        
+        # Cliente trouxe casco
+        if not amperagem_casco_id:
+            return JsonResponse({'success': False, 'error': 'Amperagem do casco não informada'})
+        
+        amperagem_casco = AmperagemBateria.objects.get(id=amperagem_casco_id)
+        valor_casco_recebido = float(amperagem_casco.valor_casco_troca)
+        
+        diferenca = valor_casco_vendido - valor_casco_recebido
+        
+        if diferenca > 0:
+            mensagem = f'Acréscimo de R$ {diferenca:.2f} (casco menor)'
+        elif diferenca < 0:
+            mensagem = f'Desconto de R$ {abs(diferenca):.2f} (casco maior)'
+        else:
+            mensagem = 'Troca normal (mesmo valor de casco)'
+        
+        return JsonResponse({
+            'success': True,
+            'trouxe_casco': True,
+            'valor_casco_vendido': valor_casco_vendido,
+            'valor_casco_recebido': valor_casco_recebido,
+            'diferenca': diferenca,
+            'mensagem': mensagem
+        })
+        
+    except AmperagemBateria.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Amperagem não encontrada'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ============================================================
+# API: Estoque de cascos
+# ============================================================
+@login_required
+def api_estoque_cascos(request):
+    """Retorna o estoque atual de cascos por amperagem"""
+    estoques = EstoqueCasco.objects.select_related('amperagem').filter(
+        amperagem__ativo=True
+    ).order_by('amperagem__ordem')
+    
+    dados = [
+        {
+            'amperagem': e.amperagem.amperagem,
+            'nome_tecnico': e.amperagem.nome_tecnico or '',
+            'quantidade': e.quantidade,
+            'peso_total_kg': float(e.peso_total),
+            'valor_total_troca': float(e.valor_total_troca),
+            'valor_total_compra': float(e.valor_total_compra),
+        }
+        for e in estoques
+    ]
+    
+    # Totais
+    total_cascos = sum(e.quantidade for e in estoques)
+    total_peso = sum(float(e.peso_total) for e in estoques)
+    total_valor_troca = sum(float(e.valor_total_troca) for e in estoques)
+    total_valor_compra = sum(float(e.valor_total_compra) for e in estoques)
+    
+    return JsonResponse({
+        'success': True,
+        'estoques': dados,
+        'totais': {
+            'cascos': total_cascos,
+            'peso_kg': total_peso,
+            'valor_troca': total_valor_troca,
+            'valor_compra': total_valor_compra,
+        }
+    })
+
+
+# ============================================================
+# API: Registrar movimentação de casco manual
+# ============================================================
+@login_required
+def api_movimentar_casco(request):
+    """
+    Registra entrada ou saída manual de casco.
+    
+    POST:
+    - amperagem_id: ID da amperagem
+    - tipo: 'E' (entrada) ou 'S' (saída)
+    - quantidade: quantidade a movimentar
+    - motivo: motivo da movimentação
+    - observacao: observação opcional
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+    
+    try:
+        import json
+        dados = json.loads(request.body)
+        
+        amperagem_id = dados.get('amperagem_id')
+        tipo = dados.get('tipo')
+        quantidade = int(dados.get('quantidade', 1))
+        motivo = dados.get('motivo', 'AJUSTE')
+        observacao = dados.get('observacao', '')
+        
+        if not amperagem_id or not tipo:
+            return JsonResponse({'success': False, 'error': 'Dados incompletos'})
+        
+        amperagem = AmperagemBateria.objects.get(id=amperagem_id)
+        
+        # Verificar se tem estoque suficiente para saída
+        if tipo == 'S':
+            estoque = EstoqueCasco.objects.get_or_create(
+                amperagem=amperagem,
+                defaults={'quantidade': 0}
+            )[0]
+            
+            if estoque.quantidade < quantidade:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Estoque insuficiente. Disponível: {estoque.quantidade}'
+                })
+        
+        # Criar movimentação (o save() atualiza o estoque automaticamente)
+        mov = MovimentacaoCasco.objects.create(
+            amperagem=amperagem,
+            tipo=tipo,
+            motivo=motivo,
+            quantidade=quantidade,
+            observacao=observacao,
+            usuario=request.user
+        )
+        
+        # Buscar estoque atualizado
+        estoque = EstoqueCasco.objects.get(amperagem=amperagem)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Movimentação registrada! Estoque atual: {estoque.quantidade}',
+            'estoque_atual': estoque.quantidade
+        })
+        
+    except AmperagemBateria.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Amperagem não encontrada'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

@@ -63,6 +63,78 @@ class Subcategoria(models.Model):
         return f"{self.categoria.nome} > {self.nome}"
 
 
+class Grupo(models.Model):
+    """Grupo de produtos (Nível 3) - vinculado à Subcategoria"""
+    subcategoria = models.ForeignKey(
+        Subcategoria, 
+        on_delete=models.CASCADE, 
+        related_name='grupos', 
+        verbose_name='Subcategoria',
+        blank=True, 
+        null=True
+    )
+    nome = models.CharField(max_length=100, verbose_name='Nome')
+    descricao = models.TextField(blank=True, null=True, verbose_name='Descrição')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    class Meta:
+        verbose_name = 'Grupo'
+        verbose_name_plural = 'Grupos'
+        ordering = ['subcategoria__categoria__nome', 'subcategoria__nome', 'nome']
+        unique_together = ['subcategoria', 'nome']
+
+    def __str__(self):
+        if self.subcategoria and self.subcategoria.categoria:
+            return f"{self.subcategoria.categoria.nome} > {self.subcategoria.nome} > {self.nome}"
+        elif self.subcategoria:
+            return f"{self.subcategoria.nome} > {self.nome}"
+        return self.nome
+    
+    def get_caminho_completo(self):
+        """Retorna o caminho completo da hierarquia"""
+        partes = []
+        if self.subcategoria:
+            if self.subcategoria.categoria:
+                partes.append(self.subcategoria.categoria.nome)
+            partes.append(self.subcategoria.nome)
+        partes.append(self.nome)
+        return ' > '.join(partes)
+
+
+class Subgrupo(models.Model):
+    """Subgrupo de produtos (Nível 4) - vinculado ao Grupo"""
+    grupo = models.ForeignKey(
+        Grupo, 
+        on_delete=models.CASCADE, 
+        related_name='subgrupos', 
+        verbose_name='Grupo',
+        blank=True, 
+        null=True
+    )
+    nome = models.CharField(max_length=100, verbose_name='Nome')
+    descricao = models.TextField(blank=True, null=True, verbose_name='Descrição')
+    ativo = models.BooleanField(default=True, verbose_name='Ativo')
+
+    class Meta:
+        verbose_name = 'Subgrupo'
+        verbose_name_plural = 'Subgrupos'
+        ordering = ['grupo__subcategoria__categoria__nome', 'grupo__subcategoria__nome', 'grupo__nome', 'nome']
+        unique_together = ['grupo', 'nome']
+
+    def __str__(self):
+        if self.grupo:
+            return f"{self.grupo.get_caminho_completo()} > {self.nome}"
+        return self.nome
+    
+    def get_caminho_completo(self):
+        """Retorna o caminho completo da hierarquia"""
+        if self.grupo:
+            return f"{self.grupo.get_caminho_completo()} > {self.nome}"
+        return self.nome
+
+
+
+
 # ==========================================
 # MODELO: APLICACAO (COMPATIBILIDADE)
 # ==========================================
@@ -270,6 +342,41 @@ class Produto(models.Model):
         related_name='produtos', 
         verbose_name='Subcategoria'
     )
+
+    grupo = models.ForeignKey(
+        'Grupo', 
+        on_delete=models.SET_NULL,
+        blank=True, 
+        null=True,
+        related_name='produtos', 
+        verbose_name='Grupo'
+    )
+    
+    subgrupo = models.ForeignKey(
+        'Subgrupo', 
+        on_delete=models.SET_NULL,
+        blank=True, 
+        null=True,
+        related_name='produtos', 
+        verbose_name='Subgrupo'
+    )
+
+    # ========== BATERIA ==========
+    # Se o produto for uma bateria, vincular à amperagem
+    amperagem_bateria = models.ForeignKey(
+        'AmperagemBateria',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='produtos',
+        verbose_name='Amperagem (Bateria)',
+        help_text='Preencher apenas se o produto for uma bateria'
+    )
+
+    @property
+    def is_bateria(self):
+        """Verifica se o produto é uma bateria"""
+        return self.amperagem_bateria is not None
 
     # ========== RELACIONAMENTOS ==========
     fabricante = models.ForeignKey(
@@ -925,7 +1032,19 @@ class Produto(models.Model):
         for versao in self.versoes_compativeis.all().select_related('modelo__montadora'):
             aplicacoes.append(str(versao))
         return aplicacoes
-    
+    def get_hierarquia_completa(self):
+        """Retorna a hierarquia completa de categorização do produto"""
+        partes = []
+        if self.categoria:
+            partes.append(self.categoria.nome)
+        if self.subcategoria:
+            partes.append(self.subcategoria.nome)
+        if self.grupo:
+            partes.append(self.grupo.nome)
+        if self.subgrupo:
+            partes.append(self.subgrupo.nome)
+        return ' > '.join(partes) if partes else 'Sem categoria'
+
 
 # ==========================================
 # MODELO: COTAÇÃO DE FORNECEDOR
@@ -1511,3 +1630,304 @@ def popular_veiculos_expandidos():
     print(f"\n💡 Agora você pode associar produtos às versões específicas!")
     
     return stats
+
+
+
+
+
+
+# ==========================================
+# MODELO: AMPERAGEM DE BATERIA
+# ==========================================
+class AmperagemBateria(models.Model):
+    """
+    Cadastro das amperagens de bateria e valores de casco.
+    O valor_casco_troca é o valor que a fábrica cobra (desconto pro cliente).
+    O valor_casco_compra é o valor que você paga quando compra casco avulso.
+    """
+    amperagem = models.CharField(
+        max_length=20,
+        unique=True,
+        verbose_name='Amperagem',
+        help_text='Ex: 40Ah, 60Ah, 90Ah Caixa Alta'
+    )
+    nome_tecnico = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='Nome Técnico',
+        help_text='Ex: NS40, 22F, 30H'
+    )
+    peso_kg = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Peso (kg)',
+        help_text='Peso aproximado do casco em kg'
+    )
+    valor_casco_troca = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Valor Casco (Troca)',
+        help_text='Valor do casco na troca - desconto/acréscimo para o cliente'
+    )
+    valor_casco_compra = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Valor Casco (Compra)',
+        help_text='Valor que você paga para comprar casco avulso'
+    )
+    aplicacao = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name='Aplicação Comum',
+        help_text='Ex: Honda City, Honda Fit, Veículos compactos'
+    )
+    ordem = models.IntegerField(
+        default=0,
+        verbose_name='Ordem de Exibição'
+    )
+    ativo = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+
+    class Meta:
+        verbose_name = 'Amperagem de Bateria'
+        verbose_name_plural = 'Amperagens de Bateria'
+        ordering = ['ordem', 'amperagem']
+
+    def __str__(self):
+        if self.nome_tecnico:
+            return f"{self.amperagem} ({self.nome_tecnico})"
+        return self.amperagem
+
+
+# ==========================================
+# MODELO: ESTOQUE DE CASCOS
+# ==========================================
+class EstoqueCasco(models.Model):
+    """
+    Controle de estoque de cascos por amperagem.
+    Quantidade = baterias novas em estoque + cascos avulsos recebidos em troca
+    """
+    amperagem = models.OneToOneField(
+        AmperagemBateria,
+        on_delete=models.CASCADE,
+        related_name='estoque_casco',
+        verbose_name='Amperagem'
+    )
+    quantidade = models.IntegerField(
+        default=0,
+        verbose_name='Quantidade de Cascos',
+        help_text='Total de cascos (baterias novas + cascos avulsos)'
+    )
+    
+    class Meta:
+        verbose_name = 'Estoque de Casco'
+        verbose_name_plural = 'Estoque de Cascos'
+        ordering = ['amperagem__ordem', 'amperagem__amperagem']
+
+    def __str__(self):
+        return f"{self.amperagem.amperagem}: {self.quantidade} cascos"
+
+    @property
+    def peso_total(self):
+        """Retorna o peso total dos cascos em kg"""
+        return self.quantidade * self.amperagem.peso_kg
+
+    @property
+    def valor_total_troca(self):
+        """Valor total em cascos (preço de troca)"""
+        return self.quantidade * self.amperagem.valor_casco_troca
+
+    @property
+    def valor_total_compra(self):
+        """Valor total em cascos (preço de compra)"""
+        return self.quantidade * self.amperagem.valor_casco_compra
+
+
+# ==========================================
+# MODELO: MOVIMENTAÇÃO DE CASCO
+# ==========================================
+class MovimentacaoCasco(models.Model):
+    """
+    Histórico de movimentações de cascos.
+    Registra entradas e saídas com motivo.
+    """
+    TIPO_CHOICES = [
+        ('E', 'Entrada'),
+        ('S', 'Saída'),
+    ]
+    
+    MOTIVO_CHOICES = [
+        ('VENDA_COM_TROCA', 'Venda com troca de casco'),
+        ('VENDA_SEM_TROCA', 'Venda sem troca de casco'),
+        ('COMPRA_BATERIA', 'Compra de bateria nova'),
+        ('COMPRA_CASCO', 'Compra de casco avulso'),
+        ('VENDA_CASCO', 'Venda de casco para reciclagem'),
+        ('CASCO_EXTRA', 'Casco extra do cliente'),
+        ('AJUSTE', 'Ajuste de estoque'),
+        ('DEVOLUCAO', 'Devolução'),
+    ]
+
+    amperagem = models.ForeignKey(
+        AmperagemBateria,
+        on_delete=models.CASCADE,
+        related_name='movimentacoes',
+        verbose_name='Amperagem'
+    )
+    tipo = models.CharField(
+        max_length=1,
+        choices=TIPO_CHOICES,
+        verbose_name='Tipo'
+    )
+    motivo = models.CharField(
+        max_length=20,
+        choices=MOTIVO_CHOICES,
+        verbose_name='Motivo'
+    )
+    quantidade = models.IntegerField(
+        default=1,
+        verbose_name='Quantidade'
+    )
+    venda = models.ForeignKey(
+        'vendas.Venda',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='movimentacoes_casco',
+        verbose_name='Venda Relacionada'
+    )
+    observacao = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Observação'
+    )
+    data_movimentacao = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Data da Movimentação'
+    )
+    usuario = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name='Usuário'
+    )
+
+    class Meta:
+        verbose_name = 'Movimentação de Casco'
+        verbose_name_plural = 'Movimentações de Casco'
+        ordering = ['-data_movimentacao']
+
+    def __str__(self):
+        tipo_str = 'Entrada' if self.tipo == 'E' else 'Saída'
+        return f"{tipo_str} - {self.amperagem.amperagem} - {self.quantidade} un"
+
+    def save(self, *args, **kwargs):
+        """Atualiza o estoque de cascos automaticamente"""
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        if is_new:
+            estoque, created = EstoqueCasco.objects.get_or_create(
+                amperagem=self.amperagem,
+                defaults={'quantidade': 0}
+            )
+            
+            if self.tipo == 'E':
+                estoque.quantidade += self.quantidade
+            else:  # Saída
+                estoque.quantidade -= self.quantidade
+            
+            estoque.save()
+
+
+# ==========================================
+# MODELO: ITEM VENDA BATERIA (extensão)
+# ==========================================
+class ItemVendaBateria(models.Model):
+    """
+    Informações adicionais para vendas de bateria.
+    Vinculado ao ItemVenda quando o produto é uma bateria.
+    """
+    item_venda = models.OneToOneField(
+        'vendas.ItemVenda',
+        on_delete=models.CASCADE,
+        related_name='info_bateria',
+        verbose_name='Item da Venda'
+    )
+    
+    # Bateria vendida
+    amperagem_vendida = models.ForeignKey(
+        AmperagemBateria,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='vendas_bateria',
+        verbose_name='Amperagem Vendida'
+    )
+    
+    # Casco recebido (troca)
+    cliente_trouxe_casco = models.BooleanField(
+        default=True,
+        verbose_name='Cliente Trouxe Casco'
+    )
+    amperagem_casco_recebido = models.ForeignKey(
+        AmperagemBateria,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='cascos_recebidos',
+        verbose_name='Amperagem do Casco Recebido'
+    )
+    
+    # Valores
+    valor_casco_vendido = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Valor Casco Vendido',
+        help_text='Valor do casco da bateria vendida'
+    )
+    valor_casco_recebido = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Valor Casco Recebido',
+        help_text='Valor do casco que o cliente trouxe'
+    )
+    diferenca_casco = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name='Diferença de Casco',
+        help_text='Positivo = acréscimo, Negativo = desconto'
+    )
+
+    class Meta:
+        verbose_name = 'Info Bateria da Venda'
+        verbose_name_plural = 'Info Baterias das Vendas'
+
+    def __str__(self):
+        status = "com troca" if self.cliente_trouxe_casco else "sem troca"
+        return f"Bateria {self.amperagem_vendida} - {status}"
+
+    def calcular_diferenca(self):
+        """
+        Calcula a diferença de valor entre o casco vendido e recebido.
+        Retorno positivo = cliente paga mais (acréscimo)
+        Retorno negativo = cliente paga menos (desconto)
+        """
+        if not self.cliente_trouxe_casco:
+            # Sem troca = cliente paga o valor do casco
+            self.diferenca_casco = self.valor_casco_vendido
+        else:
+            # Com troca = diferença entre cascos
+            self.diferenca_casco = self.valor_casco_vendido - self.valor_casco_recebido
+        
+        return self.diferenca_casco

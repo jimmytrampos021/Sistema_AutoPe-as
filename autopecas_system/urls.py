@@ -120,6 +120,25 @@ urlpatterns = [
     path('api/modelos/', core_views.api_buscar_modelos, name='api_buscar_modelos'),
     path('api/versoes/', core_views.api_buscar_versoes, name='api_buscar_versoes'),
     path('api/subcategorias/', core_views.api_buscar_subcategorias, name='api_buscar_subcategorias'),
+    path('api/grupos/', core_views.api_buscar_grupos, name='api_buscar_grupos'),
+    path('api/subgrupos/', core_views.api_buscar_subgrupos, name='api_buscar_subgrupos'),
+
+    # Grupos
+    path('subcategorias/<int:subcategoria_id>/grupo/novo/', core_views.criar_grupo, name='criar_grupo'),
+    path('grupos/<int:grupo_id>/editar/', core_views.editar_grupo, name='editar_grupo'),
+    path('grupos/<int:grupo_id>/deletar/', core_views.deletar_grupo, name='deletar_grupo'),
+
+    # Subgrupos
+    path('grupos/<int:grupo_id>/subgrupo/novo/', core_views.criar_subgrupo, name='criar_subgrupo'),
+    path('subgrupos/<int:subgrupo_id>/editar/', core_views.editar_subgrupo, name='editar_subgrupo'),
+    path('subgrupos/<int:subgrupo_id>/deletar/', core_views.deletar_subgrupo, name='deletar_subgrupo'),
+    
+    # APIs de Bateria / Casco
+    path('api/baterias/amperagens/', core_views.api_amperagens_bateria, name='api_amperagens_bateria'),
+    path('api/baterias/calcular-casco/', core_views.api_calcular_casco, name='api_calcular_casco'),
+    path('api/baterias/estoque-cascos/', core_views.api_estoque_cascos, name='api_estoque_cascos'),
+    path('api/baterias/movimentar-casco/', core_views.api_movimentar_casco, name='api_movimentar_casco'),
+
 
 ]
    

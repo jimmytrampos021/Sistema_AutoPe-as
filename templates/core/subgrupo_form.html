@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if editando %}Editar{% else %}Novo{% endif %} Subgrupo - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}{% if editando %}Editar{% else %}Novo{% endif %} Subgrupo{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-tag"></i>
+                        {% if editando %}Editar Subgrupo{% else %}Novo Subgrupo{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Breadcrumb da hierarquia -->
+                    <div class="alert alert-light mb-4">
+                        <small class="text-muted">
+                            <i class="bi bi-diagram-3"></i> Hierarquia:
+                        </small>
+                        <br>
+                        <strong>{{ grupo.subcategoria.categoria.nome }}</strong>
+                        <i class="bi bi-chevron-right mx-1"></i>
+                        <strong>{{ grupo.subcategoria.nome }}</strong>
+                        <i class="bi bi-chevron-right mx-1"></i>
+                        <strong>{{ grupo.nome }}</strong>
+                        <i class="bi bi-chevron-right mx-1"></i>
+                        <span class="text-info">{% if editando %}{{ subgrupo.nome }}{% else %}Novo Subgrupo{% endif %}</span>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Nome do Subgrupo *</label>
+                            <input type="text" name="nome" class="form-control" 
+                                   value="{{ subgrupo.nome|default:'' }}" 
+                                   placeholder="Ex: Sensor de Temperatura, Sensor de Pressão..."
+                                   required autofocus>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Descrição</label>
+                            <textarea name="descricao" class="form-control" rows="3"
+                                      placeholder="Descrição opcional do subgrupo">{{ subgrupo.descricao|default:'' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" name="ativo" class="form-check-input" id="ativo"
+                                   {% if subgrupo.ativo or not editando %}checked{% endif %}>
+                            <label class="form-check-label" for="ativo">Ativo</label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'lista_categorias' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Voltar
+                            </a>
+                            <button type="submit" class="btn btn-info">
+                                <i class="bi bi-check-lg"></i> {% if editando %}Salvar{% else %}Criar Subgrupo{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

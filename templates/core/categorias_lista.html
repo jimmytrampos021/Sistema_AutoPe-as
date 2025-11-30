@@ -6,256 +6,430 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Estatísticas -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="stat-card primary">
-                <div class="icon"><i class="bi bi-folder"></i></div>
-                <div>
-                    <h3>{{ stats.total_categorias }}</h3>
-                    <p>Categorias</p>
-                </div>
-            </div>
+    <!-- Estatísticas + Ação -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="d-flex gap-3 flex-wrap">
+            <span class="stat-badge primary"><i class="bi bi-folder"></i> {{ stats.total_categorias }} Categorias</span>
+            <span class="stat-badge success"><i class="bi bi-folder2"></i> {{ stats.total_subcategorias }} Subcat.</span>
+            <span class="stat-badge warning"><i class="bi bi-collection"></i> {{ stats.total_grupos }} Grupos</span>
+            <span class="stat-badge info"><i class="bi bi-tags"></i> {{ stats.total_subgrupos }} Subgrupos</span>
         </div>
-        <div class="col-md-4">
-            <div class="stat-card success">
-                <div class="icon"><i class="bi bi-tags"></i></div>
-                <div>
-                    <h3>{{ stats.total_subcategorias }}</h3>
-                    <p>Subcategorias</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="stat-card info">
-                <div class="icon"><i class="bi bi-box-seam"></i></div>
-                <div>
-                    <h3>{{ categorias.0.produtos.count|default:0 }}</h3>
-                    <p>Produtos Categorizados</p>
-                </div>
-            </div>
-        </div>
+        <a href="{% url 'criar_categoria' %}" class="btn btn-success btn-sm">
+            <i class="bi bi-plus"></i> Nova Categoria
+        </a>
     </div>
 
-    <!-- Ações -->
-    <div class="card mb-4">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Lista de Categorias e Subcategorias</h5>
-            <a href="{% url 'criar_categoria' %}" class="btn btn-success">
-                <i class="bi bi-plus-circle"></i> Nova Categoria
-            </a>
-        </div>
-    </div>
-
-    <!-- Lista de Categorias -->
+    <!-- Grid de Categorias - 4 por linha -->
     <div class="row">
         {% for categoria in categorias %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="categoria-card">
-                <div class="categoria-header">
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+            <div class="cat-card">
+                <!-- Header Categoria -->
+                <div class="cat-header">
                     <div class="d-flex align-items-center">
-                        <div class="categoria-icon">
-                            <i class="{{ categoria.icone }}"></i>
-                        </div>
-                        <div class="flex-grow-1">
-                            <h5 class="mb-0">{{ categoria.nome }}</h5>
-                            <small class="text-muted">{{ categoria.produtos.count }} produtos</small>
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light" data-bs-toggle="dropdown">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu">
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'editar_categoria' categoria.id %}">
-                                        <i class="bi bi-pencil"></i> Editar
-                                    </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'criar_subcategoria' categoria.id %}">
-                                        <i class="bi bi-plus"></i> Nova Subcategoria
-                                    </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item text-danger" href="{% url 'deletar_categoria' categoria.id %}" 
-                                       onclick="return confirm('Deseja realmente remover esta categoria?')">
-                                        <i class="bi bi-trash"></i> Remover
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
+                        <i class="bi bi-folder-fill me-2"></i>
+                        <strong class="flex-grow-1 text-truncate">{{ categoria.nome }}</strong>
                     </div>
-                    {% if categoria.descricao %}
-                    <p class="mt-2 mb-0 text-muted small">{{ categoria.descricao }}</p>
-                    {% endif %}
-                </div>
-                
-                <div class="categoria-body">
-                    {% if categoria.subcategorias.exists %}
-                    <div class="subcategorias-lista">
-                        {% for sub in categoria.subcategorias.all %}
-                        {% if sub.ativo %}
-                        <div class="subcategoria-item">
-                            <span>
-                                <i class="bi bi-tag"></i> {{ sub.nome }}
-                                <small class="text-muted">({{ sub.produtos.count }})</small>
-                            </span>
-                            <div>
-                                <a href="{% url 'editar_subcategoria' sub.id %}" class="btn btn-sm btn-link">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'deletar_subcategoria' sub.id %}" class="btn btn-sm btn-link text-danger"
-                                   onclick="return confirm('Remover subcategoria?')">
-                                    <i class="bi bi-trash"></i>
-                                </a>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                    {% else %}
-                    <div class="text-center text-muted py-3">
-                        <small>Nenhuma subcategoria</small>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="text-center mt-2">
-                        <a href="{% url 'criar_subcategoria' categoria.id %}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-plus"></i> Adicionar Subcategoria
+                    <div class="cat-actions mt-2">
+                        <a href="{% url 'criar_subcategoria' categoria.id %}" class="btn btn-sm btn-light" title="Nova Subcategoria">
+                            <i class="bi bi-plus"></i> Sub
                         </a>
+                        <a href="{% url 'editar_categoria' categoria.id %}" class="btn btn-sm btn-light" title="Editar">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'deletar_categoria' categoria.id %}" class="btn btn-sm btn-light text-danger" 
+                           onclick="return confirm('Remover categoria?')" title="Remover">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Estatísticas do Card -->
+                <div class="cat-stats">
+                    <div class="stat-item">
+                        <span class="stat-number">{{ categoria.subcategorias.count }}</span>
+                        <span class="stat-label">Subcategorias</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number">{{ categoria.produtos.count }}</span>
+                        <span class="stat-label">Produtos</span>
+                    </div>
+                </div>
+
+                <!-- Lista de Subcategorias -->
+                <div class="cat-body">
+                    <div class="cat-body-header collapsed" data-bs-toggle="collapse" data-bs-target="#cat-{{ categoria.id }}">
+                        <span class="toggle-icon">
+                            <i class="bi bi-chevron-right"></i>
+                        </span>
+                        <span>Ver subcategorias</span>
+                    </div>
+                    
+                    <div class="collapse" id="cat-{{ categoria.id }}">
+                        <div class="subcategorias-list">
+                            {% for sub in categoria.subcategorias.all %}
+                            {% if sub.ativo %}
+                            <div class="sub-item">
+                                <div class="sub-header">
+                                    <span class="sub-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#sub-{{ sub.id }}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </span>
+                                    <i class="bi bi-folder2 text-success me-1"></i>
+                                    <span class="flex-grow-1 text-truncate" title="{{ sub.nome }}">{{ sub.nome }}</span>
+                                    <span class="badge-count" title="Grupos">{{ sub.grupos.count }}</span>
+                                    <div class="item-actions">
+                                        <a href="{% url 'criar_grupo' sub.id %}" title="Novo Grupo"><i class="bi bi-plus"></i></a>
+                                        <a href="{% url 'editar_subcategoria' sub.id %}" title="Editar"><i class="bi bi-pencil"></i></a>
+                                        <a href="{% url 'deletar_subcategoria' sub.id %}" class="text-danger" onclick="return confirm('Remover?')"><i class="bi bi-trash"></i></a>
+                                    </div>
+                                </div>
+
+                                <!-- Grupos -->
+                                <div class="collapse" id="sub-{{ sub.id }}">
+                                    {% for grupo in sub.grupos.all %}
+                                    {% if grupo.ativo %}
+                                    <div class="grupo-item">
+                                        <div class="grupo-header">
+                                            <span class="grupo-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#grp-{{ grupo.id }}">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </span>
+                                            <i class="bi bi-collection text-warning me-1"></i>
+                                            <span class="flex-grow-1 text-truncate" title="{{ grupo.nome }}">{{ grupo.nome }}</span>
+                                            <span class="badge-count" title="Subgrupos">{{ grupo.subgrupos.count }}</span>
+                                            <div class="item-actions">
+                                                <a href="{% url 'criar_subgrupo' grupo.id %}" title="Novo Subgrupo"><i class="bi bi-plus"></i></a>
+                                                <a href="{% url 'editar_grupo' grupo.id %}"><i class="bi bi-pencil"></i></a>
+                                                <a href="{% url 'deletar_grupo' grupo.id %}" class="text-danger" onclick="return confirm('Remover?')"><i class="bi bi-trash"></i></a>
+                                            </div>
+                                        </div>
+
+                                        <!-- Subgrupos -->
+                                        <div class="collapse" id="grp-{{ grupo.id }}">
+                                            {% for subgrupo in grupo.subgrupos.all %}
+                                            {% if subgrupo.ativo %}
+                                            <div class="subgrupo-item">
+                                                <i class="bi bi-tag text-info me-1"></i>
+                                                <span class="flex-grow-1 text-truncate" title="{{ subgrupo.nome }}">{{ subgrupo.nome }}</span>
+                                                <div class="item-actions">
+                                                    <a href="{% url 'editar_subgrupo' subgrupo.id %}"><i class="bi bi-pencil"></i></a>
+                                                    <a href="{% url 'deletar_subgrupo' subgrupo.id %}" class="text-danger" onclick="return confirm('Remover?')"><i class="bi bi-trash"></i></a>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% empty %}
+                                            <div class="empty-msg"><i class="bi bi-info-circle"></i> Nenhum subgrupo</div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% empty %}
+                                    <div class="empty-msg"><i class="bi bi-info-circle"></i> Nenhum grupo</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% empty %}
+                            <div class="empty-msg"><i class="bi bi-info-circle"></i> Nenhuma subcategoria</div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         {% empty %}
-        <div class="col-12">
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                <p class="mt-3">Nenhuma categoria cadastrada</p>
-                <a href="{% url 'criar_categoria' %}" class="btn btn-primary">
-                    <i class="bi bi-plus-circle"></i> Criar Primeira Categoria
-                </a>
-            </div>
+        <div class="col-12 text-center text-muted py-5">
+            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+            <p class="mt-2 mb-2">Nenhuma categoria cadastrada</p>
+            <a href="{% url 'criar_categoria' %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus"></i> Criar Categoria
+            </a>
         </div>
         {% endfor %}
     </div>
 </div>
 
 <style>
-.stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    display: flex;
+/* Stat Badges Topo */
+.stat-badge {
+    display: inline-flex;
     align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    background: #f0f0f0;
 }
+.stat-badge i { font-size: 14px; }
+.stat-badge.primary { background: #e8eaff; color: #667eea; }
+.stat-badge.success { background: #e6fff0; color: #10b981; }
+.stat-badge.warning { background: #fff5f5; color: #f5576c; }
+.stat-badge.info { background: #e6f7ff; color: #4facfe; }
 
-.stat-card .icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    margin-right: 15px;
-}
-
-.stat-card.primary .icon {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.stat-card.success .icon {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    color: white;
-}
-
-.stat-card.info .icon {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-    color: white;
-}
-
-.stat-card h3 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: bold;
-    color: #2d3748;
-}
-
-.stat-card p {
-    margin: 0;
-    color: #718096;
-    font-size: 14px;
-}
-
-.categoria-card {
+/* Card Principal */
+.cat-card {
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    overflow: hidden;
-    transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.categoria-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.categoria-header {
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.categoria-icon {
-    width: 50px;
-    height: 50px;
-    background: rgba(255,255,255,0.2);
     border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+    height: 100%;
+    min-height: 220px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    margin-right: 15px;
+    flex-direction: column;
 }
 
-.categoria-header h5 {
+/* Header do Card */
+.cat-header {
+    padding: 12px 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
 }
-
-.categoria-header .text-muted {
-    color: rgba(255,255,255,0.8) !important;
+.cat-header strong {
+    font-size: 15px;
+}
+.cat-actions {
+    display: flex;
+    gap: 5px;
+}
+.cat-actions .btn {
+    padding: 3px 8px;
+    font-size: 11px;
 }
 
-.categoria-body {
-    padding: 15px;
+/* Estatísticas do Card */
+.cat-stats {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 10px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+}
+.stat-item {
+    text-align: center;
+}
+.stat-number {
+    display: block;
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+}
+.stat-label {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
 }
 
-.subcategorias-lista {
-    max-height: 200px;
+/* Body do Card */
+.cat-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.cat-body-header {
+    padding: 10px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #666;
+    border-bottom: 1px solid #eee;
+}
+.cat-body-header:hover {
+    background: #f8f9fa;
+    color: #333;
+}
+
+/* Toggle Icon */
+.toggle-icon, .sub-toggle, .grupo-toggle {
+    display: inline-flex;
+    transition: transform 0.2s;
+}
+.toggle-icon i, .sub-toggle i, .grupo-toggle i {
+    transition: transform 0.2s;
+    font-size: 12px;
+}
+.cat-body-header:not(.collapsed) .toggle-icon i,
+.sub-toggle:not(.collapsed) i,
+.grupo-toggle:not(.collapsed) i {
+    transform: rotate(90deg);
+}
+
+/* Lista de Subcategorias */
+.subcategorias-list {
+    max-height: 300px;
     overflow-y: auto;
 }
 
-.subcategoria-item {
+/* Subcategoria Item */
+.sub-item {
+    border-bottom: 1px solid #f0f0f0;
+}
+.sub-item:last-child {
+    border-bottom: none;
+}
+.sub-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    border-radius: 6px;
-    margin-bottom: 5px;
-    background: #f7fafc;
+    font-size: 12px;
+    background: #fff;
+}
+.sub-header:hover {
+    background: #f5f5f5;
+}
+.sub-toggle {
+    cursor: pointer;
+    margin-right: 5px;
 }
 
-.subcategoria-item:hover {
-    background: #edf2f7;
+/* Grupo Item */
+.grupo-item {
+    border-top: 1px solid #f0f0f0;
+}
+.grupo-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 12px 6px 25px;
+    font-size: 11px;
+    background: #fafafa;
+}
+.grupo-header:hover {
+    background: #f0f0f0;
+}
+.grupo-toggle {
+    cursor: pointer;
+    margin-right: 5px;
 }
 
-.card {
-    border: none;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+/* Subgrupo Item */
+.subgrupo-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px 5px 40px;
+    font-size: 11px;
+    background: #f8f8f8;
+    border-top: 1px solid #eee;
+}
+.subgrupo-item:hover {
+    background: #f0f0f0;
+}
+
+/* Badge Count */
+.badge-count {
+    background: #e9ecef;
+    color: #666;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    margin-right: 5px;
+    min-width: 20px;
+    text-align: center;
+}
+
+/* Item Actions - aparecem no hover */
+.item-actions {
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.sub-header:hover .item-actions,
+.grupo-header:hover .item-actions,
+.subgrupo-item:hover .item-actions {
+    opacity: 1;
+}
+.item-actions a {
+    color: #999;
+    font-size: 11px;
+    padding: 2px;
+}
+.item-actions a:hover {
+    color: #667eea;
+}
+.item-actions a.text-danger:hover {
+    color: #dc3545;
+}
+
+/* Empty Message */
+.empty-msg {
+    padding: 10px 15px;
+    font-size: 11px;
+    color: #aaa;
+    text-align: center;
+}
+
+/* Dark Mode */
+body.dark-mode .stat-badge { background: #333; }
+body.dark-mode .stat-badge.primary { background: #3d3d6b; color: #a8b4ff; }
+body.dark-mode .stat-badge.success { background: #1a3d2e; color: #6ee7b7; }
+body.dark-mode .stat-badge.warning { background: #3d2a2a; color: #fca5a5; }
+body.dark-mode .stat-badge.info { background: #1a3d4d; color: #7dd3fc; }
+
+body.dark-mode .cat-card {
+    background: #2d2d2d;
+}
+body.dark-mode .cat-stats {
+    background: #252525;
+    border-color: #444;
+}
+body.dark-mode .stat-number {
+    color: #e0e0e0;
+}
+body.dark-mode .cat-body-header {
+    border-color: #444;
+    color: #aaa;
+}
+body.dark-mode .cat-body-header:hover {
+    background: #333;
+    color: #fff;
+}
+body.dark-mode .sub-header {
+    background: #2d2d2d;
+}
+body.dark-mode .sub-header:hover {
+    background: #383838;
+}
+body.dark-mode .sub-item {
+    border-color: #444;
+}
+body.dark-mode .grupo-header {
+    background: #252525;
+}
+body.dark-mode .grupo-header:hover {
+    background: #333;
+}
+body.dark-mode .grupo-item {
+    border-color: #444;
+}
+body.dark-mode .subgrupo-item {
+    background: #1f1f1f;
+    border-color: #333;
+}
+body.dark-mode .subgrupo-item:hover {
+    background: #2d2d2d;
+}
+body.dark-mode .badge-count {
+    background: #444;
+    color: #aaa;
+}
+body.dark-mode .empty-msg {
+    color: #666;
 }
 </style>
+
+<script>
+// Toggle de expandir/colapsar
+document.querySelectorAll('.cat-body-header').forEach(el => {
+    el.addEventListener('click', function() {
+        this.classList.toggle('collapsed');
+    });
+});
+
+document.querySelectorAll('.sub-toggle, .grupo-toggle').forEach(el => {
+    el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        this.classList.toggle('collapsed');
+    });
+});
+</script>
 {% endblock %}

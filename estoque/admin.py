@@ -4,7 +4,7 @@ from django.utils.html import format_html
 from django.urls import reverse
 from decimal import Decimal
 from .models import (
-    Categoria, Subcategoria, Aplicacao, Fabricante, Fornecedor,
+    Categoria, Subcategoria, Grupo, Subgrupo, Aplicacao, Fabricante, Fornecedor,
     Produto, MovimentacaoEstoque, HistoricoPreco,
     Montadora, VeiculoModelo, VeiculoVersao
 )
@@ -82,6 +82,22 @@ class SubcategoriaInline(admin.TabularInline):
     model = Subcategoria
     extra = 1
     fields = ['nome', 'descricao', 'ativo']
+
+@admin.register(Grupo)
+class GrupoAdmin(admin.ModelAdmin):
+    list_display = ['nome', 'subcategoria', 'ativo']
+    list_filter = ['ativo', 'subcategoria__categoria', 'subcategoria']
+    search_fields = ['nome', 'descricao']
+    list_editable = ['ativo']
+
+
+@admin.register(Subgrupo)
+class SubgrupoAdmin(admin.ModelAdmin):
+    list_display = ['nome', 'grupo', 'ativo']
+    list_filter = ['ativo', 'grupo__subcategoria__categoria', 'grupo__subcategoria', 'grupo']
+    search_fields = ['nome', 'descricao']
+    list_editable = ['ativo']
+
 
 
 # ==========================================

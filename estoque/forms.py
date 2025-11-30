@@ -6,7 +6,7 @@
 
 from django import forms
 from decimal import Decimal
-from estoque.models import Produto, Categoria, Subcategoria, Fabricante, Fornecedor
+from estoque.models import Produto, Categoria, Subcategoria, Grupo, Subgrupo, Fabricante, Fornecedor, AmperagemBateria
 
 
 class ProdutoForm(forms.ModelForm):
@@ -24,7 +24,10 @@ class ProdutoForm(forms.ModelForm):
             'descricao', 'descricao_detalhada',
             
             # Categorização
-            'categoria', 'subcategoria', 'fabricante', 'fornecedor_principal',
+            'categoria', 'subcategoria', 'grupo', 'subgrupo', 'fabricante', 'fornecedor_principal',
+
+            # Bateria
+            'amperagem_bateria',
             
             # Localização
             'loja', 'setor', 'prateleira', 'divisao_prateleira',
@@ -91,10 +94,21 @@ class ProdutoForm(forms.ModelForm):
             'subcategoria': forms.Select(attrs={
                 'class': 'form-select',
             }),
+            'grupo': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+            'subgrupo': forms.Select(attrs={
+                'class': 'form-select',
+            }),
             'fabricante': forms.Select(attrs={
                 'class': 'form-select',
             }),
             'fornecedor_principal': forms.Select(attrs={
+                'class': 'form-select',
+            }),
+
+            # Bateria
+            'amperagem_bateria': forms.Select(attrs={
                 'class': 'form-select',
             }),
             
@@ -655,15 +669,15 @@ class ProdutoSimplificadoForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # ✅ CORRIGIDO: Apenas 'descricao' é obrigatória
-        # Todos os outros campos são opcionais
         for field_name, field in self.fields.items():
             if field_name != 'descricao':
                 field.required = False
         
-        # Garantir que descricao é obrigatória
         self.fields['descricao'].required = True
         
-        # Filtrar subcategorias pela categoria selecionada
+        # ============================================================
+        # FILTRAR SUBCATEGORIAS PELA CATEGORIA
+        # ============================================================
         if 'categoria' in self.data:
             try:
                 categoria_id = int(self.data.get('categoria'))
@@ -679,6 +693,46 @@ class ProdutoSimplificadoForm(forms.ModelForm):
             ).order_by('nome')
         else:
             self.fields['subcategoria'].queryset = Subcategoria.objects.none()
+        
+        # ============================================================
+        # FILTRAR GRUPOS PELA SUBCATEGORIA
+        # ============================================================
+        if 'subcategoria' in self.data:
+            try:
+                subcategoria_id = int(self.data.get('subcategoria'))
+                self.fields['grupo'].queryset = Grupo.objects.filter(
+                    subcategoria_id=subcategoria_id,
+                    ativo=True
+                ).order_by('nome')
+            except (ValueError, TypeError):
+                self.fields['grupo'].queryset = Grupo.objects.none()
+        elif self.instance.pk and hasattr(self.instance, 'subcategoria') and self.instance.subcategoria:
+            self.fields['grupo'].queryset = Grupo.objects.filter(
+                subcategoria=self.instance.subcategoria,
+                ativo=True
+            ).order_by('nome')
+        else:
+            self.fields['grupo'].queryset = Grupo.objects.none()
+        
+        # ============================================================
+        # FILTRAR SUBGRUPOS PELO GRUPO
+        # ============================================================
+        if 'grupo' in self.data:
+            try:
+                grupo_id = int(self.data.get('grupo'))
+                self.fields['subgrupo'].queryset = Subgrupo.objects.filter(
+                    grupo_id=grupo_id,
+                    ativo=True
+                ).order_by('nome')
+            except (ValueError, TypeError):
+                self.fields['subgrupo'].queryset = Subgrupo.objects.none()
+        elif self.instance.pk and hasattr(self.instance, 'grupo') and self.instance.grupo:
+            self.fields['subgrupo'].queryset = Subgrupo.objects.filter(
+                grupo=self.instance.grupo,
+                ativo=True
+            ).order_by('nome')
+        else:
+            self.fields['subgrupo'].queryset = Subgrupo.objects.none()
     
     def clean_descricao(self):
         """Validar descrição (único campo obrigatório)"""

@@ -125,44 +125,79 @@
                                                   rows="3">{{ form.descricao_detalhada.value|default:'' }}</textarea>
                                     </div>
                                     
-                                    <div class="col-md-4">
+                                    <div class="col-md-6">
                                         <label class="form-label">Categoria</label>
-                                        <select name="categoria" class="form-select">
+                                        <select name="categoria" id="id_categoria" class="form-select">
                                             <option value="">Selecione...</option>
-                                            {% for categoria in form.fields.categoria.queryset %}
-                                            <option value="{{ categoria.id }}" 
-                                                    {% if form.categoria.value == categoria.id %}selected{% endif %}>
-                                                {{ categoria.nome }}
+                                            {% for cat in categorias %}
+                                            <option value="{{ cat.id }}" 
+                                                    {% if form.categoria.value|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>
+                                                {{ cat.nome }}
                                             </option>
                                             {% endfor %}
                                         </select>
                                     </div>
-                                    
-                                    <div class="col-md-4">
+
+                                    <div class="col-md-6">
                                         <label class="form-label">Subcategoria</label>
-                                        <select name="subcategoria" class="form-select">
-                                            <option value="">Selecione...</option>
-                                            {% for sub in form.fields.subcategoria.queryset %}
-                                            <option value="{{ sub.id }}" 
-                                                    {% if form.subcategoria.value == sub.id %}selected{% endif %}>
-                                                {{ sub.nome }}
-                                            </option>
-                                            {% endfor %}
+                                        <select name="subcategoria" id="id_subcategoria" class="form-select">
+                                            <option value="">Selecione a categoria primeiro...</option>
                                         </select>
                                     </div>
-                                    
-                                    <div class="col-md-4">
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Grupo</label>
+                                        <select name="grupo" id="id_grupo" class="form-select">
+                                            <option value="">Selecione a subcategoria primeiro...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Subgrupo</label>
+                                        <select name="subgrupo" id="id_subgrupo" class="form-select">
+                                            <option value="">Selecione o grupo primeiro...</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
                                         <label class="form-label">Fabricante</label>
                                         <select name="fabricante" class="form-select">
                                             <option value="">Selecione...</option>
                                             {% for fab in form.fields.fabricante.queryset %}
                                             <option value="{{ fab.id }}" 
-                                                    {% if form.fabricante.value == fab.id %}selected{% endif %}>
+                                                    {% if form.fabricante.value|stringformat:"s" == fab.id|stringformat:"s" %}selected{% endif %}>
                                                 {{ fab.nome }}
                                             </option>
                                             {% endfor %}
                                         </select>
                                     </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Referência Fabricante</label>
+                                <input type="text" name="referencia_fabricante" 
+                                    class="form-control" 
+                                    value="{{ form.referencia_fabricante.value|default:'' }}"
+                                    placeholder="Código original do fabricante">
+                            </div>
+
+                            <!-- CAMPO DE BATERIA - AMPERAGEM -->
+                            <div class="col-md-6">
+                                <label class="form-label">
+                                    <i class="bi bi-battery-charging text-warning"></i> Amperagem (Bateria)
+                                </label>
+                                <select name="amperagem_bateria" id="id_amperagem_bateria" class="form-select">
+                                    <option value="">Não é bateria</option>
+                                    {% for amp in amperagens %}
+                                    <option value="{{ amp.id }}" 
+                                            {% if form.amperagem_bateria.value|stringformat:"s" == amp.id|stringformat:"s" %}selected{% endif %}
+                                            data-valor-casco="{{ amp.valor_casco_troca }}">
+                                        {{ amp.amperagem }} {% if amp.nome_tecnico %}({{ amp.nome_tecnico }}){% endif %} - Casco: R$ {{ amp.valor_casco_troca }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Selecione apenas se o produto for uma bateria</small>
+                            </div>
+                            
                                 </div>
                             </div>
                         </div>
@@ -1602,6 +1637,167 @@ styleTag.innerHTML = `
     }
 `;
 document.head.appendChild(styleTag);
+
+
+$(document).ready(function() {
+    
+    const $categoria = $('#id_categoria');
+    const $subcategoria = $('#id_subcategoria');
+    const $grupo = $('#id_grupo');
+    const $subgrupo = $('#id_subgrupo');
+    
+    // Valores iniciais (para quando estiver editando um produto)
+    const categoriaInicial = '{{ form.categoria.value|default:"" }}';
+    const subcategoriaInicial = '{{ form.subcategoria.value|default:"" }}';
+    const grupoInicial = '{{ form.grupo.value|default:"" }}';
+    const subgrupoInicial = '{{ form.subgrupo.value|default:"" }}';
+    
+    // ============================================================
+    // CATEGORIA -> SUBCATEGORIA
+    // ============================================================
+    $categoria.on('change', function() {
+        const categoriaId = $(this).val();
+        
+        // Limpar selects dependentes
+        $subcategoria.html('<option value="">Carregando...</option>');
+        $grupo.html('<option value="">Selecione a subcategoria primeiro...</option>');
+        $subgrupo.html('<option value="">Selecione o grupo primeiro...</option>');
+        
+        if (!categoriaId) {
+            $subcategoria.html('<option value="">Selecione a categoria primeiro...</option>');
+            return;
+        }
+        
+        // Buscar subcategorias via AJAX
+        $.ajax({
+            url: '/api/subcategorias/',
+            data: { categoria_id: categoriaId },
+            dataType: 'json',
+            success: function(response) {
+                let options = '<option value="">Selecione...</option>';
+                
+                const dados = response.subcategorias || response.resultados || [];
+                
+                if (dados.length > 0) {
+                    dados.forEach(function(item) {
+                        const selected = (item.id == subcategoriaInicial) ? 'selected' : '';
+                        options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+                    });
+                } else {
+                    options = '<option value="">Nenhuma subcategoria cadastrada</option>';
+                }
+                
+                $subcategoria.html(options);
+                
+                // Se tinha valor inicial, disparar change para carregar grupos
+                if (subcategoriaInicial && $subcategoria.val()) {
+                    $subcategoria.trigger('change');
+                }
+            },
+            error: function() {
+                $subcategoria.html('<option value="">Erro ao carregar</option>');
+            }
+        });
+    });
+    
+    // ============================================================
+    // SUBCATEGORIA -> GRUPO
+    // ============================================================
+    $subcategoria.on('change', function() {
+        const subcategoriaId = $(this).val();
+        
+        // Limpar selects dependentes
+        $grupo.html('<option value="">Carregando...</option>');
+        $subgrupo.html('<option value="">Selecione o grupo primeiro...</option>');
+        
+        if (!subcategoriaId) {
+            $grupo.html('<option value="">Selecione a subcategoria primeiro...</option>');
+            return;
+        }
+        
+        // Buscar grupos via AJAX
+        $.ajax({
+            url: '/api/grupos/',
+            data: { subcategoria_id: subcategoriaId },
+            dataType: 'json',
+            success: function(response) {
+                let options = '<option value="">Selecione...</option>';
+                
+                const dados = response.grupos || [];
+                
+                if (dados.length > 0) {
+                    dados.forEach(function(item) {
+                        const selected = (item.id == grupoInicial) ? 'selected' : '';
+                        options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+                    });
+                } else {
+                    options = '<option value="">Nenhum grupo cadastrado</option>';
+                }
+                
+                $grupo.html(options);
+                
+                // Se tinha valor inicial, disparar change para carregar subgrupos
+                if (grupoInicial && $grupo.val()) {
+                    $grupo.trigger('change');
+                }
+            },
+            error: function() {
+                $grupo.html('<option value="">Erro ao carregar</option>');
+            }
+        });
+    });
+    
+    // ============================================================
+    // GRUPO -> SUBGRUPO
+    // ============================================================
+    $grupo.on('change', function() {
+        const grupoId = $(this).val();
+        
+        // Limpar select dependente
+        $subgrupo.html('<option value="">Carregando...</option>');
+        
+        if (!grupoId) {
+            $subgrupo.html('<option value="">Selecione o grupo primeiro...</option>');
+            return;
+        }
+        
+        // Buscar subgrupos via AJAX
+        $.ajax({
+            url: '/api/subgrupos/',
+            data: { grupo_id: grupoId },
+            dataType: 'json',
+            success: function(response) {
+                let options = '<option value="">Selecione...</option>';
+                
+                const dados = response.subgrupos || [];
+                
+                if (dados.length > 0) {
+                    dados.forEach(function(item) {
+                        const selected = (item.id == subgrupoInicial) ? 'selected' : '';
+                        options += `<option value="${item.id}" ${selected}>${item.nome}</option>`;
+                    });
+                } else {
+                    options = '<option value="">Nenhum subgrupo cadastrado</option>';
+                }
+                
+                $subgrupo.html(options);
+            },
+            error: function() {
+                $subgrupo.html('<option value="">Erro ao carregar</option>');
+            }
+        });
+    });
+    
+    // ============================================================
+    // INICIALIZAÇÃO - Carregar cascata se estiver editando
+    // ============================================================
+    if (categoriaInicial && $categoria.val()) {
+        // Disparar change para carregar a cascata completa
+        $categoria.trigger('change');
+    }
+    
+    console.log('✅ Hierarquia de categorias em cascata inicializada!');
+});
 
 </script>
 
