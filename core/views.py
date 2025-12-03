@@ -2535,7 +2535,7 @@ def editar_venda(request, venda_id):
                         item.produto.save()
                     
                     # Cancelar parcelas no financeiro (se houver)
-                    ContaReceber.objects.filter(venda=venda, status__in=['PENDENTE', 'ATRASADO']).update(status='CANCELADO')
+                    ContaReceber.objects.filter(venda=venda).update(status='CANCELADO')
                     
                     # Marcar venda como cancelada
                     venda.status = 'C'
@@ -2625,7 +2625,7 @@ def api_cancelar_venda(request, venda_id):
                 item.produto.save()
             
             # Cancelar parcelas no financeiro
-            ContaReceber.objects.filter(venda=venda, status__in=['PENDENTE', 'ATRASADO']).update(status='CANCELADO')
+            ContaReceber.objects.filter(venda=venda).update(status='CANCELADO')
             
             # Cancelar venda
             venda.status = 'C'
