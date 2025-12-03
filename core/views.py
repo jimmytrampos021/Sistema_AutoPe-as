@@ -28,8 +28,6 @@ from vendas.models import (
 )
 
 
-
-
 # ============================================
 # FUNÇÃO DE BUSCA FUZZY - TODAS AS PALAVRAS
 # ============================================
@@ -311,19 +309,25 @@ def detalhe_cliente(request, cliente_id):
 
 @login_required
 def lista_estoque(request):
-    """Lista produtos do estoque com filtros avançados"""
+    """Lista produtos do estoque com filtros avançados multi-seleção"""
+    
+    # Parâmetros de busca
     busca = request.GET.get('busca', '')
-    categoria_id = request.GET.get('categoria', '')
     situacao = request.GET.get('situacao', '')
     
-    # ✅ NOVO: Filtros de montadora, modelo e versão
+    # Filtros multi-seleção (podem ser múltiplos valores)
+    categorias_ids = request.GET.getlist('categorias')
+    subcategorias_ids = request.GET.getlist('subcategorias')
+    grupos_ids = request.GET.getlist('grupos')
+    subgrupos_ids = request.GET.getlist('subgrupos')
     montadoras_ids = request.GET.getlist('montadoras')
-    modelos_ids = request.GET.getlist('modelos')
-    versoes_ids = request.GET.getlist('versoes')
     
+    # QuerySet base
     produtos = Produto.objects.filter(ativo=True)
     
-    # Busca por texto - TODAS as palavras devem ser encontradas
+    # ============================================================
+    # BUSCA FUZZY - Todas as palavras devem ser encontradas
+    # ============================================================
     if busca:
         palavras = busca.split()
         for palavra in palavras:
@@ -331,14 +335,36 @@ def lista_estoque(request):
                 Q(codigo__icontains=palavra) |
                 Q(descricao__icontains=palavra) |
                 Q(codigo_sku__icontains=palavra) |
-                Q(codigo_barras__icontains=palavra)
+                Q(codigo_barras__icontains=palavra) |
+                Q(referencia_fabricante__icontains=palavra)
             )
     
-    # Filtro por categoria
-    if categoria_id:
-        produtos = produtos.filter(categoria_id=categoria_id)
+    # ============================================================
+    # FILTROS DE CATEGORIZAÇÃO (Multi-seleção)
+    # ============================================================
+    if categorias_ids:
+        produtos = produtos.filter(categoria_id__in=categorias_ids)
     
-    # Filtro por situação de estoque
+    if subcategorias_ids:
+        produtos = produtos.filter(subcategoria_id__in=subcategorias_ids)
+    
+    if grupos_ids:
+        produtos = produtos.filter(grupo_id__in=grupos_ids)
+    
+    if subgrupos_ids:
+        produtos = produtos.filter(subgrupo_id__in=subgrupos_ids)
+    
+    # ============================================================
+    # FILTRO DE MONTADORAS (via versões compatíveis)
+    # ============================================================
+    if montadoras_ids:
+        produtos = produtos.filter(
+            versoes_compativeis__modelo__montadora_id__in=montadoras_ids
+        ).distinct()
+    
+    # ============================================================
+    # FILTRO POR SITUAÇÃO DE ESTOQUE
+    # ============================================================
     if situacao == 'critico':
         produtos = produtos.filter(estoque_atual__lte=F('estoque_minimo'))
     elif situacao == 'baixo':
@@ -349,43 +375,51 @@ def lista_estoque(request):
     elif situacao == 'normal':
         produtos = produtos.filter(estoque_atual__gt=F('estoque_minimo') * 2)
     
-    # ✅ NOVO: Filtros de aplicação por veículo
-    if montadoras_ids:
-        produtos = produtos.filter(
-            versoes_compativeis__modelo__montadora_id__in=montadoras_ids
-        ).distinct()
-    
-    if modelos_ids:
-        produtos = produtos.filter(
-            versoes_compativeis__modelo_id__in=modelos_ids
-        ).distinct()
-    
-    if versoes_ids:
-        produtos = produtos.filter(
-            versoes_compativeis__id__in=versoes_ids
-        ).distinct()
-    
-    # Otimização de queries
+    # ============================================================
+    # OTIMIZAÇÃO DE QUERIES
+    # ============================================================
     produtos = produtos.select_related(
         'categoria', 
         'subcategoria',
+        'grupo',
+        'subgrupo',
         'fabricante', 
         'fornecedor_principal'
-    ).prefetch_related(
-        'versoes_compativeis',
-        'versoes_compativeis__modelo',
-        'versoes_compativeis__modelo__montadora'
     ).order_by('descricao')
     
-    # Paginação
+    # ============================================================
+    # PAGINAÇÃO
+    # ============================================================
     paginator = Paginator(produtos, 30)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # ✅ NOVO: Dados para os filtros em cascata
-    montadoras = Montadora.objects.filter(ativa=True).order_by('ordem', 'nome')
-    categorias = Categoria.objects.filter(ativo=True).order_by('nome')
+    # ============================================================
+    # DADOS PARA OS FILTROS
+    # ============================================================
+    todas_categorias = Categoria.objects.filter(ativo=True).order_by('nome')
+    todas_montadoras = Montadora.objects.filter(ativa=True).order_by('ordem', 'nome')
     
+    # Subcategorias, grupos e subgrupos filtrados (para cascata inicial)
+    todas_subcategorias = Subcategoria.objects.filter(ativo=True).order_by('nome')
+    todos_grupos = Grupo.objects.filter(ativo=True).order_by('nome')
+    todos_subgrupos = Subgrupo.objects.filter(ativo=True).order_by('nome')
+    
+    # Se há categorias selecionadas, filtrar subcategorias
+    if categorias_ids:
+        todas_subcategorias = todas_subcategorias.filter(categoria_id__in=categorias_ids)
+    
+    # Se há subcategorias selecionadas, filtrar grupos
+    if subcategorias_ids:
+        todos_grupos = todos_grupos.filter(subcategoria_id__in=subcategorias_ids)
+    
+    # Se há grupos selecionados, filtrar subgrupos
+    if grupos_ids:
+        todos_subgrupos = todos_subgrupos.filter(grupo_id__in=grupos_ids)
+    
+    # ============================================================
+    # ESTATÍSTICAS
+    # ============================================================
     todos_produtos = Produto.objects.filter(ativo=True)
     stats = {
         'total_produtos': todos_produtos.count(),
@@ -404,22 +438,146 @@ def lista_estoque(request):
         'total_itens': todos_produtos.aggregate(total=Sum('estoque_atual'))['total'] or 0,
     }
 
+        # Produtos com estoque CRÍTICO
+    produtos_criticos = Produto.objects.filter(
+        ativo=True,
+        estoque_minimo__gt=0,
+        estoque_atual__lte=F('estoque_minimo')
+    ).select_related('categoria').order_by('estoque_atual', 'descricao')[:50]
+
+    # Produtos com estoque BAIXO
+    produtos_baixo_estoque = Produto.objects.filter(
+        ativo=True,
+        estoque_minimo__gt=0,
+        estoque_atual__gt=F('estoque_minimo'),
+        estoque_atual__lte=F('estoque_minimo') * 2
+    ).select_related('categoria').order_by('estoque_atual', 'descricao')[:50]
+
     context = {
         'page_obj': page_obj,
-        'categorias': categorias,
-        'montadoras': montadoras,
         'busca': busca,
-        'categoria_selecionada': categoria_id,
         'situacao': situacao,
-        'montadoras_selecionadas': montadoras_ids,
-        'modelos_selecionados': modelos_ids,
-        'versoes_selecionadas': versoes_ids,
         'total_produtos': produtos.count(),
         'stats': stats,
+        
+        # Dados para os filtros
+        'categorias': todas_categorias,
+        'subcategorias': todas_subcategorias,
+        'grupos': todos_grupos,
+        'subgrupos': todos_subgrupos,
+        'montadoras': todas_montadoras,
+        
+        # Seleções atuais (para manter estado)
+        'categorias_selecionadas': categorias_ids,
+        'subcategorias_selecionadas': subcategorias_ids,
+        'grupos_selecionados': grupos_ids,
+        'subgrupos_selecionados': subgrupos_ids,
+        'montadoras_selecionadas': montadoras_ids,
+
+         # Estoque minimo e baixo
+        'produtos_criticos': produtos_criticos,
+        'produtos_baixo_estoque': produtos_baixo_estoque,
     }
-    return render(request, 'core/estoque_lista.html', context)
     
     return render(request, 'core/estoque_lista.html', context)
+
+
+# ============================================================
+# APIs PARA CASCATA DINÂMICA (AJAX)
+# ============================================================
+
+@login_required
+def api_subcategorias_por_categorias(request):
+    """
+    Retorna subcategorias filtradas pelas categorias selecionadas.
+    GET params: categorias (lista de IDs)
+    """
+    categorias_ids = request.GET.getlist('categorias')
+    
+    if categorias_ids:
+        subcategorias = Subcategoria.objects.filter(
+            categoria_id__in=categorias_ids,
+            ativo=True
+        ).order_by('nome')
+    else:
+        subcategorias = Subcategoria.objects.filter(ativo=True).order_by('nome')
+    
+    data = [
+        {'id': s.id, 'nome': s.nome, 'categoria_id': s.categoria_id}
+        for s in subcategorias
+    ]
+    
+    return JsonResponse({'subcategorias': data})
+
+
+@login_required
+def api_grupos_por_subcategorias(request):
+    """
+    Retorna grupos filtrados pelas subcategorias selecionadas.
+    GET params: subcategorias (lista de IDs)
+    """
+    subcategorias_ids = request.GET.getlist('subcategorias')
+    
+    if subcategorias_ids:
+        grupos = Grupo.objects.filter(
+            subcategoria_id__in=subcategorias_ids,
+            ativo=True
+        ).order_by('nome')
+    else:
+        grupos = Grupo.objects.filter(ativo=True).order_by('nome')
+    
+    data = [
+        {'id': g.id, 'nome': g.nome, 'subcategoria_id': g.subcategoria_id}
+        for g in grupos
+    ]
+    
+    return JsonResponse({'grupos': data})
+
+
+@login_required
+def api_subgrupos_por_grupos(request):
+    """
+    Retorna subgrupos filtrados pelos grupos selecionados.
+    GET params: grupos (lista de IDs)
+    """
+    grupos_ids = request.GET.getlist('grupos')
+    
+    if grupos_ids:
+        subgrupos = Subgrupo.objects.filter(
+            grupo_id__in=grupos_ids,
+            ativo=True
+        ).order_by('nome')
+    else:
+        subgrupos = Subgrupo.objects.filter(ativo=True).order_by('nome')
+    
+    data = [
+        {'id': s.id, 'nome': s.nome, 'grupo_id': s.grupo_id}
+        for s in subgrupos
+    ]
+    
+    return JsonResponse({'subgrupos': data})
+
+
+@login_required  
+def api_filtros_estoque(request):
+    """
+    API unificada que retorna todos os dados de filtro de uma vez.
+    Útil para carregar filtros iniciais ou resetar.
+    """
+    categorias = Categoria.objects.filter(ativo=True).order_by('nome')
+    subcategorias = Subcategoria.objects.filter(ativo=True).order_by('nome')
+    grupos = Grupo.objects.filter(ativo=True).order_by('nome')
+    subgrupos = Subgrupo.objects.filter(ativo=True).order_by('nome')
+    montadoras = Montadora.objects.filter(ativa=True).order_by('ordem', 'nome')
+    
+    return JsonResponse({
+        'categorias': [{'id': c.id, 'nome': c.nome} for c in categorias],
+        'subcategorias': [{'id': s.id, 'nome': s.nome, 'categoria_id': s.categoria_id} for s in subcategorias],
+        'grupos': [{'id': g.id, 'nome': g.nome, 'subcategoria_id': g.subcategoria_id} for g in grupos],
+        'subgrupos': [{'id': s.id, 'nome': s.nome, 'grupo_id': s.grupo_id} for s in subgrupos],
+        'montadoras': [{'id': m.id, 'nome': m.nome} for m in montadoras],
+    })
+
 
 
 @login_required
@@ -573,42 +731,32 @@ def deletar_produto(request, produto_id):
 @login_required
 def api_buscar_modelos(request):
     """
-    API: Buscar modelos de uma ou várias montadoras
-    ✅ NOVO: Suporta múltiplas montadoras
+    API para buscar modelos de veículos
     """
-    montadoras_ids = request.GET.getlist('montadora_id[]')
-    if not montadoras_ids:
-        montadoras_ids = [request.GET.get('montadora_id')]
+    montadora_id = request.GET.get('montadora_id')
     
-    if not any(montadoras_ids):
-        return JsonResponse({'success': False, 'error': 'Montadora não informada'})
-    
-    # Remover valores None ou vazios
-    montadoras_ids = [m for m in montadoras_ids if m]
+    if not montadora_id:
+        return JsonResponse({'success': False, 'modelos': []})
     
     modelos = VeiculoModelo.objects.filter(
-        montadora_id__in=montadoras_ids,
+        montadora_id=montadora_id,
         ativo=True
-    ).select_related('montadora').order_by('montadora__nome', 'nome')
+    ).order_by('-popular', 'nome')
     
     resultados = [
         {
             'id': m.id,
             'nome': m.nome,
-            'montadora': m.montadora.nome,
-            'tipo': m.get_tipo_display(),
+            'descricao': m.nome,
             'popular': m.popular,
-            'total_versoes': m.versoes.filter(ativo=True).count(),
         }
         for m in modelos
     ]
     
     return JsonResponse({
         'success': True,
-        'count': len(resultados),
         'modelos': resultados
     })
-
 
 @login_required
 def api_buscar_versoes(request):
@@ -1455,30 +1603,46 @@ def detalhe_venda(request, venda_id):
 # ==========================================
 # VIEWS DE ORÇAMENTO
 # ==========================================
-
 @login_required
 def lista_orcamentos(request):
-    """Lista todos os orçamentos"""
-    status = request.GET.get('status', '')
+    """Lista de orçamentos com filtros avançados"""
+    
+    # Parâmetros de filtro
+    status_selecionado = request.GET.get('status', '')
+    busca = request.GET.get('busca', '')
+    vendedor_selecionado = request.GET.get('vendedor', '')
     data_inicio = request.GET.get('data_inicio', '')
     data_fim = request.GET.get('data_fim', '')
-    cliente_id = request.GET.get('cliente', '')
     
-    orcamentos = Orcamento.objects.all()
+    # QuerySet base
+    orcamentos = Orcamento.objects.all().select_related(
+        'cliente', 
+        'vendedor', 
+        'veiculo_modelo',
+        'veiculo_modelo__montadora'
+    ).order_by('-data_orcamento')
     
-    if status:
-        orcamentos = orcamentos.filter(status=status)
+    # Filtro por status
+    if status_selecionado:
+        orcamentos = orcamentos.filter(status=status_selecionado)
     
+    # Filtro por busca (número ou cliente)
+    if busca:
+        orcamentos = orcamentos.filter(
+            Q(numero__icontains=busca) |
+            Q(cliente__nome__icontains=busca) |
+            Q(cliente__cpf_cnpj__icontains=busca)
+        )
+    
+    # Filtro por vendedor
+    if vendedor_selecionado:
+        orcamentos = orcamentos.filter(vendedor_id=vendedor_selecionado)
+    
+    # Filtro por período
     if data_inicio:
         orcamentos = orcamentos.filter(data_orcamento__date__gte=data_inicio)
-    
     if data_fim:
         orcamentos = orcamentos.filter(data_orcamento__date__lte=data_fim)
-    
-    if cliente_id:
-        orcamentos = orcamentos.filter(cliente_id=cliente_id)
-    
-    orcamentos = orcamentos.select_related('cliente', 'vendedor', 'veiculo_modelo').order_by('-data_orcamento')
     
     # Paginação
     paginator = Paginator(orcamentos, 20)
@@ -1486,23 +1650,34 @@ def lista_orcamentos(request):
     page_obj = paginator.get_page(page_number)
     
     # Estatísticas
+    todos_orcamentos = Orcamento.objects.all()
     stats = {
-        'total_orcamentos': orcamentos.count(),
-        'valor_total': orcamentos.aggregate(Sum('total'))['total__sum'] or 0,
-        'abertos': orcamentos.filter(status='ABERTO').count(),
-        'enviados': orcamentos.filter(status='ENVIADO').count(),
-        'aprovados': orcamentos.filter(status='APROVADO').count(),
+        'total_orcamentos': todos_orcamentos.count(),
+        'valor_total': todos_orcamentos.aggregate(total=Sum('total'))['total'] or 0,
+        'abertos': todos_orcamentos.filter(status='ABERTO').count(),
+        'aprovados': todos_orcamentos.filter(status='APROVADO').count(),
     }
+    
+    # Lista de vendedores para o filtro
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    vendedores = User.objects.filter(
+        orcamentos__isnull=False
+    ).distinct().order_by('first_name', 'username')
     
     context = {
         'page_obj': page_obj,
         'stats': stats,
-        'status_selecionado': status,
+        'status_selecionado': status_selecionado,
+        'busca': busca,
+        'vendedor_selecionado': vendedor_selecionado,
         'data_inicio': data_inicio,
         'data_fim': data_fim,
+        'vendedores': vendedores,
+        'hoje': timezone.now().date(),
     }
+    
     return render(request, 'core/orcamentos_lista.html', context)
-
 
 @login_required
 def criar_orcamento(request):
@@ -1551,83 +1726,84 @@ def criar_orcamento(request):
 
 @login_required
 def editar_orcamento(request, orcamento_id):
-    """Editar orçamento (adicionar/remover itens)"""
+    """Edição de orçamento com filtros avançados de categorização"""
     orcamento = get_object_or_404(Orcamento, id=orcamento_id)
+    itens = orcamento.itens.all().select_related('produto', 'produto__fabricante')
     
     if request.method == 'POST':
         action = request.POST.get('action')
         
         if action == 'add_item':
-            # Adicionar item ao orçamento
             produto_id = request.POST.get('produto_id')
             quantidade = int(request.POST.get('quantidade', 1))
+            produto = get_object_or_404(Produto, id=produto_id)
             
-            if produto_id:
-                produto = get_object_or_404(Produto, id=produto_id)
-                
-                # Verificar estoque
-                if produto.estoque_disponivel < quantidade:
-                    messages.warning(request, f'Estoque insuficiente! Disponível: {produto.estoque_disponivel}')
-                
-                # Determinar preço de acordo com forma de pagamento
-                preco = produto.get_preco_venda_por_tipo(orcamento.forma_pagamento.lower())
-                
-                # Criar item
-                ItemOrcamento.objects.create(
-                    orcamento=orcamento,
-                    produto=produto,
-                    quantidade=quantidade,
-                    preco_unitario=preco,
-                )
-                
-                messages.success(request, 'Item adicionado ao orçamento!')
+            # Determinar preço baseado na forma de pagamento
+            precos = {
+                'DINHEIRO': produto.preco_venda_dinheiro,
+                'DEBITO': produto.preco_venda_debito,
+                'CREDITO': produto.preco_venda_credito,
+                'ATACADO': produto.preco_atacado or produto.preco_venda_dinheiro,
+            }
+            preco_unitario = precos.get(orcamento.forma_pagamento, produto.preco_venda_dinheiro)
             
+            # Criar ou atualizar item
+            item, created = ItemOrcamento.objects.get_or_create(
+                orcamento=orcamento,
+                produto=produto,
+                defaults={'quantidade': quantidade, 'preco_unitario': preco_unitario}
+            )
+            if not created:
+                item.quantidade += quantidade
+                item.save()
+            
+            orcamento.atualizar_totais()
+            messages.success(request, f'Produto {produto.codigo} adicionado!')
             return redirect('editar_orcamento', orcamento_id=orcamento.id)
         
         elif action == 'remove_item':
-            # Remover item
             item_id = request.POST.get('item_id')
-            if item_id:
-                item = ItemOrcamento.objects.filter(id=item_id, orcamento=orcamento).first()
-                if item:
-                    item.delete()
-                    messages.success(request, 'Item removido!')
-            
+            item = get_object_or_404(ItemOrcamento, id=item_id, orcamento=orcamento)
+            item.delete()
+            orcamento.atualizar_totais()
+            messages.success(request, 'Item removido!')
             return redirect('editar_orcamento', orcamento_id=orcamento.id)
         
         elif action == 'update_desconto':
-            # Atualizar desconto
-            desconto = request.POST.get('desconto', 0)
-            orcamento.desconto = Decimal(desconto)
-            orcamento.calcular_totais()
+            desconto = Decimal(request.POST.get('desconto', '0'))
+            orcamento.desconto = desconto
+            orcamento.save()
+            orcamento.atualizar_totais()
             messages.success(request, 'Desconto atualizado!')
-            
             return redirect('editar_orcamento', orcamento_id=orcamento.id)
         
         elif action == 'update_status':
-            # Atualizar status
-            novo_status = request.POST.get('status')
-            if novo_status:
+            novo_status = request.POST.get('novo_status')
+            if novo_status in ['ENVIADO', 'APROVADO', 'REJEITADO']:
                 orcamento.status = novo_status
                 if novo_status == 'APROVADO':
-                    orcamento.data_aprovacao = datetime.now()
+                    orcamento.data_aprovacao = timezone.now()
                 orcamento.save()
                 messages.success(request, f'Status atualizado para {orcamento.get_status_display()}!')
-            
             return redirect('editar_orcamento', orcamento_id=orcamento.id)
     
-    # GET - Exibir orçamento
-    itens = orcamento.itens.select_related('produto').all()
-    montadoras = Montadora.objects.filter(ativa=True).order_by('nome')
+    # Dados para os filtros avançados
+    montadoras = Montadora.objects.filter(ativa=True).order_by('ordem', 'nome')
+    categorias = Categoria.objects.filter(ativo=True).order_by('nome')
+    subcategorias = Subcategoria.objects.filter(ativo=True).order_by('nome')
+    grupos = Grupo.objects.filter(ativo=True).order_by('nome')
+    subgrupos = Subgrupo.objects.filter(ativo=True).order_by('nome')
     
     context = {
         'orcamento': orcamento,
         'itens': itens,
         'montadoras': montadoras,
-        'pode_converter': orcamento.pode_converter()[0],
+        'categorias': categorias,
+        'subcategorias': subcategorias,
+        'grupos': grupos,
+        'subgrupos': subgrupos,
     }
     return render(request, 'core/orcamento_editar.html', context)
-
 
 @login_required
 def detalhe_orcamento(request, orcamento_id):
@@ -1645,37 +1821,61 @@ def detalhe_orcamento(request, orcamento_id):
 @login_required
 def buscar_produtos_rapido(request):
     """
-    Busca rápida de produtos com filtros de montadora e modelo
+    Busca rápida de produtos com filtros de montadora, modelo e categorização
     Retorna JSON para uso com AJAX
     """
     busca = request.GET.get('q', '')
     montadora_id = request.GET.get('montadora', '')
     modelo_id = request.GET.get('modelo', '')
-    limite = int(request.GET.get('limite', 20))
+    limite = int(request.GET.get('limite', 30))
+    
+    # Filtros de categorização (multi-seleção)
+    categorias_ids = request.GET.getlist('categorias')
+    subcategorias_ids = request.GET.getlist('subcategorias')
+    grupos_ids = request.GET.getlist('grupos')
+    subgrupos_ids = request.GET.getlist('subgrupos')
     
     # Busca base
     produtos = Produto.objects.filter(ativo=True)
     
     # Filtro por texto (código, SKU, descrição)
     if busca:
-        produtos = busca_fuzzy(produtos, ['codigo', 'codigo_sku', 'codigo_barras', 'descricao', 'aplicacao_generica'], busca)
-    # Filtro por montadora
+        produtos = busca_fuzzy(
+            produtos, 
+            ['codigo', 'codigo_sku', 'codigo_barras', 'descricao', 'aplicacao_generica'], 
+            busca
+        )
+    
+    # Filtros de categorização
+    if categorias_ids:
+        produtos = produtos.filter(categoria_id__in=categorias_ids)
+    
+    if subcategorias_ids:
+        produtos = produtos.filter(subcategoria_id__in=subcategorias_ids)
+    
+    if grupos_ids:
+        produtos = produtos.filter(grupo_id__in=grupos_ids)
+    
+    if subgrupos_ids:
+        produtos = produtos.filter(subgrupo_id__in=subgrupos_ids)
+    
+    # Filtro por montadora (via versões compatíveis)
     if montadora_id:
         produtos = produtos.filter(
-            aplicacoes__montadora_id=montadora_id
+            versoes_compativeis__modelo__montadora_id=montadora_id
         ).distinct()
     
-    # Filtro por modelo específico
+    # Filtro por modelo específico (via versões compatíveis)
     if modelo_id:
         produtos = produtos.filter(
-            aplicacoes__id=modelo_id
+            versoes_compativeis__modelo_id=modelo_id
         ).distinct()
     
     # Selecionar campos necessários e limitar
     produtos = produtos.select_related(
-        'categoria', 'fabricante'
+        'categoria', 'subcategoria', 'grupo', 'subgrupo', 'fabricante'
     ).prefetch_related(
-        'aplicacoes__montadora'
+        'versoes_compativeis__modelo__montadora'
     )[:limite]
     
     # Montar resposta JSON
@@ -1690,33 +1890,42 @@ def buscar_produtos_rapido(request):
             'excesso': 'info'
         }.get(situacao, 'secondary')
         
-        # Aplicações
-        aplicacoes_list = [
-            {
-                'montadora': app.montadora.nome,
-                'modelo': app.nome,
-                'anos': f"{app.ano_inicial}-{app.ano_final or 'atual'}"
-            }
-            for app in p.aplicacoes.all()[:3]  # Primeiras 3
-        ]
+        # Aplicações (versões compatíveis)
+        aplicacoes_list = []
+        for versao in p.versoes_compativeis.all()[:3]:
+            aplicacoes_list.append({
+                'montadora': versao.modelo.montadora.nome,
+                'modelo': versao.modelo.nome,
+                'versao': versao.nome,
+                'anos': f"{versao.ano_inicial}-{versao.ano_final or 'atual'}"
+            })
+        
+        # Categoria completa
+        categoria_completa = p.categoria.nome if p.categoria else ''
+        if p.subcategoria:
+            categoria_completa += f' > {p.subcategoria.nome}'
         
         resultados.append({
             'id': p.id,
             'codigo': p.codigo,
-            'codigo_sku': p.codigo_sku,
+            'codigo_sku': p.codigo_sku or '',
             'descricao': p.descricao,
-            'categoria': p.categoria.nome,
+            'categoria': p.categoria.nome if p.categoria else '',
+            'categoria_completa': categoria_completa,
+            'subcategoria': p.subcategoria.nome if p.subcategoria else '',
+            'grupo': p.grupo.nome if p.grupo else '',
+            'subgrupo': p.subgrupo.nome if p.subgrupo else '',
             'fabricante': p.fabricante.nome if p.fabricante else '',
-            'preco_dinheiro': float(p.preco_venda_dinheiro),
-            'preco_debito': float(p.preco_venda_debito),
-            'preco_credito': float(p.preco_venda_credito),
-            'preco_atacado': float(p.preco_atacado) if p.preco_atacado else float(p.preco_venda_dinheiro),
+            'preco_dinheiro': float(p.preco_venda_dinheiro or 0),
+            'preco_debito': float(p.preco_venda_debito or 0),
+            'preco_credito': float(p.preco_venda_credito or 0),
+            'preco_atacado': float(p.preco_atacado) if p.preco_atacado else float(p.preco_venda_dinheiro or 0),
             'estoque_atual': p.estoque_atual,
-            'estoque_disponivel': p.estoque_disponivel,
+            'estoque_disponivel': getattr(p, 'estoque_disponivel', p.estoque_atual),
             'status_estoque': status_estoque,
             'situacao': situacao,
             'aplicacoes': aplicacoes_list,
-            'localizacao': p.get_localizacao_completa(),
+            'localizacao': p.get_localizacao_completa() if hasattr(p, 'get_localizacao_completa') else '',
         })
     
     return JsonResponse({
@@ -1724,7 +1933,6 @@ def buscar_produtos_rapido(request):
         'count': len(resultados),
         'produtos': resultados
     })
-
 
 @login_required
 def buscar_modelos_por_montadora(request):
@@ -1740,27 +1948,36 @@ def buscar_modelos_por_montadora(request):
     modelos = VeiculoModelo.objects.filter(
         montadora_id=montadora_id,
         ativo=True
-    ).order_by('nome', '-ano_inicial')
+    ).order_by('nome')
     
-    resultados = [
-        {
+    resultados = []
+    for m in modelos:
+        # Buscar versões do modelo
+        versoes = m.versoes.filter(ativo=True).order_by('-ano_inicial')
+        
+        resultados.append({
             'id': m.id,
             'nome': m.nome,
-            'descricao': m.get_descricao_completa(),
-            'ano_inicial': m.ano_inicial,
-            'ano_final': m.ano_final,
-            'motorizacoes': m.motorizacoes,
+            'descricao': m.nome,  # Para compatibilidade
+            'tipo': m.tipo,
             'popular': m.popular,
-        }
-        for m in modelos
-    ]
+            'versoes': [
+                {
+                    'id': v.id,
+                    'nome': v.nome,
+                    'ano_inicial': v.ano_inicial,
+                    'ano_final': v.ano_final,
+                    'motorizacoes': v.motorizacoes,
+                }
+                for v in versoes
+            ]
+        })
     
     return JsonResponse({
         'success': True,
         'count': len(resultados),
         'modelos': resultados
     })
-
 
 @login_required
 def converter_orcamento_venda(request, orcamento_id):
@@ -1817,10 +2034,6 @@ def converter_orcamento_venda(request, orcamento_id):
     }
     return render(request, 'core/orcamento_confirmar_conversao.html', context)
 
-
-# ADICIONE ESTAS VIEWS NO core/views.py
-
-from estoque.models import Categoria, Subcategoria, Fabricante
 
 # ==========================================
 # MÓDULO DE CATEGORIAS E SUBCATEGORIAS
@@ -2176,8 +2389,60 @@ def api_salvar_venda_pdv(request):
                 # Baixar estoque
                 produto.estoque_atual -= quantidade
                 produto.save()
-            
-            # Se for CREDIÁRIO, criar parcelas no financeiro
+
+                # ============================================
+                # MOVIMENTACAO DE CASCOS (BATERIAS)
+                # ============================================
+                if item.get('is_bateria') and produto.amperagem_bateria:
+                    info_casco = item.get('info_casco', {})
+                    amperagem_vendida = produto.amperagem_bateria
+                    trouxe_casco = info_casco.get('trouxe_casco', False) if info_casco else False
+                    
+                    if trouxe_casco:
+                        # Cliente trouxe casco
+                        amperagem_casco_id = info_casco.get('amperagem_casco_id')
+                        
+                        if amperagem_casco_id:
+                            amperagem_casco = AmperagemBateria.objects.filter(id=amperagem_casco_id).first()
+                            
+                            if amperagem_casco and amperagem_casco.id != amperagem_vendida.id:
+                                # Amperagens diferentes: saida da vendida, entrada da recebida
+                                
+                                # Saida do casco da bateria vendida
+                                MovimentacaoCasco.objects.create(
+                                    amperagem=amperagem_vendida,
+                                    tipo='S',
+                                    motivo='VENDA_COM_TROCA',
+                                    quantidade=int(quantidade),
+                                    observacao=f'Venda {numero_venda} - Troca por casco {amperagem_casco.amperagem}',
+                                    usuario=request.user,
+                                    venda=venda
+                                )
+                                
+                                # Entrada do casco recebido
+                                MovimentacaoCasco.objects.create(
+                                    amperagem=amperagem_casco,
+                                    tipo='E',
+                                    motivo='VENDA_COM_TROCA',
+                                    quantidade=int(quantidade),
+                                    observacao=f'Venda {numero_venda} - Casco recebido em troca de {amperagem_vendida.amperagem}',
+                                    usuario=request.user,
+                                    venda=venda
+                                )
+                            # Se mesma amperagem, nao precisa movimentar (entra e sai igual)
+                    else:
+                        # Cliente NAO trouxe casco - diminui estoque de casco
+                        MovimentacaoCasco.objects.create(
+                            amperagem=amperagem_vendida,
+                            tipo='S',
+                            motivo='VENDA_SEM_TROCA',
+                            quantidade=int(quantidade),
+                            observacao=f'Venda {numero_venda} - Sem troca de casco',
+                            usuario=request.user,
+                            venda=venda
+                        )
+
+            # Se for CREDIARIO, criar parcelas no financeiro
             if forma_pagamento == 'CR' and parcelas > 0:
                 # Buscar ou criar categoria de receita padrão
                 categoria_receita, _ = CategoriaReceita.objects.get_or_create(
@@ -2798,3 +3063,103 @@ def api_movimentar_casco(request):
         return JsonResponse({'success': False, 'error': 'Amperagem não encontrada'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ============================================
+# CONTROLE DE CASCOS DE BATERIA
+# ============================================
+
+@login_required
+def controle_cascos(request):
+    """Pagina principal de controle de cascos de bateria"""
+    
+    # Buscar todas as amperagens com estoque
+    amperagens = AmperagemBateria.objects.filter(ativo=True).order_by('ordem', 'amperagem')
+    
+    # Buscar estoque de cada amperagem
+    estoques = EstoqueCasco.objects.select_related('amperagem').all()
+    estoque_dict = {e.amperagem_id: e for e in estoques}
+    
+    # Montar dados consolidados
+    dados_cascos = []
+    total_quantidade = 0
+    total_peso = 0
+    total_valor = 0
+    
+    for amp in amperagens:
+        estoque = estoque_dict.get(amp.id)
+        quantidade = estoque.quantidade if estoque else 0
+        peso_unitario = float(amp.peso_kg) if amp.peso_kg else 0
+        valor_unitario = float(amp.valor_casco_troca) if amp.valor_casco_troca else 0
+        
+        peso_total = quantidade * peso_unitario
+        valor_total = quantidade * valor_unitario
+        
+        dados_cascos.append({
+            'amperagem': amp,
+            'quantidade': quantidade,
+            'peso_unitario': peso_unitario,
+            'peso_total': peso_total,
+            'valor_unitario': valor_unitario,
+            'valor_total': valor_total,
+        })
+        
+        total_quantidade += quantidade
+        total_peso += peso_total
+        total_valor += valor_total
+    
+    # Buscar movimenta��es recentes
+    movimentacoes = MovimentacaoCasco.objects.select_related(
+        'amperagem', 'usuario'
+    ).order_by('-data_movimentacao')[:50]
+    
+    context = {
+        'dados_cascos': dados_cascos,
+        'total_quantidade': total_quantidade,
+        'total_peso': total_peso,
+        'total_valor': total_valor,
+        'movimentacoes': movimentacoes,
+        'amperagens': amperagens,
+    }
+    
+    return render(request, 'core/controle_cascos.html', context)
+
+
+@login_required
+def editar_amperagem(request, amperagem_id):
+    """Editar valores de uma amperagem"""
+    amperagem = get_object_or_404(AmperagemBateria, id=amperagem_id)
+    
+    if request.method == 'POST':
+        amperagem.valor_casco_troca = request.POST.get('valor_casco_troca', 0)
+        amperagem.valor_casco_compra = request.POST.get('valor_casco_compra', 0)
+        amperagem.peso_kg = request.POST.get('peso_kg', 0)
+        amperagem.save()
+        
+        messages.success(request, f'Amperagem {amperagem.amperagem} atualizada!')
+        return redirect('controle_cascos')
+    
+    return JsonResponse({'error': 'M�todo n�o permitido'}, status=405)
+
+
+@login_required  
+def criar_amperagem(request):
+    """Criar nova amperagem"""
+    if request.method == 'POST':
+        try:
+            AmperagemBateria.objects.create(
+                amperagem=request.POST.get('amperagem'),
+                nome_tecnico=request.POST.get('nome_tecnico', ''),
+                peso_kg=request.POST.get('peso_kg', 0),
+                valor_casco_troca=request.POST.get('valor_casco_troca', 0),
+                valor_casco_compra=request.POST.get('valor_casco_compra', 0),
+                aplicacao=request.POST.get('aplicacao', ''),
+                ativo=True
+            )
+            messages.success(request, 'Amperagem cadastrada com sucesso!')
+        except Exception as e:
+            messages.error(request, f'Erro ao cadastrar: {str(e)}')
+        
+        return redirect('controle_cascos')
+    
+    return JsonResponse({'error': 'M�todo n�o permitido'}, status=405)

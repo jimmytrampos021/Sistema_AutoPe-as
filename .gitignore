@@ -13,4 +13,3 @@ venv/
 # Arquivos temporários
 *.log
 
-db.sqlite3

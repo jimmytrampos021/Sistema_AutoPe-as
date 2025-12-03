@@ -32,7 +32,7 @@
     /* ===== CARDS DE ESTATÍSTICAS ===== */
     .stats-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 16px;
         margin-bottom: 20px;
     }
@@ -40,27 +40,56 @@
     .stat-card-new {
         background: var(--card-bg);
         border-radius: 12px;
-        padding: 20px;
+        padding: 16px;
         box-shadow: var(--shadow);
         border: 1px solid var(--card-border);
         display: flex;
         align-items: center;
-        gap: 16px;
-        transition: transform 0.2s;
+        gap: 12px;
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     }
     
     .stat-card-new:hover {
         transform: translateY(-2px);
     }
     
+    /* ===== CARDS CLICÁVEIS - NOVO ===== */
+    .stat-card-new.clickable {
+        cursor: pointer;
+    }
+    
+    .stat-card-new.clickable:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card-new.clickable.yellow:hover {
+        border-color: #eab308;
+        box-shadow: 0 8px 25px rgba(234, 179, 8, 0.25);
+    }
+    
+    .stat-card-new.clickable.red:hover {
+        border-color: #ef4444;
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.25);
+    }
+    
+    .stat-card-new .click-hint {
+        font-size: 0.65rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
     .stat-icon {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.3rem;
     }
     
     .stat-icon.blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
@@ -70,25 +99,171 @@
     .stat-icon.purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
     .stat-icon.cyan { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
     
-    body.dark-mode .stat-icon.blue { background: rgba(59, 130, 246, 0.25); }
-    body.dark-mode .stat-icon.green { background: rgba(34, 197, 94, 0.25); }
-    body.dark-mode .stat-icon.yellow { background: rgba(234, 179, 8, 0.25); }
-    body.dark-mode .stat-icon.red { background: rgba(239, 68, 68, 0.25); }
-    body.dark-mode .stat-icon.purple { background: rgba(168, 85, 247, 0.25); }
-    body.dark-mode .stat-icon.cyan { background: rgba(6, 182, 212, 0.25); }
-    
     .stat-info h3 {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: 700;
         color: var(--text-primary);
         margin: 0;
-        line-height: 1;
     }
     
     .stat-info p {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 2px 0 0 0;
+    }
+
+    /* ===== MODAL ESTOQUE - NOVO ===== */
+    .modal-estoque .modal-content {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+    }
+    
+    .modal-estoque .modal-header {
+        border-bottom: 1px solid var(--card-border);
+        padding: 20px 24px;
+    }
+    
+    .modal-estoque .modal-header.critico {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+    }
+    
+    .modal-estoque .modal-header.baixo {
+        background: linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(234, 179, 8, 0.05) 100%);
+    }
+    
+    .modal-estoque .modal-title {
+        color: var(--text-primary);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .modal-estoque .modal-title i {
+        font-size: 1.3rem;
+    }
+    
+    .modal-estoque .modal-title.critico i { color: #ef4444; }
+    .modal-estoque .modal-title.baixo i { color: #eab308; }
+    
+    .modal-estoque .modal-body {
+        padding: 0;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+    
+    .modal-estoque .modal-footer {
+        border-top: 1px solid var(--card-border);
+        padding: 16px 24px;
+        justify-content: space-between;
+    }
+    
+    body.dark-mode .modal-estoque .modal-content {
+        background: var(--card-bg);
+    }
+    
+    body.dark-mode .modal-estoque .btn-close {
+        filter: invert(1);
+    }
+    
+    /* ===== LISTA DE PRODUTOS NO MODAL - NOVO ===== */
+    .produto-modal-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--card-border);
+        transition: background 0.15s;
+    }
+    
+    .produto-modal-item:hover {
+        background: var(--bg-secondary);
+    }
+    
+    .produto-modal-item:last-child {
+        border-bottom: none;
+    }
+    
+    .produto-modal-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .produto-modal-info h6 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .produto-modal-info .produto-meta {
+        display: flex;
+        gap: 12px;
+        margin-top: 4px;
         font-size: 0.8rem;
         color: var(--text-muted);
-        margin: 4px 0 0 0;
+        flex-wrap: wrap;
+    }
+    
+    .produto-modal-info .produto-meta span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    
+    .produto-modal-estoque {
+        text-align: right;
+        flex-shrink: 0;
+        margin-left: 16px;
+    }
+    
+    .produto-modal-estoque .estoque-atual {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+    
+    .produto-modal-estoque .estoque-atual.critico { color: #ef4444; }
+    .produto-modal-estoque .estoque-atual.baixo { color: #eab308; }
+    
+    .produto-modal-estoque .estoque-range {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
+    .produto-modal-estoque .comprar-badge {
+        display: inline-block;
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-top: 4px;
+    }
+    
+    body.dark-mode .produto-modal-estoque .comprar-badge {
+        background: rgba(239, 68, 68, 0.25);
+    }
+    
+    /* ===== EMPTY STATE MODAL - NOVO ===== */
+    .modal-empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--text-muted);
+    }
+    
+    .modal-empty-state i {
+        font-size: 3rem;
+        opacity: 0.3;
+        margin-bottom: 16px;
+        display: block;
+        color: #22c55e;
+    }
+    
+    .modal-empty-state h6 {
+        color: var(--text-primary);
+        margin-bottom: 8px;
     }
 
     /* ===== CARD PRINCIPAL ===== */
@@ -100,7 +275,7 @@
         border: 1px solid var(--card-border);
     }
 
-    /* ===== FILTROS ===== */
+    /* ===== FILTROS AVANÇADOS ===== */
     .filtros-section {
         background: var(--bg-secondary);
         border-radius: 10px;
@@ -115,6 +290,7 @@
         color: var(--text-primary);
         border-radius: 8px;
         padding: 10px 14px;
+        font-size: 0.9rem;
     }
     
     .filtros-section .form-control:focus,
@@ -122,11 +298,141 @@
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
-    
-    .filtros-section .form-control::placeholder {
-        color: var(--text-muted);
+
+    /* ===== MULTI-SELECT DROPDOWN ===== */
+    .multi-select-container {
+        position: relative;
     }
     
+    .multi-select-btn {
+        width: 100%;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        color: var(--text-primary);
+        border-radius: 8px;
+        padding: 10px 14px;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    
+    .multi-select-btn:hover {
+        border-color: #3b82f6;
+    }
+    
+    .multi-select-btn .badge-count {
+        background: #3b82f6;
+        color: white;
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        margin-left: 8px;
+    }
+    
+    .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+        margin-top: 4px;
+    }
+    
+    .multi-select-dropdown.show {
+        display: block;
+    }
+    
+    .multi-select-search {
+        padding: 10px;
+        border-bottom: 1px solid var(--card-border);
+        position: sticky;
+        top: 0;
+        background: var(--card-bg);
+    }
+    
+    .multi-select-search input {
+        width: 100%;
+        border: 1px solid var(--card-border);
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 0.85rem;
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+    }
+    
+    .multi-select-options {
+        padding: 8px 0;
+    }
+    
+    .multi-select-option {
+        padding: 8px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background 0.15s;
+    }
+    
+    .multi-select-option:hover {
+        background: var(--bg-secondary);
+    }
+    
+    .multi-select-option input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #3b82f6;
+    }
+    
+    .multi-select-option label {
+        cursor: pointer;
+        margin: 0;
+        flex: 1;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+    }
+    
+    .multi-select-actions {
+        padding: 10px;
+        border-top: 1px solid var(--card-border);
+        display: flex;
+        gap: 8px;
+        position: sticky;
+        bottom: 0;
+        background: var(--card-bg);
+    }
+    
+    .multi-select-actions button {
+        flex: 1;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+    
+    .btn-select-all {
+        background: #e0f2fe;
+        border: 1px solid #3b82f6;
+        color: #3b82f6;
+    }
+    
+    .btn-clear-all {
+        background: #fef2f2;
+        border: 1px solid #ef4444;
+        color: #ef4444;
+    }
+
+    /* ===== BOTÕES DE FILTRO ===== */
     .btn-filtrar {
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: none;
@@ -148,13 +454,70 @@
         border: 1px solid var(--card-border);
         color: var(--text-secondary);
         font-weight: 500;
-        padding: 8px 16px;
+        padding: 10px 16px;
         border-radius: 8px;
     }
     
     .btn-limpar:hover {
         background: var(--card-border);
         color: var(--text-primary);
+    }
+    
+    .btn-toggle-filtros {
+        background: transparent;
+        border: 1px dashed var(--card-border);
+        color: var(--text-secondary);
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+    }
+    
+    .btn-toggle-filtros:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    /* ===== FILTROS ATIVOS ===== */
+    .filtros-ativos {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--card-border);
+    }
+    
+    .filtro-tag {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* ===== LINHA DE FILTROS AVANÇADOS ===== */
+    .filtros-avancados {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px dashed var(--card-border);
+    }
+    
+    .filtros-avancados.collapsed {
+        display: none;
+    }
+    
+    .filtro-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+        display: block;
     }
 
     /* ===== CABEÇALHO DA TABELA ===== */
@@ -176,12 +539,6 @@
         gap: 8px;
     }
     
-    .table-header .badge {
-        font-size: 0.8rem;
-        padding: 6px 12px;
-        border-radius: 20px;
-    }
-    
     .btn-novo {
         background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
         border: none;
@@ -189,13 +546,11 @@
         font-weight: 600;
         padding: 10px 20px;
         border-radius: 8px;
-        transition: all 0.2s;
     }
     
     .btn-novo:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
         color: white;
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
     }
 
     /* ===== TABELA ===== */
@@ -225,10 +580,6 @@
         vertical-align: middle;
     }
     
-    .tabela-estoque tbody tr {
-        transition: background 0.15s;
-    }
-    
     .tabela-estoque tbody tr:hover {
         background: var(--bg-secondary);
     }
@@ -243,15 +594,10 @@
         font-size: 0.85rem;
     }
     
-    body.dark-mode .produto-codigo {
-        background: rgba(59, 130, 246, 0.2);
-    }
-    
     .produto-nome {
         font-weight: 600;
         color: var(--text-primary);
         text-decoration: none;
-        transition: color 0.15s;
     }
     
     .produto-nome:hover {
@@ -264,6 +610,11 @@
         margin-top: 2px;
     }
     
+    .produto-categoria {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
     .estoque-badge {
         font-weight: 700;
         padding: 6px 12px;
@@ -274,10 +625,6 @@
     .estoque-badge.critico { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
     .estoque-badge.baixo { background: rgba(234, 179, 8, 0.15); color: #b45309; }
     .estoque-badge.normal { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
-    
-    body.dark-mode .estoque-badge.critico { background: rgba(239, 68, 68, 0.25); }
-    body.dark-mode .estoque-badge.baixo { background: rgba(234, 179, 8, 0.25); color: #eab308; }
-    body.dark-mode .estoque-badge.normal { background: rgba(34, 197, 94, 0.25); }
     
     .estoque-min {
         font-size: 0.75rem;
@@ -307,11 +654,6 @@
         align-items: center;
         justify-content: center;
         border-radius: 6px;
-        transition: all 0.15s;
-    }
-    
-    .btn-acao:hover {
-        transform: scale(1.1);
     }
 
     /* ===== PAGINAÇÃO ===== */
@@ -331,13 +673,6 @@
         background: var(--card-bg);
         border-radius: 8px;
         padding: 8px 14px;
-        font-weight: 500;
-    }
-    
-    .paginacao-container .page-link:hover {
-        background: var(--bg-secondary);
-        border-color: #3b82f6;
-        color: #3b82f6;
     }
     
     .paginacao-container .page-item.active .page-link {
@@ -356,36 +691,6 @@
     .tabela-vazia i {
         font-size: 4rem;
         opacity: 0.3;
-        margin-bottom: 16px;
-    }
-    
-    .tabela-vazia p {
-        font-size: 1.1rem;
-        margin-bottom: 8px;
-    }
-
-    /* ===== FILTROS ATIVOS ===== */
-    .filtros-ativos {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 12px;
-    }
-    
-    .filtro-tag {
-        background: rgba(59, 130, 246, 0.1);
-        color: #3b82f6;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-    }
-    
-    body.dark-mode .filtro-tag {
-        background: rgba(59, 130, 246, 0.2);
     }
 </style>
 {% endblock %}
@@ -395,65 +700,54 @@
     <!-- Estatísticas -->
     <div class="stats-row">
         <div class="stat-card-new">
-            <div class="stat-icon blue">
-                <i class="bi bi-box-seam"></i>
-            </div>
+            <div class="stat-icon blue"><i class="bi bi-box-seam"></i></div>
             <div class="stat-info">
                 <h3>{{ stats.total_produtos }}</h3>
                 <p>Produtos Ativos</p>
             </div>
         </div>
-        
         <div class="stat-card-new">
-            <div class="stat-icon cyan">
-                <i class="bi bi-boxes"></i>
-            </div>
+            <div class="stat-icon cyan"><i class="bi bi-boxes"></i></div>
             <div class="stat-info">
                 <h3>{{ stats.total_itens|default:0 }}</h3>
                 <p>Itens em Estoque</p>
             </div>
         </div>
         
-        
-        <div class="stat-card-new">
-            <div class="stat-icon yellow">
-                <i class="bi bi-exclamation-circle"></i>
-            </div>
+        <!-- CARD ESTOQUE BAIXO - CLICÁVEL -->
+        <div class="stat-card-new clickable yellow" data-bs-toggle="modal" data-bs-target="#modalEstoqueBaixo" title="Clique para ver detalhes">
+            <div class="stat-icon yellow"><i class="bi bi-exclamation-circle"></i></div>
             <div class="stat-info">
                 <h3>{{ stats.total_estoque_baixo }}</h3>
                 <p>Estoque Baixo</p>
+                <span class="click-hint"><i class="bi bi-hand-index"></i> Clique para ver</span>
             </div>
         </div>
         
-        <div class="stat-card-new">
-            <div class="stat-icon red">
-                <i class="bi bi-exclamation-triangle"></i>
-            </div>
+        <!-- CARD ESTOQUE CRÍTICO - CLICÁVEL -->
+        <div class="stat-card-new clickable red" data-bs-toggle="modal" data-bs-target="#modalEstoqueCritico" title="Clique para ver detalhes">
+            <div class="stat-icon red"><i class="bi bi-exclamation-triangle"></i></div>
             <div class="stat-info">
                 <h3>{{ stats.total_estoque_critico }}</h3>
                 <p>Estoque Crítico</p>
+                <span class="click-hint"><i class="bi bi-hand-index"></i> Clique para ver</span>
             </div>
         </div>
         
         <div class="stat-card-new">
-            <div class="stat-icon purple">
-                <i class="bi bi-currency-dollar"></i>
-            </div>
+            <div class="stat-icon purple"><i class="bi bi-currency-dollar"></i></div>
             <div class="stat-info">
                 <h3>R$ {{ stats.valor_custo_estoque|floatformat:0|default:0 }}</h3>
-                <p>Valor Custo (Estoque)</p>
+                <p>Valor Custo</p>
             </div>
         </div>
-
-         <div class="stat-card-new">
-            <div class="stat-icon green">
-                <i class="bi bi-cash-stack"></i>
-            </div>
+        <div class="stat-card-new">
+            <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
             <div class="stat-info">
                 <h3>R$ {{ stats.valor_venda_estoque|floatformat:0|default:0 }}</h3>
-                <p>Valor Venda (Estoque)</p>
+                <p>Valor Venda</p>
             </div>
-        </div> 
+        </div>
     </div>
 
     <!-- Card Principal -->
@@ -461,47 +755,33 @@
         <!-- Filtros -->
         <div class="filtros-section">
             <form method="get" id="form-filtros">
-                <div class="row g-3">
-                    <div class="col-lg-4">
+                <!-- Linha 1: Busca + Situação + Botões -->
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-5">
+                        <label class="filtro-label">Busca</label>
                         <div class="input-group">
                             <span class="input-group-text" style="background: var(--card-bg); border: 1px solid var(--card-border); border-right: none;">
                                 <i class="bi bi-search" style="color: var(--text-muted);"></i>
                             </span>
                             <input type="text" name="busca" class="form-control" 
-                                   placeholder="Buscar por código, descrição, SKU..." 
+                                   placeholder="Código, descrição, SKU, código de barras..." 
                                    value="{{ busca }}" style="border-left: none;">
                         </div>
                     </div>
                     <div class="col-lg-2">
-                        <select name="categoria" class="form-select">
-                            <option value="">Todas Categorias</option>
-                            {% for cat in categorias %}
-                            <option value="{{ cat.id }}" {% if categoria_selecionada == cat.id|stringformat:"s" %}selected{% endif %}>
-                                {{ cat.nome }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-lg-2">
+                        <label class="filtro-label">Situação</label>
                         <select name="situacao" class="form-select">
-                            <option value="">Todas Situações</option>
+                            <option value="">Todas</option>
                             <option value="normal" {% if situacao == 'normal' %}selected{% endif %}>✅ Normal</option>
                             <option value="baixo" {% if situacao == 'baixo' %}selected{% endif %}>⚠️ Baixo</option>
                             <option value="critico" {% if situacao == 'critico' %}selected{% endif %}>🔴 Crítico</option>
                         </select>
                     </div>
-                    <div class="col-lg-2">
-                        <select name="montadoras" class="form-select" multiple style="display:none;" id="select-montadoras">
-                            {% for m in montadoras %}
-                            <option value="{{ m.id }}" {% if m.id|stringformat:"s" in montadoras_selecionadas %}selected{% endif %}>{{ m.nome }}</option>
-                            {% endfor %}
-                        </select>
-                        <select class="form-select" id="montadora-visual">
-                            <option value="">Todas Montadoras</option>
-                            {% for m in montadoras %}
-                            <option value="{{ m.id }}" {% if m.id|stringformat:"s" in montadoras_selecionadas %}selected{% endif %}>{{ m.nome }}</option>
-                            {% endfor %}
-                        </select>
+                    <div class="col-lg-3">
+                        <button type="button" class="btn btn-toggle-filtros w-100" onclick="toggleFiltrosAvancados()">
+                            <i class="bi bi-sliders"></i> Filtros Avançados
+                            <i class="bi bi-chevron-down" id="icon-toggle"></i>
+                        </button>
                     </div>
                     <div class="col-lg-2">
                         <button type="submit" class="btn btn-filtrar w-100">
@@ -509,17 +789,182 @@
                         </button>
                     </div>
                 </div>
-                
-                {% if busca or categoria_selecionada or situacao or montadoras_selecionadas %}
+
+                <!-- Filtros Avançados (Colapsável) -->
+                <div class="filtros-avancados collapsed" id="filtros-avancados">
+                    <div class="row g-3">
+                        <!-- Categorias -->
+                        <div class="col-lg-3 col-md-6">
+                            <label class="filtro-label">Categorias</label>
+                            <div class="multi-select-container" data-name="categorias" data-cascade="subcategorias">
+                                <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                    <span class="btn-text">Todas as categorias</span>
+                                    <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                </button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Buscar categoria..." onkeyup="filterOptions(this)">
+                                    </div>
+                                    <div class="multi-select-options">
+                                        {% for cat in categorias %}
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="categorias" value="{{ cat.id }}" id="cat_{{ cat.id }}"
+                                                   {% if cat.id|stringformat:"s" in categorias_selecionadas %}checked{% endif %}
+                                                   onchange="onCategoriaChange()">
+                                            <label for="cat_{{ cat.id }}">{{ cat.nome }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" class="btn-select-all" onclick="selectAll(this)">Selecionar Todos</button>
+                                        <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subcategorias -->
+                        <div class="col-lg-3 col-md-6">
+                            <label class="filtro-label">Subcategorias</label>
+                            <div class="multi-select-container" data-name="subcategorias" data-cascade="grupos" id="container-subcategorias">
+                                <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                    <span class="btn-text">Todas as subcategorias</span>
+                                    <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                </button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Buscar subcategoria..." onkeyup="filterOptions(this)">
+                                    </div>
+                                    <div class="multi-select-options">
+                                        {% for sub in subcategorias %}
+                                        <div class="multi-select-option" data-categoria="{{ sub.categoria_id }}">
+                                            <input type="checkbox" name="subcategorias" value="{{ sub.id }}" id="sub_{{ sub.id }}"
+                                                   {% if sub.id|stringformat:"s" in subcategorias_selecionadas %}checked{% endif %}
+                                                   onchange="onSubcategoriaChange()">
+                                            <label for="sub_{{ sub.id }}">{{ sub.nome }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" class="btn-select-all" onclick="selectAll(this)">Selecionar Todos</button>
+                                        <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Grupos -->
+                        <div class="col-lg-3 col-md-6">
+                            <label class="filtro-label">Grupos</label>
+                            <div class="multi-select-container" data-name="grupos" data-cascade="subgrupos" id="container-grupos">
+                                <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                    <span class="btn-text">Todos os grupos</span>
+                                    <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                </button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Buscar grupo..." onkeyup="filterOptions(this)">
+                                    </div>
+                                    <div class="multi-select-options">
+                                        {% for grp in grupos %}
+                                        <div class="multi-select-option" data-subcategoria="{{ grp.subcategoria_id }}">
+                                            <input type="checkbox" name="grupos" value="{{ grp.id }}" id="grp_{{ grp.id }}"
+                                                   {% if grp.id|stringformat:"s" in grupos_selecionados %}checked{% endif %}
+                                                   onchange="onGrupoChange()">
+                                            <label for="grp_{{ grp.id }}">{{ grp.nome }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" class="btn-select-all" onclick="selectAll(this)">Selecionar Todos</button>
+                                        <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Subgrupos -->
+                        <div class="col-lg-3 col-md-6">
+                            <label class="filtro-label">Subgrupos</label>
+                            <div class="multi-select-container" data-name="subgrupos" id="container-subgrupos">
+                                <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                    <span class="btn-text">Todos os subgrupos</span>
+                                    <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                </button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Buscar subgrupo..." onkeyup="filterOptions(this)">
+                                    </div>
+                                    <div class="multi-select-options">
+                                        {% for sg in subgrupos %}
+                                        <div class="multi-select-option" data-grupo="{{ sg.grupo_id }}">
+                                            <input type="checkbox" name="subgrupos" value="{{ sg.id }}" id="sg_{{ sg.id }}"
+                                                   {% if sg.id|stringformat:"s" in subgrupos_selecionados %}checked{% endif %}>
+                                            <label for="sg_{{ sg.id }}">{{ sg.nome }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" class="btn-select-all" onclick="selectAll(this)">Selecionar Todos</button>
+                                        <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Linha 2: Montadoras -->
+                    <div class="row g-3 mt-2">
+                        <div class="col-lg-4 col-md-6">
+                            <label class="filtro-label">Montadoras (Aplicação)</label>
+                            <div class="multi-select-container" data-name="montadoras">
+                                <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                    <span class="btn-text">Todas as montadoras</span>
+                                    <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                </button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Buscar montadora..." onkeyup="filterOptions(this)">
+                                    </div>
+                                    <div class="multi-select-options">
+                                        {% for mont in montadoras %}
+                                        <div class="multi-select-option">
+                                            <input type="checkbox" name="montadoras" value="{{ mont.id }}" id="mont_{{ mont.id }}"
+                                                   {% if mont.id|stringformat:"s" in montadoras_selecionadas %}checked{% endif %}>
+                                            <label for="mont_{{ mont.id }}">{{ mont.nome }}</label>
+                                        </div>
+                                        {% empty %}
+                                        <div class="p-3 text-center text-muted">
+                                            <small>Nenhuma montadora cadastrada</small>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" class="btn-select-all" onclick="selectAll(this)">Selecionar Todos</button>
+                                        <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-8 d-flex align-items-end justify-content-end">
+                            <a href="{% url 'lista_estoque' %}" class="btn btn-limpar">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filtros Ativos -->
+                {% if busca or situacao or categorias_selecionadas or subcategorias_selecionadas or grupos_selecionados or subgrupos_selecionados or montadoras_selecionadas %}
                 <div class="filtros-ativos">
                     <span style="color: var(--text-muted); font-size: 0.85rem;">Filtros ativos:</span>
                     {% if busca %}<span class="filtro-tag"><i class="bi bi-search"></i> "{{ busca }}"</span>{% endif %}
-                    {% if categoria_selecionada %}<span class="filtro-tag"><i class="bi bi-tag"></i> Categoria</span>{% endif %}
                     {% if situacao %}<span class="filtro-tag"><i class="bi bi-funnel"></i> {{ situacao|title }}</span>{% endif %}
-                    {% if montadoras_selecionadas %}<span class="filtro-tag"><i class="bi bi-car-front"></i> Montadora</span>{% endif %}
-                    <a href="{% url 'lista_estoque' %}" class="btn-limpar btn-sm">
-                        <i class="bi bi-x-circle"></i> Limpar
-                    </a>
+                    {% if categorias_selecionadas %}<span class="filtro-tag"><i class="bi bi-tag"></i> {{ categorias_selecionadas|length }} categoria(s)</span>{% endif %}
+                    {% if subcategorias_selecionadas %}<span class="filtro-tag"><i class="bi bi-tags"></i> {{ subcategorias_selecionadas|length }} subcategoria(s)</span>{% endif %}
+                    {% if grupos_selecionados %}<span class="filtro-tag"><i class="bi bi-collection"></i> {{ grupos_selecionados|length }} grupo(s)</span>{% endif %}
+                    {% if subgrupos_selecionados %}<span class="filtro-tag"><i class="bi bi-bookmark"></i> {{ subgrupos_selecionados|length }} subgrupo(s)</span>{% endif %}
+                    {% if montadoras_selecionadas %}<span class="filtro-tag"><i class="bi bi-car-front"></i> {{ montadoras_selecionadas|length }} montadora(s)</span>{% endif %}
                 </div>
                 {% endif %}
             </form>
@@ -563,6 +1008,9 @@
                             </a>
                             {% if produto.referencia_fabricante %}
                             <div class="produto-ref">Ref: {{ produto.referencia_fabricante }}</div>
+                            {% endif %}
+                            {% if produto.subcategoria %}
+                            <div class="produto-categoria">{{ produto.subcategoria.nome }}</div>
                             {% endif %}
                         </td>
                         <td>{{ produto.categoria.nome|default:"-" }}</td>
@@ -622,12 +1070,12 @@
                 <ul class="pagination">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                        <a class="page-link" href="?page=1&{{ request.GET.urlencode }}">
                             <i class="bi bi-chevron-double-left"></i>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
@@ -639,12 +1087,12 @@
 
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busca %}&busca={{ busca }}{% endif %}{% if categoria_selecionada %}&categoria={{ categoria_selecionada }}{% endif %}{% if situacao %}&situacao={{ situacao }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&{{ request.GET.urlencode }}">
                             <i class="bi bi-chevron-double-right"></i>
                         </a>
                     </li>
@@ -656,26 +1104,311 @@
     </div>
 </div>
 
+<!-- ===== MODAL ESTOQUE CRÍTICO ===== -->
+<div class="modal fade modal-estoque" id="modalEstoqueCritico" tabindex="-1" aria-labelledby="modalEstoqueCriticoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header critico">
+                <h5 class="modal-title critico" id="modalEstoqueCriticoLabel">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Produtos com Estoque Crítico
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                {% if produtos_criticos %}
+                    {% for produto in produtos_criticos %}
+                    <a href="{% url 'detalhe_produto' produto.id %}" class="produto-modal-item" style="text-decoration: none;">
+                        <div class="produto-modal-info">
+                            <h6>{{ produto.descricao }}</h6>
+                            <div class="produto-meta">
+                                <span><i class="bi bi-upc"></i> {{ produto.codigo }}</span>
+                                <span><i class="bi bi-folder"></i> {{ produto.categoria.nome|default:"Sem categoria" }}</span>
+                            </div>
+                        </div>
+                        <div class="produto-modal-estoque">
+                            <div class="estoque-atual critico">{{ produto.estoque_atual }} {{ produto.unidade_medida|default:"UN" }}</div>
+                            <div class="estoque-range">Mín: {{ produto.estoque_minimo }} | Máx: {{ produto.estoque_maximo|default:"-" }}</div>
+                            {% if produto.estoque_maximo %}
+                            <span class="comprar-badge">
+                                <i class="bi bi-cart-plus"></i> Comprar {{ produto.estoque_maximo|add:"-"|add:produto.estoque_atual }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="modal-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <h6>Nenhum produto em situação crítica!</h6>
+                        <p>Todos os produtos estão com estoque adequado.</p>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <span class="text-muted small">
+                    <i class="bi bi-info-circle"></i> {{ stats.total_estoque_critico }} produto{{ stats.total_estoque_critico|pluralize:"s" }} com estoque ≤ mínimo
+                </span>
+                <div>
+                    <a href="{% url 'lista_estoque' %}?situacao=critico" class="btn btn-danger">
+                        <i class="bi bi-funnel"></i> Filtrar Críticos
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL ESTOQUE BAIXO ===== -->
+<div class="modal fade modal-estoque" id="modalEstoqueBaixo" tabindex="-1" aria-labelledby="modalEstoqueBaixoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header baixo">
+                <h5 class="modal-title baixo" id="modalEstoqueBaixoLabel">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    Produtos com Estoque Baixo
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                {% if produtos_baixo_estoque %}
+                    {% for produto in produtos_baixo_estoque %}
+                    <a href="{% url 'detalhe_produto' produto.id %}" class="produto-modal-item" style="text-decoration: none;">
+                        <div class="produto-modal-info">
+                            <h6>{{ produto.descricao }}</h6>
+                            <div class="produto-meta">
+                                <span><i class="bi bi-upc"></i> {{ produto.codigo }}</span>
+                                <span><i class="bi bi-folder"></i> {{ produto.categoria.nome|default:"Sem categoria" }}</span>
+                            </div>
+                        </div>
+                        <div class="produto-modal-estoque">
+                            <div class="estoque-atual baixo">{{ produto.estoque_atual }} {{ produto.unidade_medida|default:"UN" }}</div>
+                            <div class="estoque-range">Mín: {{ produto.estoque_minimo }} | Máx: {{ produto.estoque_maximo|default:"-" }}</div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% else %}
+                    <div class="modal-empty-state">
+                        <i class="bi bi-check-circle"></i>
+                        <h6>Nenhum produto com estoque baixo!</h6>
+                        <p>Todos os produtos estão com estoque adequado.</p>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <span class="text-muted small">
+                    <i class="bi bi-info-circle"></i> {{ stats.total_estoque_baixo }} produto{{ stats.total_estoque_baixo|pluralize:"s" }} com estoque entre mínimo e 2x mínimo
+                </span>
+                <div>
+                    <a href="{% url 'lista_estoque' %}?situacao=baixo" class="btn btn-warning">
+                        <i class="bi bi-funnel"></i> Filtrar Baixos
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-// Sincronizar select visual com select real (para montadoras)
-document.getElementById('montadora-visual').addEventListener('change', function() {
-    const selectReal = document.getElementById('select-montadoras');
-    const valor = this.value;
+// ============================================================
+// FUNÇÕES DO MULTI-SELECT
+// ============================================================
+
+// Toggle do dropdown
+function toggleDropdown(btn) {
+    const container = btn.closest('.multi-select-container');
+    const dropdown = container.querySelector('.multi-select-dropdown');
     
-    // Limpar seleções anteriores
-    for (let option of selectReal.options) {
-        option.selected = false;
+    // Fechar outros dropdowns
+    document.querySelectorAll('.multi-select-dropdown.show').forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+    });
+    
+    dropdown.classList.toggle('show');
+}
+
+// Fechar dropdown ao clicar fora
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.multi-select-container')) {
+        document.querySelectorAll('.multi-select-dropdown.show').forEach(d => {
+            d.classList.remove('show');
+        });
     }
+});
+
+// Filtrar opções na busca
+function filterOptions(input) {
+    const searchText = input.value.toLowerCase();
+    const options = input.closest('.multi-select-dropdown').querySelectorAll('.multi-select-option');
     
-    // Selecionar o valor escolhido
-    if (valor) {
-        for (let option of selectReal.options) {
-            if (option.value === valor) {
-                option.selected = true;
-                break;
-            }
+    options.forEach(option => {
+        const label = option.querySelector('label').textContent.toLowerCase();
+        option.style.display = label.includes(searchText) ? '' : 'none';
+    });
+}
+
+// Selecionar todos
+function selectAll(btn) {
+    const container = btn.closest('.multi-select-container');
+    const checkboxes = container.querySelectorAll('.multi-select-option:not([style*="display: none"]) input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateButtonText(container);
+    
+    // Trigger change para cascata
+    const firstName = container.dataset.name;
+    if (firstName === 'categorias') onCategoriaChange();
+    else if (firstName === 'subcategorias') onSubcategoriaChange();
+    else if (firstName === 'grupos') onGrupoChange();
+}
+
+// Limpar todos
+function clearAll(btn) {
+    const container = btn.closest('.multi-select-container');
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateButtonText(container);
+    
+    // Trigger change para cascata
+    const firstName = container.dataset.name;
+    if (firstName === 'categorias') onCategoriaChange();
+    else if (firstName === 'subcategorias') onSubcategoriaChange();
+    else if (firstName === 'grupos') onGrupoChange();
+}
+
+// Atualizar texto do botão
+function updateButtonText(container) {
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+    const btnText = container.querySelector('.btn-text');
+    const badge = container.querySelector('.badge-count');
+    const name = container.dataset.name;
+    
+    const labels = {
+        'categorias': 'categoria',
+        'subcategorias': 'subcategoria', 
+        'grupos': 'grupo',
+        'subgrupos': 'subgrupo',
+        'montadoras': 'montadora'
+    };
+    
+    if (checkboxes.length === 0) {
+        btnText.textContent = `Todas as ${name}`;
+        badge.style.display = 'none';
+    } else {
+        btnText.textContent = `${checkboxes.length} ${labels[name]}(s)`;
+        badge.textContent = checkboxes.length;
+        badge.style.display = 'inline';
+    }
+}
+
+// Toggle filtros avançados
+function toggleFiltrosAvancados() {
+    const filtros = document.getElementById('filtros-avancados');
+    const icon = document.getElementById('icon-toggle');
+    
+    filtros.classList.toggle('collapsed');
+    icon.classList.toggle('bi-chevron-down');
+    icon.classList.toggle('bi-chevron-up');
+}
+
+// ============================================================
+// CASCATA: Categoria -> Subcategoria -> Grupo -> Subgrupo
+// ============================================================
+
+function onCategoriaChange() {
+    const categoriasSelecionadas = getSelectedValues('categorias');
+    
+    // Filtrar subcategorias
+    const subcategoriaOptions = document.querySelectorAll('#container-subcategorias .multi-select-option');
+    subcategoriaOptions.forEach(option => {
+        const categoriaId = option.dataset.categoria;
+        if (categoriasSelecionadas.length === 0 || categoriasSelecionadas.includes(categoriaId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
         }
-    }
+    });
+    
+    updateButtonText(document.querySelector('[data-name="categorias"]'));
+    updateButtonText(document.getElementById('container-subcategorias'));
+    
+    // Propagar para grupos
+    onSubcategoriaChange();
+}
+
+function onSubcategoriaChange() {
+    const subcategoriasSelecionadas = getSelectedValues('subcategorias');
+    
+    // Filtrar grupos
+    const grupoOptions = document.querySelectorAll('#container-grupos .multi-select-option');
+    grupoOptions.forEach(option => {
+        const subcategoriaId = option.dataset.subcategoria;
+        if (subcategoriasSelecionadas.length === 0 || subcategoriasSelecionadas.includes(subcategoriaId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
+        }
+    });
+    
+    updateButtonText(document.getElementById('container-subcategorias'));
+    updateButtonText(document.getElementById('container-grupos'));
+    
+    // Propagar para subgrupos
+    onGrupoChange();
+}
+
+function onGrupoChange() {
+    const gruposSelecionados = getSelectedValues('grupos');
+    
+    // Filtrar subgrupos
+    const subgrupoOptions = document.querySelectorAll('#container-subgrupos .multi-select-option');
+    subgrupoOptions.forEach(option => {
+        const grupoId = option.dataset.grupo;
+        if (gruposSelecionados.length === 0 || gruposSelecionados.includes(grupoId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
+        }
+    });
+    
+    updateButtonText(document.getElementById('container-grupos'));
+    updateButtonText(document.getElementById('container-subgrupos'));
+}
+
+function getSelectedValues(name) {
+    const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Atualizar textos dos botões com seleções iniciais
+    document.querySelectorAll('.multi-select-container').forEach(container => {
+        updateButtonText(container);
+    });
+    
+    // Mostrar filtros avançados se há filtros ativos
+    {% if categorias_selecionadas or subcategorias_selecionadas or grupos_selecionados or subgrupos_selecionados or montadoras_selecionadas %}
+    document.getElementById('filtros-avancados').classList.remove('collapsed');
+    document.getElementById('icon-toggle').classList.remove('bi-chevron-down');
+    document.getElementById('icon-toggle').classList.add('bi-chevron-up');
+    {% endif %}
+    
+    // Animação ao clicar nos cards de modal
+    document.querySelectorAll('.stat-card-new.clickable').forEach(card => {
+        card.addEventListener('click', function() {
+            this.style.transform = 'scale(0.97)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 150);
+        });
+    });
 });
 </script>
 {% endblock %}

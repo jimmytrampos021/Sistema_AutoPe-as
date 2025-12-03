@@ -408,9 +408,11 @@
                 <i class="bi bi-building"></i> Fornecedores
             </a>
             
-            <!-- ADICIONE ESTA LINHA -->
             <a class="nav-link {% if 'ordens-servico' in request.path %}active{% endif %}" href="{% url 'lista_ordens_servico' %}">
                 <i class="bi bi-wrench"></i> Ordens de Serviço
+            </a>
+            <a class="nav-link {% if 'cascos' in request.path %}active{% endif %}" href="{% url 'controle_cascos' %}">
+                <i class="bi bi-battery-charging text-warning"></i> Controle de Cascos
             </a>
             
             <a class="nav-link {% if 'relatorios' in request.path %}active{% endif %}" href="{% url 'relatorios' %}">

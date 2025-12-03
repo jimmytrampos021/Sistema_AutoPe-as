@@ -139,8 +139,20 @@ urlpatterns = [
     path('api/baterias/estoque-cascos/', core_views.api_estoque_cascos, name='api_estoque_cascos'),
     path('api/baterias/movimentar-casco/', core_views.api_movimentar_casco, name='api_movimentar_casco'),
 
+    # Controle de Cascos
+    path('cascos/', core_views.controle_cascos, name='controle_cascos'),
+    path('cascos/amperagem/<int:amperagem_id>/editar/', core_views.editar_amperagem, name='editar_amperagem'),
+    path('cascos/amperagem/nova/', core_views.criar_amperagem, name='criar_amperagem'),
+    
+
+    # APIs para filtros em cascata do estoque
+    path('api/subcategorias/', core_views.api_subcategorias_por_categorias, name='api_subcategorias'),
+    path('api/grupos/', core_views.api_grupos_por_subcategorias, name='api_grupos'),
+    path('api/subgrupos/', core_views.api_subgrupos_por_grupos, name='api_subgrupos'),
+    path('api/filtros-estoque/', core_views.api_filtros_estoque, name='api_filtros_estoque'),
 
 ]
+
    
 
 

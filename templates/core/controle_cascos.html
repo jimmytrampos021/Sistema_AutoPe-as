@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Controle de Cascos - Sistema Autopeças{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card-resumo {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .card-resumo:hover {
+        transform: translateY(-3px);
+    }
+    .card-resumo .icon-box {
+        width: 60px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+    .card-resumo h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0;
+    }
+    .table-cascos th {
+        background: #f8f9fa;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    body.dark-mode .table-cascos th {
+        background: #2d2d2d;
+    }
+    .badge-quantidade {
+        font-size: 1.1rem;
+        padding: 8px 15px;
+        border-radius: 20px;
+    }
+    .btn-editar-amp {
+        padding: 5px 10px;
+        font-size: 0.85rem;
+    }
+    .mov-entrada {
+        color: #198754;
+        font-weight: 600;
+    }
+    .mov-saida {
+        color: #dc3545;
+        font-weight: 600;
+    }
+    .input-valor {
+        max-width: 120px;
+    }
+    .modal-amperagem .form-label {
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="bi bi-battery-charging text-warning"></i> Controle de Cascos</h2>
+            <p class="text-muted mb-0">Gerencie o estoque de cascos de bateria</p>
+        </div>
+        <div>
+            <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#modalNovaAmperagem">
+                <i class="bi bi-plus-circle"></i> Nova Amperagem
+            </button>
+            <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modalMovimentacao">
+                <i class="bi bi-arrow-left-right"></i> Movimentar
+            </button>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card card-resumo">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-primary bg-opacity-10 text-primary me-3">
+                        <i class="bi bi-boxes"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted">Total de Cascos</small>
+                        <h3 class="text-primary">{{ total_quantidade }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-resumo">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-success bg-opacity-10 text-success me-3">
+                        <i class="bi bi-basket3"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted">Peso Total</small>
+                        <h3 class="text-success">{{ total_peso|floatformat:1 }} kg</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-resumo">
+                <div class="card-body d-flex align-items-center">
+                    <div class="icon-box bg-warning bg-opacity-10 text-warning me-3">
+                        <i class="bi bi-currency-dollar"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted">Valor Total (Troca)</small>
+                        <h3 class="text-warning">R$ {{ total_valor|floatformat:2 }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Tabela de Estoque -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-table"></i> Estoque por Amperagem</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-cascos mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Amperagem</th>
+                                    <th class="text-center">Qtd</th>
+                                    <th class="text-center">Peso Unit.</th>
+                                    <th class="text-center">Peso Total</th>
+                                    <th class="text-end">Valor Troca</th>
+                                    <th class="text-end">Valor Total</th>
+                                    <th class="text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in dados_cascos %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.amperagem.amperagem }}</strong>
+                                        {% if item.amperagem.nome_tecnico %}
+                                        <br><small class="text-muted">{{ item.amperagem.nome_tecnico }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if item.quantidade > 0 %}bg-success{% else %}bg-secondary{% endif %} badge-quantidade">
+                                            {{ item.quantidade }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">{{ item.peso_unitario|floatformat:1 }} kg</td>
+                                    <td class="text-center"><strong>{{ item.peso_total|floatformat:1 }} kg</strong></td>
+                                    <td class="text-end">R$ {{ item.valor_unitario|floatformat:2 }}</td>
+                                    <td class="text-end"><strong>R$ {{ item.valor_total|floatformat:2 }}</strong></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary btn-editar-amp"
+                                                onclick="abrirModalEditar({{ item.amperagem.id }}, '{{ item.amperagem.amperagem }}', {{ item.amperagem.peso_kg|default:0 }}, {{ item.amperagem.valor_casco_troca|default:0 }}, {{ item.amperagem.valor_casco_compra|default:0 }})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                                        <p>Nenhuma amperagem cadastrada</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr>
+                                    <th>TOTAL</th>
+                                    <th class="text-center">{{ total_quantidade }}</th>
+                                    <th></th>
+                                    <th class="text-center">{{ total_peso|floatformat:1 }} kg</th>
+                                    <th></th>
+                                    <th class="text-end">R$ {{ total_valor|floatformat:2 }}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Movimentações Recentes -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history"></i> Movimentações Recentes</h5>
+                </div>
+                <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                    <ul class="list-group list-group-flush">
+                        {% for mov in movimentacoes %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <span class="{% if mov.tipo == 'E' %}mov-entrada{% else %}mov-saida{% endif %}">
+                                        {% if mov.tipo == 'E' %}
+                                        <i class="bi bi-arrow-down-circle-fill"></i> +{{ mov.quantidade }}
+                                        {% else %}
+                                        <i class="bi bi-arrow-up-circle-fill"></i> -{{ mov.quantidade }}
+                                        {% endif %}
+                                    </span>
+                                    <strong>{{ mov.amperagem.amperagem }}</strong>
+                                </div>
+                                <small class="text-muted">{{ mov.data_movimentacao|date:"d/m H:i" }}</small>
+                            </div>
+                            <small class="text-muted">{{ mov.get_motivo_display }}</small>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center py-4">
+                            <i class="bi bi-inbox"></i> Nenhuma movimentação
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Amperagem -->
+<div class="modal fade" id="modalEditarAmperagem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" id="formEditarAmperagem">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-pencil"></i> Editar Amperagem</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h4 id="editar-amperagem-nome" class="text-center mb-4"></h4>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Peso (kg)</label>
+                        <input type="number" step="0.01" name="peso_kg" id="editar-peso" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor Casco - Troca (R$)</label>
+                        <input type="number" step="0.01" name="valor_casco_troca" id="editar-valor-troca" class="form-control" required>
+                        <small class="text-muted">Valor usado no cálculo de troca com cliente</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor Casco - Compra (R$)</label>
+                        <input type="number" step="0.01" name="valor_casco_compra" id="editar-valor-compra" class="form-control">
+                        <small class="text-muted">Valor que você paga para comprar casco avulso</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nova Amperagem -->
+<div class="modal fade" id="modalNovaAmperagem" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'criar_amperagem' %}">
+                {% csrf_token %}
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-plus-circle"></i> Nova Amperagem</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Amperagem *</label>
+                        <input type="text" name="amperagem" class="form-control" placeholder="Ex: 60Ah" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nome Técnico</label>
+                        <input type="text" name="nome_tecnico" class="form-control" placeholder="Ex: 22F">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Peso (kg)</label>
+                        <input type="number" step="0.01" name="peso_kg" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor Casco - Troca (R$)</label>
+                        <input type="number" step="0.01" name="valor_casco_troca" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Valor Casco - Compra (R$)</label>
+                        <input type="number" step="0.01" name="valor_casco_compra" class="form-control" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Aplicação</label>
+                        <input type="text" name="aplicacao" class="form-control" placeholder="Ex: Veículos compactos">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">Cadastrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Movimentação -->
+<div class="modal fade" id="modalMovimentacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right"></i> Movimentar Casco</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Amperagem *</label>
+                    <select id="mov-amperagem" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        {% for amp in amperagens %}
+                        <option value="{{ amp.id }}">{{ amp.amperagem }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tipo *</label>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-success flex-fill btn-tipo-mov" data-tipo="E">
+                            <i class="bi bi-arrow-down-circle"></i> Entrada
+                        </button>
+                        <button type="button" class="btn btn-outline-danger flex-fill btn-tipo-mov" data-tipo="S">
+                            <i class="bi bi-arrow-up-circle"></i> Saída
+                        </button>
+                    </div>
+                    <input type="hidden" id="mov-tipo" value="">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Motivo *</label>
+                    <select id="mov-motivo" class="form-select" required>
+                        <option value="">Selecione...</option>
+                        <option value="COMPRA_CASCO">Compra de casco avulso</option>
+                        <option value="VENDA_CASCO">Venda de casco (reciclagem)</option>
+                        <option value="CASCO_EXTRA">Casco extra do cliente</option>
+                        <option value="AJUSTE">Ajuste de estoque</option>
+                        <option value="DEVOLUCAO">Devolução</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Quantidade *</label>
+                    <input type="number" id="mov-quantidade" class="form-control" min="1" value="1" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Observação</label>
+                    <textarea id="mov-observacao" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-salvar-movimentacao">
+                    <i class="bi bi-check-lg"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Abrir modal de edição
+function abrirModalEditar(id, nome, peso, valorTroca, valorCompra) {
+    $('#editar-amperagem-nome').text(nome);
+    $('#editar-peso').val(peso);
+    $('#editar-valor-troca').val(valorTroca);
+    $('#editar-valor-compra').val(valorCompra);
+    $('#formEditarAmperagem').attr('action', '/cascos/amperagem/' + id + '/editar/');
+    
+    new bootstrap.Modal(document.getElementById('modalEditarAmperagem')).show();
+}
+
+// Seleção de tipo de movimentação
+$('.btn-tipo-mov').click(function() {
+    $('.btn-tipo-mov').removeClass('active btn-success btn-danger').addClass('btn-outline-success btn-outline-danger');
+    $(this).removeClass('btn-outline-success btn-outline-danger').addClass('active');
+    
+    const tipo = $(this).data('tipo');
+    $('#mov-tipo').val(tipo);
+    
+    if (tipo === 'E') {
+        $(this).addClass('btn-success');
+    } else {
+        $(this).addClass('btn-danger');
+    }
+});
+
+// Salvar movimentação
+$('#btn-salvar-movimentacao').click(function() {
+    const amperagem = $('#mov-amperagem').val();
+    const tipo = $('#mov-tipo').val();
+    const motivo = $('#mov-motivo').val();
+    const quantidade = $('#mov-quantidade').val();
+    const observacao = $('#mov-observacao').val();
+    
+    if (!amperagem || !tipo || !motivo || !quantidade) {
+        Swal.fire('Atenção', 'Preencha todos os campos obrigatórios!', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '{% url "api_movimentar_casco" %}',
+        method: 'POST',
+        data: {
+            amperagem_id: amperagem,
+            tipo: tipo,
+            motivo: motivo,
+            quantidade: quantidade,
+            observacao: observacao,
+            csrfmiddlewaretoken: '{{ csrf_token }}'
+        },
+        success: function(data) {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Erro', data.error, 'error');
+            }
+        },
+        error: function() {
+            Swal.fire('Erro', 'Erro ao processar movimentação', 'error');
+        }
+    });
+});
+</script>
+{% endblock %}

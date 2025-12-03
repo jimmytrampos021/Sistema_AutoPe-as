@@ -4,6 +4,241 @@
 
 {% block page_title %}Orçamento {{ orcamento.numero }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* ===== MULTI-SELECT DROPDOWN ===== */
+    .multi-select-container {
+        position: relative;
+    }
+    
+    .multi-select-btn {
+        width: 100%;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        border-radius: 6px;
+        padding: 8px 12px;
+        text-align: left;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+    }
+    
+    .multi-select-btn:hover {
+        border-color: #667eea;
+    }
+    
+    .multi-select-btn .badge-count {
+        background: #667eea;
+        color: white;
+        border-radius: 10px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        margin-left: 6px;
+    }
+    
+    .multi-select-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 1050;
+        max-height: 250px;
+        overflow-y: auto;
+        display: none;
+        margin-top: 4px;
+    }
+    
+    .multi-select-dropdown.show {
+        display: block;
+    }
+    
+    .multi-select-search {
+        padding: 8px;
+        border-bottom: 1px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        background: #fff;
+    }
+    
+    .multi-select-search input {
+        width: 100%;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+    
+    .multi-select-options {
+        padding: 6px 0;
+    }
+    
+    .multi-select-option {
+        padding: 6px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.15s;
+        font-size: 0.85rem;
+    }
+    
+    .multi-select-option:hover {
+        background: #f8f9fa;
+    }
+    
+    .multi-select-option input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #667eea;
+    }
+    
+    .multi-select-option label {
+        cursor: pointer;
+        margin: 0;
+        flex: 1;
+    }
+    
+    .multi-select-actions {
+        padding: 8px;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        gap: 6px;
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+    }
+    
+    .multi-select-actions button {
+        flex: 1;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        cursor: pointer;
+    }
+    
+    .btn-select-all {
+        background: #e0f2fe;
+        border: 1px solid #667eea;
+        color: #667eea;
+    }
+    
+    .btn-clear-all {
+        background: #fef2f2;
+        border: 1px solid #ef4444;
+        color: #ef4444;
+    }
+
+    /* ===== FILTROS AVANÇADOS ===== */
+    .filtros-avancados {
+        border-top: 1px dashed #dee2e6;
+        padding-top: 12px;
+        margin-top: 12px;
+    }
+    
+    .filtros-avancados.collapsed {
+        display: none;
+    }
+    
+    .filtro-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+        display: block;
+    }
+    
+    .btn-toggle-filtros {
+        background: transparent;
+        border: 1px dashed #dee2e6;
+        color: #6c757d;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .btn-toggle-filtros:hover {
+        border-color: #667eea;
+        color: #667eea;
+    }
+
+    /* ===== ESTILOS EXISTENTES ===== */
+    .search-panel {
+        position: sticky;
+        top: 20px;
+    }
+    
+    .produto-item {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .produto-item:hover {
+        background-color: #f8f9fa;
+        border-color: #667eea;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    }
+    
+    .produto-codigo {
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .produto-estoque {
+        font-size: 0.875rem;
+    }
+    
+    .aplicacoes-list {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+    
+    .produto-categoria {
+        font-size: 0.75rem;
+        color: #6c757d;
+        background: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+        margin-top: 4px;
+    }
+
+    /* Tags de filtro ativo */
+    .filtros-ativos-busca {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 8px;
+    }
+    
+    .filtro-tag-mini {
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Cabeçalho do Orçamento -->
@@ -57,21 +292,21 @@
                     <h5 class="mb-0"><i class="bi bi-search"></i> Buscar Produtos</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Filtros -->
+                    <!-- Filtro por Veículo -->
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-car-front"></i> Filtrar por Veículo</label>
+                        <label class="filtro-label"><i class="bi bi-car-front"></i> Filtrar por Veículo</label>
                         <div class="row g-2">
-                            <div class="col-md-6">
-                                <select id="filtro-montadora" class="form-select">
-                                    <option value="">Todas as montadoras</option>
+                            <div class="col-6">
+                                <select id="filtro-montadora" class="form-select form-select-sm">
+                                    <option value="">Todas montadoras</option>
                                     {% for montadora in montadoras %}
                                     <option value="{{ montadora.id }}">{{ montadora.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <select id="filtro-modelo" class="form-select" disabled>
-                                    <option value="">Selecione a montadora</option>
+                            <div class="col-6">
+                                <select id="filtro-modelo" class="form-select form-select-sm" disabled>
+                                    <option value="">Selecione montadora</option>
                                 </select>
                             </div>
                         </div>
@@ -79,19 +314,147 @@
 
                     <!-- Campo de Busca -->
                     <div class="mb-3">
-                        <label class="form-label"><i class="bi bi-search"></i> Buscar Peça</label>
-                        <div class="input-group">
+                        <label class="filtro-label"><i class="bi bi-search"></i> Buscar Peça</label>
+                        <div class="input-group input-group-sm">
                             <input type="text" id="busca-produto" class="form-control" 
                                    placeholder="Código, descrição, aplicação...">
                             <button class="btn btn-primary" onclick="buscarProdutos()">
-                                <i class="bi bi-search"></i> Buscar
+                                <i class="bi bi-search"></i>
                             </button>
                         </div>
-                        <small class="text-muted">Digite pelo menos 2 caracteres</small>
+                    </div>
+
+                    <!-- Botão para mostrar filtros avançados -->
+                    <button type="button" class="btn-toggle-filtros" onclick="toggleFiltrosAvancados()">
+                        <i class="bi bi-sliders"></i> Filtros por Categoria
+                        <i class="bi bi-chevron-down" id="icon-toggle-filtros"></i>
+                    </button>
+
+                    <!-- Filtros Avançados (Colapsável) -->
+                    <div class="filtros-avancados collapsed" id="filtros-avancados">
+                        <div class="row g-2">
+                            <!-- Categorias -->
+                            <div class="col-6">
+                                <label class="filtro-label">Categorias</label>
+                                <div class="multi-select-container" data-name="categorias">
+                                    <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                        <span class="btn-text">Todas</span>
+                                        <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                    </button>
+                                    <div class="multi-select-dropdown">
+                                        <div class="multi-select-search">
+                                            <input type="text" placeholder="Buscar..." onkeyup="filterOptions(this)">
+                                        </div>
+                                        <div class="multi-select-options">
+                                            {% for cat in categorias %}
+                                            <div class="multi-select-option">
+                                                <input type="checkbox" name="filtro_categorias" value="{{ cat.id }}" id="fcat_{{ cat.id }}"
+                                                       onchange="onFiltroCategoriaChange()">
+                                                <label for="fcat_{{ cat.id }}">{{ cat.nome }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="multi-select-actions">
+                                            <button type="button" class="btn-select-all" onclick="selectAll(this)">Todos</button>
+                                            <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subcategorias -->
+                            <div class="col-6">
+                                <label class="filtro-label">Subcategorias</label>
+                                <div class="multi-select-container" data-name="subcategorias" id="container-filtro-subcategorias">
+                                    <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                        <span class="btn-text">Todas</span>
+                                        <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                    </button>
+                                    <div class="multi-select-dropdown">
+                                        <div class="multi-select-search">
+                                            <input type="text" placeholder="Buscar..." onkeyup="filterOptions(this)">
+                                        </div>
+                                        <div class="multi-select-options">
+                                            {% for sub in subcategorias %}
+                                            <div class="multi-select-option" data-categoria="{{ sub.categoria_id }}">
+                                                <input type="checkbox" name="filtro_subcategorias" value="{{ sub.id }}" id="fsub_{{ sub.id }}"
+                                                       onchange="onFiltroSubcategoriaChange()">
+                                                <label for="fsub_{{ sub.id }}">{{ sub.nome }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="multi-select-actions">
+                                            <button type="button" class="btn-select-all" onclick="selectAll(this)">Todos</button>
+                                            <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Grupos -->
+                            <div class="col-6">
+                                <label class="filtro-label">Grupos</label>
+                                <div class="multi-select-container" data-name="grupos" id="container-filtro-grupos">
+                                    <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                        <span class="btn-text">Todos</span>
+                                        <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                    </button>
+                                    <div class="multi-select-dropdown">
+                                        <div class="multi-select-search">
+                                            <input type="text" placeholder="Buscar..." onkeyup="filterOptions(this)">
+                                        </div>
+                                        <div class="multi-select-options">
+                                            {% for grp in grupos %}
+                                            <div class="multi-select-option" data-subcategoria="{{ grp.subcategoria_id }}">
+                                                <input type="checkbox" name="filtro_grupos" value="{{ grp.id }}" id="fgrp_{{ grp.id }}"
+                                                       onchange="onFiltroGrupoChange()">
+                                                <label for="fgrp_{{ grp.id }}">{{ grp.nome }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="multi-select-actions">
+                                            <button type="button" class="btn-select-all" onclick="selectAll(this)">Todos</button>
+                                            <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Subgrupos -->
+                            <div class="col-6">
+                                <label class="filtro-label">Subgrupos</label>
+                                <div class="multi-select-container" data-name="subgrupos" id="container-filtro-subgrupos">
+                                    <button type="button" class="multi-select-btn" onclick="toggleDropdown(this)">
+                                        <span class="btn-text">Todos</span>
+                                        <span><span class="badge-count" style="display:none;">0</span> <i class="bi bi-chevron-down"></i></span>
+                                    </button>
+                                    <div class="multi-select-dropdown">
+                                        <div class="multi-select-search">
+                                            <input type="text" placeholder="Buscar..." onkeyup="filterOptions(this)">
+                                        </div>
+                                        <div class="multi-select-options">
+                                            {% for sg in subgrupos %}
+                                            <div class="multi-select-option" data-grupo="{{ sg.grupo_id }}">
+                                                <input type="checkbox" name="filtro_subgrupos" value="{{ sg.id }}" id="fsg_{{ sg.id }}">
+                                                <label for="fsg_{{ sg.id }}">{{ sg.nome }}</label>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="multi-select-actions">
+                                            <button type="button" class="btn-select-all" onclick="selectAll(this)">Todos</button>
+                                            <button type="button" class="btn-clear-all" onclick="clearAll(this)">Limpar</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tags de filtros ativos -->
+                        <div class="filtros-ativos-busca" id="filtros-ativos-busca"></div>
                     </div>
 
                     <!-- Resultado da Busca -->
-                    <div id="resultado-busca" style="max-height: 500px; overflow-y: auto;">
+                    <div id="resultado-busca" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
                         <div class="text-center text-muted py-4">
                             <i class="bi bi-search" style="font-size: 3rem;"></i>
                             <p>Use os filtros acima para buscar produtos</p>
@@ -187,51 +550,49 @@
                                         <form method="post" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="update_desconto">
-                                            <div class="input-group input-group-sm">
+                                            <div class="input-group input-group-sm" style="width: 150px; display: inline-flex;">
                                                 <span class="input-group-text">R$</span>
                                                 <input type="number" name="desconto" class="form-control" 
-                                                       value="{{ orcamento.desconto }}" step="0.01" style="max-width: 100px;">
-                                                <button type="submit" class="btn btn-sm btn-primary">OK</button>
+                                                       value="{{ orcamento.desconto|floatformat:2 }}" step="0.01" min="0">
+                                                <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                    <i class="bi bi-check"></i>
+                                                </button>
                                             </div>
                                         </form>
                                         {% else %}
-                                        <strong>R$ {{ orcamento.desconto|floatformat:2 }}</strong>
+                                        <span class="text-danger">- R$ {{ orcamento.desconto|floatformat:2 }}</span>
                                         {% endif %}
                                     </td>
                                 </tr>
                                 <tr class="table-primary">
                                     <td><strong>TOTAL:</strong></td>
-                                    <td class="text-end"><h5 class="mb-0">R$ {{ orcamento.total|floatformat:2 }}</h5></td>
+                                    <td class="text-end"><strong class="h5">R$ {{ orcamento.total|floatformat:2 }}</strong></td>
                                 </tr>
                             </table>
                         </div>
                         <div class="col-md-6">
                             <h6>Ações</h6>
                             {% if orcamento.status == 'ABERTO' %}
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="update_status">
-                                <button type="submit" name="status" value="ENVIADO" class="btn btn-info btn-sm w-100 mb-2">
-                                    <i class="bi bi-send"></i> Enviar ao Cliente
-                                </button>
-                            </form>
-                            {% endif %}
-                            
-                            {% if orcamento.status == 'ENVIADO' %}
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="update_status">
-                                <button type="submit" name="status" value="APROVADO" class="btn btn-success btn-sm w-100 mb-2">
-                                    <i class="bi bi-check-circle"></i> Aprovar Orçamento
-                                </button>
-                                <button type="submit" name="status" value="REJEITADO" class="btn btn-danger btn-sm w-100">
-                                    <i class="bi bi-x-circle"></i> Rejeitar Orçamento
-                                </button>
-                            </form>
-                            {% endif %}
-                            
-                            {% if orcamento.status == 'APROVADO' and pode_converter %}
-                            <a href="{% url 'converter_orcamento_venda' orcamento.id %}" class="btn btn-success btn-sm w-100">
+                            <div class="d-grid gap-2">
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_status">
+                                    <input type="hidden" name="novo_status" value="ENVIADO">
+                                    <button type="submit" class="btn btn-info w-100">
+                                        <i class="bi bi-send"></i> Marcar como Enviado
+                                    </button>
+                                </form>
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="update_status">
+                                    <input type="hidden" name="novo_status" value="APROVADO">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-check-circle"></i> Aprovar Orçamento
+                                    </button>
+                                </form>
+                            </div>
+                            {% elif orcamento.status == 'APROVADO' %}
+                            <a href="{% url 'converter_orcamento_venda' orcamento.id %}" class="btn btn-success w-100">
                                 <i class="bi bi-cart-check"></i> Converter em Venda
                             </a>
                             {% endif %}
@@ -243,55 +604,199 @@
     </div>
 </div>
 
-<style>
-.search-panel {
-    position: sticky;
-    top: 20px;
-}
-
-.produto-item {
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.produto-item:hover {
-    background-color: #f8f9fa;
-    border-color: #667eea;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-}
-
-.produto-codigo {
-    font-weight: bold;
-    color: #667eea;
-}
-
-.produto-estoque {
-    font-size: 0.875rem;
-}
-
-.aplicacoes-list {
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-</style>
-
 <script>
-// Função para buscar modelos quando seleciona montadora
+// ============================================================
+// FUNÇÕES DO MULTI-SELECT
+// ============================================================
+
+function toggleDropdown(btn) {
+    const container = btn.closest('.multi-select-container');
+    const dropdown = container.querySelector('.multi-select-dropdown');
+    
+    document.querySelectorAll('.multi-select-dropdown.show').forEach(d => {
+        if (d !== dropdown) d.classList.remove('show');
+    });
+    
+    dropdown.classList.toggle('show');
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.multi-select-container')) {
+        document.querySelectorAll('.multi-select-dropdown.show').forEach(d => {
+            d.classList.remove('show');
+        });
+    }
+});
+
+function filterOptions(input) {
+    const searchText = input.value.toLowerCase();
+    const options = input.closest('.multi-select-dropdown').querySelectorAll('.multi-select-option');
+    
+    options.forEach(option => {
+        const label = option.querySelector('label').textContent.toLowerCase();
+        option.style.display = label.includes(searchText) ? '' : 'none';
+    });
+}
+
+function selectAll(btn) {
+    const container = btn.closest('.multi-select-container');
+    const checkboxes = container.querySelectorAll('.multi-select-option:not([style*="display: none"]) input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateButtonText(container);
+    
+    const name = container.dataset.name;
+    if (name === 'categorias') onFiltroCategoriaChange();
+    else if (name === 'subcategorias') onFiltroSubcategoriaChange();
+    else if (name === 'grupos') onFiltroGrupoChange();
+    
+    atualizarTagsFiltros();
+}
+
+function clearAll(btn) {
+    const container = btn.closest('.multi-select-container');
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateButtonText(container);
+    
+    const name = container.dataset.name;
+    if (name === 'categorias') onFiltroCategoriaChange();
+    else if (name === 'subcategorias') onFiltroSubcategoriaChange();
+    else if (name === 'grupos') onFiltroGrupoChange();
+    
+    atualizarTagsFiltros();
+}
+
+function updateButtonText(container) {
+    const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+    const btnText = container.querySelector('.btn-text');
+    const badge = container.querySelector('.badge-count');
+    
+    if (checkboxes.length === 0) {
+        btnText.textContent = 'Todas';
+        badge.style.display = 'none';
+    } else {
+        btnText.textContent = `${checkboxes.length} selecionado(s)`;
+        badge.textContent = checkboxes.length;
+        badge.style.display = 'inline';
+    }
+}
+
+function toggleFiltrosAvancados() {
+    const filtros = document.getElementById('filtros-avancados');
+    const icon = document.getElementById('icon-toggle-filtros');
+    
+    filtros.classList.toggle('collapsed');
+    icon.classList.toggle('bi-chevron-down');
+    icon.classList.toggle('bi-chevron-up');
+}
+
+// ============================================================
+// CASCATA DE FILTROS
+// ============================================================
+
+function onFiltroCategoriaChange() {
+    const categoriasSelecionadas = getSelectedValues('filtro_categorias');
+    
+    const subcategoriaOptions = document.querySelectorAll('#container-filtro-subcategorias .multi-select-option');
+    subcategoriaOptions.forEach(option => {
+        const categoriaId = option.dataset.categoria;
+        if (categoriasSelecionadas.length === 0 || categoriasSelecionadas.includes(categoriaId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
+        }
+    });
+    
+    updateButtonText(document.querySelector('[data-name="categorias"]'));
+    updateButtonText(document.getElementById('container-filtro-subcategorias'));
+    onFiltroSubcategoriaChange();
+    atualizarTagsFiltros();
+}
+
+function onFiltroSubcategoriaChange() {
+    const subcategoriasSelecionadas = getSelectedValues('filtro_subcategorias');
+    
+    const grupoOptions = document.querySelectorAll('#container-filtro-grupos .multi-select-option');
+    grupoOptions.forEach(option => {
+        const subcategoriaId = option.dataset.subcategoria;
+        if (subcategoriasSelecionadas.length === 0 || subcategoriasSelecionadas.includes(subcategoriaId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
+        }
+    });
+    
+    updateButtonText(document.getElementById('container-filtro-subcategorias'));
+    updateButtonText(document.getElementById('container-filtro-grupos'));
+    onFiltroGrupoChange();
+    atualizarTagsFiltros();
+}
+
+function onFiltroGrupoChange() {
+    const gruposSelecionados = getSelectedValues('filtro_grupos');
+    
+    const subgrupoOptions = document.querySelectorAll('#container-filtro-subgrupos .multi-select-option');
+    subgrupoOptions.forEach(option => {
+        const grupoId = option.dataset.grupo;
+        if (gruposSelecionados.length === 0 || gruposSelecionados.includes(grupoId)) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+            option.querySelector('input').checked = false;
+        }
+    });
+    
+    updateButtonText(document.getElementById('container-filtro-grupos'));
+    updateButtonText(document.getElementById('container-filtro-subgrupos'));
+    atualizarTagsFiltros();
+}
+
+function getSelectedValues(name) {
+    const checkboxes = document.querySelectorAll(`input[name="${name}"]:checked`);
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function atualizarTagsFiltros() {
+    const container = document.getElementById('filtros-ativos-busca');
+    let html = '';
+    
+    const categorias = getSelectedValues('filtro_categorias');
+    const subcategorias = getSelectedValues('filtro_subcategorias');
+    const grupos = getSelectedValues('filtro_grupos');
+    const subgrupos = getSelectedValues('filtro_subgrupos');
+    
+    if (categorias.length > 0) {
+        html += `<span class="filtro-tag-mini"><i class="bi bi-tag"></i> ${categorias.length} cat.</span>`;
+    }
+    if (subcategorias.length > 0) {
+        html += `<span class="filtro-tag-mini"><i class="bi bi-tags"></i> ${subcategorias.length} subcat.</span>`;
+    }
+    if (grupos.length > 0) {
+        html += `<span class="filtro-tag-mini"><i class="bi bi-collection"></i> ${grupos.length} grupo(s)</span>`;
+    }
+    if (subgrupos.length > 0) {
+        html += `<span class="filtro-tag-mini"><i class="bi bi-bookmark"></i> ${subgrupos.length} subgrupo(s)</span>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// ============================================================
+// BUSCA DE PRODUTOS
+// ============================================================
+
 document.getElementById('filtro-montadora').addEventListener('change', function() {
     const montadoraId = this.value;
     const modeloSelect = document.getElementById('filtro-modelo');
     
     if (!montadoraId) {
-        modeloSelect.innerHTML = '<option value="">Selecione a montadora</option>';
+        modeloSelect.innerHTML = '<option value="">Selecione montadora</option>';
         modeloSelect.disabled = true;
         return;
     }
     
-    // Buscar modelos da montadora
     fetch(`/api/buscar-modelos/?montadora_id=${montadoraId}`)
         .then(response => response.json())
         .then(data => {
@@ -308,13 +813,18 @@ document.getElementById('filtro-montadora').addEventListener('change', function(
         });
 });
 
-// Função para buscar produtos
 function buscarProdutos() {
     const busca = document.getElementById('busca-produto').value;
     const montadora = document.getElementById('filtro-montadora').value;
     const modelo = document.getElementById('filtro-modelo').value;
     
-    if (busca.length < 2 && !montadora && !modelo) {
+    // Filtros de categoria
+    const categorias = getSelectedValues('filtro_categorias');
+    const subcategorias = getSelectedValues('filtro_subcategorias');
+    const grupos = getSelectedValues('filtro_grupos');
+    const subgrupos = getSelectedValues('filtro_subgrupos');
+    
+    if (busca.length < 2 && !montadora && !modelo && categorias.length === 0 && subcategorias.length === 0) {
         alert('Digite pelo menos 2 caracteres ou selecione um filtro');
         return;
     }
@@ -325,7 +835,20 @@ function buscarProdutos() {
     if (montadora) url += `montadora=${montadora}&`;
     if (modelo) url += `modelo=${modelo}&`;
     
-    // Fazer requisição
+    // Adicionar filtros de categoria
+    categorias.forEach(id => url += `categorias=${id}&`);
+    subcategorias.forEach(id => url += `subcategorias=${id}&`);
+    grupos.forEach(id => url += `grupos=${id}&`);
+    subgrupos.forEach(id => url += `subgrupos=${id}&`);
+    
+    // Mostrar loading
+    document.getElementById('resultado-busca').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Buscando...</p>
+        </div>
+    `;
+    
     fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -337,7 +860,6 @@ function buscarProdutos() {
         });
 }
 
-// Função para mostrar resultados
 function mostrarResultados(produtos) {
     const container = document.getElementById('resultado-busca');
     
@@ -351,7 +873,8 @@ function mostrarResultados(produtos) {
         return;
     }
     
-    let html = '';
+    let html = `<small class="text-muted">${produtos.length} produto(s) encontrado(s)</small>`;
+    
     produtos.forEach(produto => {
         const estoqueClass = produto.situacao === 'normal' ? 'success' : 
                            produto.situacao === 'baixo' ? 'warning' : 'danger';
@@ -360,7 +883,6 @@ function mostrarResultados(produtos) {
             `${app.montadora} ${app.modelo}`
         ).join(', ') || 'Aplicação genérica';
         
-        // Preço de acordo com forma de pagamento
         const precoPorForma = {
             'DINHEIRO': produto.preco_dinheiro,
             'DEBITO': produto.preco_debito,
@@ -375,15 +897,13 @@ function mostrarResultados(produtos) {
                     <div class="flex-grow-1">
                         <div class="produto-codigo">${produto.codigo}</div>
                         <div>${produto.descricao}</div>
+                        <div class="produto-categoria">${produto.categoria}</div>
                         <div class="aplicacoes-list">
                             <i class="bi bi-car-front"></i> ${aplicacoes}
                         </div>
-                        <div class="text-muted small">
-                            <i class="bi bi-pin-map"></i> ${produto.localizacao}
-                        </div>
                     </div>
                     <div class="text-end">
-                        <div class="h5 mb-1 text-success">R$ ${preco.toFixed(2)}</div>
+                        <div class="h6 mb-1 text-success">R$ ${preco.toFixed(2)}</div>
                         <span class="badge bg-${estoqueClass}">
                             Est: ${produto.estoque_disponivel}
                         </span>
@@ -396,7 +916,6 @@ function mostrarResultados(produtos) {
     container.innerHTML = html;
 }
 
-// Função para adicionar produto ao orçamento
 function adicionarProduto(produtoId, codigo, descricao, preco) {
     const quantidade = prompt(`Adicionar ao orçamento:\n${codigo} - ${descricao}\n\nQuantidade:`, '1');
     
@@ -414,14 +933,12 @@ function adicionarProduto(produtoId, codigo, descricao, preco) {
     }
 }
 
-// Buscar ao pressionar Enter
 document.getElementById('busca-produto').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
         buscarProdutos();
     }
 });
 
-// Auto-buscar ao mudar modelo
 document.getElementById('filtro-modelo').addEventListener('change', function() {
     if (this.value) {
         buscarProdutos();
