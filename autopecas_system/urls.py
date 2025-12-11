@@ -151,6 +151,7 @@ urlpatterns = [
     path('api/subgrupos/', core_views.api_subgrupos_por_grupos, name='api_subgrupos'),
     path('api/filtros-estoque/', core_views.api_filtros_estoque, name='api_filtros_estoque'),
 
+    path('', include('django.contrib.auth.urls')),
 ]
 
    

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Auto Peças H.B.S.</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: #000000;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-section img {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+
+        .logo-section p {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #d4af37;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .input-group-custom {
+            position: relative;
+        }
+
+        .input-group-custom i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #d4af37;
+            font-size: 1.1rem;
+            z-index: 10;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 14px 14px 48px;
+            border: 2px solid #333;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #252525;
+            color: #fff;
+        }
+
+        .form-control::placeholder {
+            color: #666;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #d4af37;
+            background: #2a2a2a;
+            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #d4af37 0%, #b8960c 100%);
+            border: none;
+            border-radius: 12px;
+            color: #000;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .alert-danger {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid #dc2626;
+            color: #f87171;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        .footer-text i {
+            color: #d4af37;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="logo-section">
+                <img src="/static/img/logo_hbs.jpg" alt="Auto Peças H.B.S.">
+                <p>Faça login para continuar</p>
+            </div>
+
+            {% if form.errors %}
+            <div class="alert-danger">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                Usuário ou senha inválidos. Tente novamente.
+            </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label class="form-label">Usuário</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-person"></i>
+                        <input type="text" name="username" class="form-control" 
+                               placeholder="Digite seu usuário" required autofocus>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Senha</label>
+                    <div class="input-group-custom">
+                        <i class="bi bi-lock"></i>
+                        <input type="password" name="password" class="form-control" 
+                               placeholder="Digite sua senha" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Entrar
+                </button>
+            </form>
+        </div>
+
+        <p class="footer-text">
+            <i class="bi bi-shield-lock me-1"></i>
+            Conexão segura
+        </p>
+    </div>
+</body>
+</html>
