@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+
+{% block title %}Reposição de Estoque - Relatórios{% endblock %}
+{% block page_title %}Sugestão de Reposição{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    .stat-box.verde h3 { color: #22c55e; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .metodo-info {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+        padding: 15px;
+        border-radius: 0 8px 8px 0;
+        margin-bottom: 20px;
+    }
+    body.dark-mode .metodo-info { background: #1e3a5f; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Método de Cálculo</label>
+            <select name="metodo" class="form-select">
+                <option value="minimo" {% if metodo == 'minimo' %}selected{% endif %}>Repor até Estoque Mínimo</option>
+                <option value="maximo" {% if metodo == 'maximo' %}selected{% endif %}>Repor até Estoque Máximo</option>
+                <option value="vendido" {% if metodo == 'vendido' %}selected{% endif %}>Repor o que foi Vendido</option>
+                <option value="media" {% if metodo == 'media' %}selected{% endif %}>Baseado na Média de Vendas (30 dias)</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Período de Análise (vendas)</label>
+            <select name="dias" class="form-select">
+                <option value="7" {% if dias == 7 %}selected{% endif %}>Últimos 7 dias</option>
+                <option value="15" {% if dias == 15 %}selected{% endif %}>Últimos 15 dias</option>
+                <option value="30" {% if dias == 30 %}selected{% endif %}>Últimos 30 dias</option>
+                <option value="60" {% if dias == 60 %}selected{% endif %}>Últimos 60 dias</option>
+                <option value="90" {% if dias == 90 %}selected{% endif %}>Últimos 90 dias</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-calculator"></i> Calcular
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Info do método -->
+<div class="metodo-info">
+    <strong><i class="bi bi-info-circle me-2"></i>Método selecionado:</strong>
+    {% if metodo == 'minimo' %}
+        Repor até Estoque Mínimo - Sugere quantidade para atingir o estoque mínimo definido.
+    {% elif metodo == 'maximo' %}
+        Repor até Estoque Máximo - Sugere quantidade para atingir o estoque máximo definido.
+    {% elif metodo == 'vendido' %}
+        Repor o que foi Vendido - Sugere repor exatamente a quantidade vendida no período.
+    {% else %}
+        Baseado na Média - Calcula a média de vendas e sugere estoque para 30 dias.
+    {% endif %}
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="stat-box azul">
+            <h3>{{ qtd_produtos }}</h3>
+            <p>Produtos para Repor</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box verde">
+            <h3>R$ {{ custo_total|floatformat:2 }}</h3>
+            <p>Custo Total da Reposição</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-cart-plus me-2"></i>Lista de Reposição</h5>
+        <button class="btn btn-outline-success btn-sm" onclick="window.print()">
+            <i class="bi bi-printer"></i> Imprimir
+        </button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Fornecedor</th>
+                    <th class="text-center">Estoque</th>
+                    <th class="text-center">Mín/Máx</th>
+                    <th class="text-center">Vendido</th>
+                    <th class="text-center">Repor</th>
+                    <th class="text-end">Custo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td><strong>{{ p.codigo }}</strong></td>
+                    <td>{{ p.descricao|truncatechars:35 }}</td>
+                    <td><small>{{ p.fornecedor }}</small></td>
+                    <td class="text-center">
+                        <span class="{% if p.estoque_atual == 0 %}text-danger{% elif p.estoque_atual <= p.estoque_minimo %}text-warning{% endif %}">
+                            {{ p.estoque_atual }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <small>{{ p.estoque_minimo }} / {{ p.estoque_maximo }}</small>
+                    </td>
+                    <td class="text-center">{{ p.qtd_vendida }}</td>
+                    <td class="text-center">
+                        <strong class="text-primary">{{ p.qtd_repor }}</strong>
+                    </td>
+                    <td class="text-end">R$ {{ p.custo_reposicao|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: #22c55e;"></i>
+                        <p class="mt-2">Nenhum produto precisa de reposição!</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

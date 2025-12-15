@@ -1,0 +1,487 @@
+{% extends 'base.html' %}
+
+{% block title %}Relatórios - Sistema AutoPeças{% endblock %}
+
+{% block page_title %}Central de Relatórios{% endblock %}
+
+{% block extra_css %}
+<style>
+    .relatorios-container {
+        --card-bg: #ffffff;
+        --card-border: #e2e8f0;
+        --text-primary: #1a202c;
+        --text-muted: #718096;
+        --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    body.dark-mode .relatorios-container {
+        --card-bg: #2d2d2d;
+        --card-border: #404040;
+        --text-primary: #f0f0f0;
+        --text-muted: #a0a0a0;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* Cards de Resumo */
+    .resumo-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    
+    .resumo-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        border-left: 4px solid;
+    }
+    
+    .resumo-card.azul { border-left-color: #3b82f6; }
+    .resumo-card.verde { border-left-color: #22c55e; }
+    .resumo-card.amarelo { border-left-color: #eab308; }
+    .resumo-card.vermelho { border-left-color: #ef4444; }
+    .resumo-card.roxo { border-left-color: #8b5cf6; }
+    
+    .resumo-card h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .resumo-card p {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin: 4px 0 0 0;
+    }
+    
+    .resumo-card .icone {
+        font-size: 2rem;
+        opacity: 0.3;
+        float: right;
+        margin-top: -10px;
+    }
+
+    /* Categorias de Relatórios */
+    .categoria-relatorio {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+        margin-bottom: 24px;
+    }
+    
+    .categoria-relatorio h4 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .categoria-relatorio h4 i {
+        font-size: 1.3rem;
+    }
+    
+    .categoria-relatorio h4 .badge {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+
+    /* Grid de Relatórios */
+    .relatorios-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    
+    .relatorio-item {
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 10px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-decoration: none;
+        color: var(--text-primary);
+        transition: all 0.2s;
+    }
+    
+    .relatorio-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: #3b82f6;
+        color: var(--text-primary);
+    }
+    
+    .relatorio-item .icone-rel {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+    
+    .relatorio-item .icone-rel.azul { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .relatorio-item .icone-rel.verde { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .relatorio-item .icone-rel.amarelo { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .relatorio-item .icone-rel.vermelho { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .relatorio-item .icone-rel.roxo { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .relatorio-item .icone-rel.laranja { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+    .relatorio-item .icone-rel.ciano { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    
+    .relatorio-item .info h5 {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--text-primary);
+    }
+    
+    .relatorio-item .info p {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 4px 0 0 0;
+    }
+
+    /* Produtos mais vendidos */
+    .produtos-ranking {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--card-border);
+    }
+    
+    .produtos-ranking h4 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--text-primary);
+    }
+    
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--card-border);
+    }
+    
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+    
+    .ranking-posicao {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #3b82f6;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        margin-right: 12px;
+    }
+    
+    .ranking-posicao.p1 { background: #fbbf24; }
+    .ranking-posicao.p2 { background: #9ca3af; }
+    .ranking-posicao.p3 { background: #d97706; }
+    
+    .ranking-info {
+        flex: 1;
+    }
+    
+    .ranking-info h6 {
+        font-size: 0.85rem;
+        margin: 0;
+        color: var(--text-primary);
+    }
+    
+    .ranking-info small {
+        color: var(--text-muted);
+    }
+    
+    .ranking-valor {
+        text-align: right;
+    }
+    
+    .ranking-valor strong {
+        font-size: 0.9rem;
+        color: #22c55e;
+    }
+    
+    .ranking-valor small {
+        display: block;
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="relatorios-container">
+    
+    <!-- Cards de Resumo -->
+    <div class="resumo-cards">
+        <div class="resumo-card verde">
+            <i class="bi bi-graph-up-arrow icone"></i>
+            <h3>R$ {{ total_vendas_hoje|floatformat:2 }}</h3>
+            <p>Vendas Hoje</p>
+        </div>
+        <div class="resumo-card azul">
+            <i class="bi bi-cart-check icone"></i>
+            <h3>R$ {{ total_vendas_mes|floatformat:2 }}</h3>
+            <p>Vendas no Mês</p>
+        </div>
+        <div class="resumo-card roxo">
+            <i class="bi bi-receipt icone"></i>
+            <h3>R$ {{ ticket_medio|floatformat:2 }}</h3>
+            <p>Ticket Médio</p>
+        </div>
+        <div class="resumo-card vermelho">
+            <i class="bi bi-exclamation-triangle icone"></i>
+            <h3>{{ produtos_criticos }}</h3>
+            <p>Produtos Críticos</p>
+        </div>
+        <div class="resumo-card amarelo">
+            <i class="bi bi-cash-stack icone"></i>
+            <h3>R$ {{ contas_vencidas|floatformat:2 }}</h3>
+            <p>Contas Vencidas</p>
+        </div>
+        <div class="resumo-card laranja">
+            <i class="bi bi-people icone"></i>
+            <h3>R$ {{ receber_atrasado|floatformat:2 }}</h3>
+            <p>Crediário Atrasado</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Relatórios de Vendas -->
+            <div class="categoria-relatorio">
+                <h4>
+                    <i class="bi bi-graph-up text-primary"></i>
+                    Relatórios de Vendas
+                    <span class="badge bg-primary">5 relatórios</span>
+                </h4>
+                <div class="relatorios-grid">
+                    <a href="{% url 'relatorio_vendas_periodo' %}" class="relatorio-item">
+                        <div class="icone-rel azul"><i class="bi bi-calendar-range"></i></div>
+                        <div class="info">
+                            <h5>Vendas por Período</h5>
+                            <p>Diário, semanal, mensal, anual</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_vendas_pagamento' %}" class="relatorio-item">
+                        <div class="icone-rel verde"><i class="bi bi-credit-card"></i></div>
+                        <div class="info">
+                            <h5>Vendas por Forma de Pagamento</h5>
+                            <p>Dinheiro, PIX, cartão, crediário</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_vendas_cliente' %}" class="relatorio-item">
+                        <div class="icone-rel roxo"><i class="bi bi-people"></i></div>
+                        <div class="info">
+                            <h5>Vendas por Cliente</h5>
+                            <p>Ranking de clientes</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_ticket_medio' %}" class="relatorio-item">
+                        <div class="icone-rel amarelo"><i class="bi bi-receipt"></i></div>
+                        <div class="info">
+                            <h5>Ticket Médio</h5>
+                            <p>Valor médio por venda</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_comparativo' %}" class="relatorio-item">
+                        <div class="icone-rel ciano"><i class="bi bi-arrow-left-right"></i></div>
+                        <div class="info">
+                            <h5>Comparativo de Períodos</h5>
+                            <p>Compare meses ou anos</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Relatórios de Estoque -->
+            <div class="categoria-relatorio">
+                <h4>
+                    <i class="bi bi-box-seam text-success"></i>
+                    Relatórios de Estoque
+                    <span class="badge bg-success">7 relatórios</span>
+                </h4>
+                <div class="relatorios-grid">
+                    <a href="{% url 'relatorio_produtos_vendidos' %}" class="relatorio-item">
+                        <div class="icone-rel verde"><i class="bi bi-trophy"></i></div>
+                        <div class="info">
+                            <h5>Produtos Mais Vendidos</h5>
+                            <p>Ranking de vendas</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_produtos_parados' %}" class="relatorio-item">
+                        <div class="icone-rel vermelho"><i class="bi bi-clock-history"></i></div>
+                        <div class="info">
+                            <h5>Produtos Parados</h5>
+                            <p>Sem venda há X dias</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_estoque_critico' %}" class="relatorio-item">
+                        <div class="icone-rel amarelo"><i class="bi bi-exclamation-triangle"></i></div>
+                        <div class="info">
+                            <h5>Estoque Crítico</h5>
+                            <p>Produtos abaixo do mínimo</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_curva_abc' %}" class="relatorio-item">
+                        <div class="icone-rel roxo"><i class="bi bi-bar-chart-steps"></i></div>
+                        <div class="info">
+                            <h5>Curva ABC</h5>
+                            <p>Classificação por faturamento</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_giro_estoque' %}" class="relatorio-item">
+                        <div class="icone-rel ciano"><i class="bi bi-arrow-repeat"></i></div>
+                        <div class="info">
+                            <h5>Giro de Estoque</h5>
+                            <p>Velocidade de renovação</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_movimentacao' %}" class="relatorio-item">
+                        <div class="icone-rel azul"><i class="bi bi-arrow-down-up"></i></div>
+                        <div class="info">
+                            <h5>Movimentação de Estoque</h5>
+                            <p>Entradas e saídas</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_reposicao' %}" class="relatorio-item">
+                        <div class="icone-rel laranja"><i class="bi bi-cart-plus"></i></div>
+                        <div class="info">
+                            <h5>Reposição de Estoque</h5>
+                            <p>Sugestão de compras</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Relatórios Financeiros -->
+            <div class="categoria-relatorio">
+                <h4>
+                    <i class="bi bi-wallet2 text-warning"></i>
+                    Relatórios Financeiros
+                    <span class="badge bg-warning text-dark">7 relatórios</span>
+                </h4>
+                <div class="relatorios-grid">
+                    <a href="{% url 'relatorio_fluxo_caixa' %}" class="relatorio-item">
+                        <div class="icone-rel verde"><i class="bi bi-cash-stack"></i></div>
+                        <div class="info">
+                            <h5>Fluxo de Caixa</h5>
+                            <p>Entradas vs saídas</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_lucro_bruto' %}" class="relatorio-item">
+                        <div class="icone-rel azul"><i class="bi bi-graph-up"></i></div>
+                        <div class="info">
+                            <h5>Lucro Bruto</h5>
+                            <p>Vendas - custo produtos</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_lucro_liquido' %}" class="relatorio-item">
+                        <div class="icone-rel roxo"><i class="bi bi-piggy-bank"></i></div>
+                        <div class="info">
+                            <h5>Lucro Líquido Real</h5>
+                            <p>Descontando taxas, despesas e impostos</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_contas_pagar' %}" class="relatorio-item">
+                        <div class="icone-rel vermelho"><i class="bi bi-cash-coin"></i></div>
+                        <div class="info">
+                            <h5>Contas a Pagar</h5>
+                            <p>Vencidas e a vencer</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_contas_receber' %}" class="relatorio-item">
+                        <div class="icone-rel verde"><i class="bi bi-wallet"></i></div>
+                        <div class="info">
+                            <h5>Contas a Receber</h5>
+                            <p>Crediário pendente</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_dre' %}" class="relatorio-item">
+                        <div class="icone-rel amarelo"><i class="bi bi-file-earmark-spreadsheet"></i></div>
+                        <div class="info">
+                            <h5>DRE Simplificado</h5>
+                            <p>Demonstrativo de resultado</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_inadimplencia' %}" class="relatorio-item">
+                        <div class="icone-rel vermelho"><i class="bi bi-person-x"></i></div>
+                        <div class="info">
+                            <h5>Inadimplência</h5>
+                            <p>Clientes em atraso</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Relatórios de Baterias -->
+            <div class="categoria-relatorio">
+                <h4>
+                    <i class="bi bi-battery-charging text-info"></i>
+                    Relatórios de Baterias
+                    <span class="badge bg-info">2 relatórios</span>
+                </h4>
+                <div class="relatorios-grid">
+                    <a href="{% url 'relatorio_cascos' %}" class="relatorio-item">
+                        <div class="icone-rel amarelo"><i class="bi bi-box-seam"></i></div>
+                        <div class="info">
+                            <h5>Controle de Cascos</h5>
+                            <p>Pendentes de devolução</p>
+                        </div>
+                    </a>
+                    <a href="{% url 'relatorio_sucatas' %}" class="relatorio-item">
+                        <div class="icone-rel ciano"><i class="bi bi-recycle"></i></div>
+                        <div class="info">
+                            <h5>Trocas de Sucata</h5>
+                            <p>Histórico de trocas</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Produtos Mais Vendidos -->
+            <div class="produtos-ranking">
+                <h4><i class="bi bi-trophy text-warning me-2"></i>Top 5 Produtos do Mês</h4>
+                {% for produto in produtos_mais_vendidos %}
+                <div class="ranking-item">
+                    <div class="ranking-posicao {% if forloop.counter == 1 %}p1{% elif forloop.counter == 2 %}p2{% elif forloop.counter == 3 %}p3{% endif %}">
+                        {{ forloop.counter }}
+                    </div>
+                    <div class="ranking-info">
+                        <h6>{{ produto.produto__descricao|truncatewords:5 }}</h6>
+                        <small>{{ produto.produto__codigo }}</small>
+                    </div>
+                    <div class="ranking-valor">
+                        <strong>R$ {{ produto.total_vendido|floatformat:2 }}</strong>
+                        <small>{{ produto.qtd_vendida }} un</small>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted text-center py-4">Nenhuma venda no período</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

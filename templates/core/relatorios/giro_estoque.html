@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Giro de Estoque - Relatórios{% endblock %}
+{% block page_title %}Giro de Estoque{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; color: #3b82f6; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .giro-alto { color: #22c55e; font-weight: 700; }
+    .giro-medio { color: #f59e0b; font-weight: 700; }
+    .giro-baixo { color: #ef4444; font-weight: 700; }
+    
+    .legenda-box {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    body.dark-mode .legenda-box { background: #1e1e1e; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label">Período de Análise</label>
+            <select name="dias" class="form-select">
+                <option value="7" {% if dias == 7 %}selected{% endif %}>Últimos 7 dias</option>
+                <option value="15" {% if dias == 15 %}selected{% endif %}>Últimos 15 dias</option>
+                <option value="30" {% if dias == 30 %}selected{% endif %}>Últimos 30 dias</option>
+                <option value="60" {% if dias == 60 %}selected{% endif %}>Últimos 60 dias</option>
+                <option value="90" {% if dias == 90 %}selected{% endif %}>Últimos 90 dias</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Analisar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Legenda -->
+<div class="legenda-box">
+    <div class="row">
+        <div class="col-md-6">
+            <strong><i class="bi bi-arrow-repeat me-1"></i> Giro:</strong> 
+            Quantas vezes o estoque "girou" no período. 
+            <span class="giro-alto">Alto (>1)</span> | 
+            <span class="giro-medio">Médio (0.5-1)</span> | 
+            <span class="giro-baixo">Baixo (<0.5)</span>
+        </div>
+        <div class="col-md-6">
+            <strong><i class="bi bi-calendar-check me-1"></i> Cobertura:</strong> 
+            Dias que o estoque atual cobre, baseado na média de vendas.
+        </div>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="stat-box">
+            <h3>{{ total_produtos }}</h3>
+            <p>Produtos com Estoque</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box">
+            <h3>{{ dias }} dias</h3>
+            <p>Período Analisado (desde {{ data_inicio|date:"d/m/Y" }})</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-arrow-repeat me-2"></i>Top 100 - Maior Giro</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-center">Estoque</th>
+                    <th class="text-center">Vendido</th>
+                    <th class="text-center">Giro</th>
+                    <th class="text-center">Cobertura</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td><strong>{{ p.codigo }}</strong></td>
+                    <td>{{ p.descricao }}</td>
+                    <td><span class="badge bg-secondary">{{ p.categoria }}</span></td>
+                    <td class="text-center">{{ p.estoque_atual }}</td>
+                    <td class="text-center">{{ p.qtd_vendida }}</td>
+                    <td class="text-center">
+                        <span class="{% if p.giro >= 1 %}giro-alto{% elif p.giro >= 0.5 %}giro-medio{% else %}giro-baixo{% endif %}">
+                            {{ p.giro }}x
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        {% if p.cobertura == '∞' %}
+                            <span class="text-muted">∞</span>
+                        {% else %}
+                            {{ p.cobertura }} dias
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Nenhum produto com estoque
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}Comparativo de Períodos - Relatórios{% endblock %}
+{% block page_title %}Comparativo de Períodos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .periodo-label {
+        font-weight: 600;
+        color: #3b82f6;
+        margin-bottom: 10px;
+        display: block;
+    }
+    .periodo-label.p2 { color: #8b5cf6; }
+    
+    .comparativo-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        text-align: center;
+        height: 100%;
+    }
+    body.dark-mode .comparativo-card { background: #2d2d2d; }
+    
+    .comparativo-card h6 {
+        color: #718096;
+        font-size: 0.85rem;
+        margin-bottom: 15px;
+    }
+    
+    .valor-periodo {
+        font-size: 1.4rem;
+        font-weight: 700;
+        margin: 5px 0;
+    }
+    .valor-periodo.p1 { color: #3b82f6; }
+    .valor-periodo.p2 { color: #8b5cf6; }
+    
+    .variacao {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-top: 10px;
+    }
+    .variacao.positiva {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+    }
+    .variacao.negativa {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+    .variacao.neutra {
+        background: rgba(107, 114, 128, 0.15);
+        color: #6b7280;
+    }
+    
+    .vs-divider {
+        font-size: 1.2rem;
+        color: #718096;
+        margin: 10px 0;
+    }
+    
+    .btn-voltar { margin-bottom: 15px; }
+    
+    .legenda-periodos {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin-bottom: 20px;
+    }
+    .legenda-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+    }
+    .legenda-cor {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+    .legenda-cor.p1 { background: #3b82f6; }
+    .legenda-cor.p2 { background: #8b5cf6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <span class="periodo-label"><i class="bi bi-1-circle me-1"></i> Período 1 (Atual)</span>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="date" name="p1_inicio" class="form-control" value="{{ p1_inicio|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-6">
+                        <input type="date" name="p1_fim" class="form-control" value="{{ p1_fim|date:'Y-m-d' }}">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <span class="periodo-label p2"><i class="bi bi-2-circle me-1"></i> Período 2 (Anterior)</span>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <input type="date" name="p2_inicio" class="form-control" value="{{ p2_inicio|date:'Y-m-d' }}">
+                    </div>
+                    <div class="col-6">
+                        <input type="date" name="p2_fim" class="form-control" value="{{ p2_fim|date:'Y-m-d' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-arrow-left-right"></i> Comparar Períodos
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Legenda -->
+<div class="legenda-periodos">
+    <div class="legenda-item">
+        <div class="legenda-cor p1"></div>
+        <span>Período 1: {{ p1_inicio|date:'d/m/Y' }} a {{ p1_fim|date:'d/m/Y' }}</span>
+    </div>
+    <div class="legenda-item">
+        <div class="legenda-cor p2"></div>
+        <span>Período 2: {{ p2_inicio|date:'d/m/Y' }} a {{ p2_fim|date:'d/m/Y' }}</span>
+    </div>
+</div>
+
+<!-- Cards Comparativos -->
+<div class="row g-4">
+    <!-- Total de Vendas -->
+    <div class="col-md-4">
+        <div class="comparativo-card">
+            <h6><i class="bi bi-cash-stack me-1"></i> TOTAL DE VENDAS</h6>
+            <div class="valor-periodo p1">R$ {{ stats_p1.total|floatformat:2|default:"0,00" }}</div>
+            <div class="vs-divider">vs</div>
+            <div class="valor-periodo p2">R$ {{ stats_p2.total|floatformat:2|default:"0,00" }}</div>
+            <div class="variacao {% if variacoes.total > 0 %}positiva{% elif variacoes.total < 0 %}negativa{% else %}neutra{% endif %}">
+                {% if variacoes.total > 0 %}<i class="bi bi-arrow-up"></i>{% elif variacoes.total < 0 %}<i class="bi bi-arrow-down"></i>{% else %}<i class="bi bi-dash"></i>{% endif %}
+                {{ variacoes.total|floatformat:1 }}%
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quantidade de Vendas -->
+    <div class="col-md-4">
+        <div class="comparativo-card">
+            <h6><i class="bi bi-cart-check me-1"></i> QUANTIDADE DE VENDAS</h6>
+            <div class="valor-periodo p1">{{ stats_p1.quantidade|default:0 }}</div>
+            <div class="vs-divider">vs</div>
+            <div class="valor-periodo p2">{{ stats_p2.quantidade|default:0 }}</div>
+            <div class="variacao {% if variacoes.quantidade > 0 %}positiva{% elif variacoes.quantidade < 0 %}negativa{% else %}neutra{% endif %}">
+                {% if variacoes.quantidade > 0 %}<i class="bi bi-arrow-up"></i>{% elif variacoes.quantidade < 0 %}<i class="bi bi-arrow-down"></i>{% else %}<i class="bi bi-dash"></i>{% endif %}
+                {{ variacoes.quantidade|floatformat:1 }}%
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ticket Médio -->
+    <div class="col-md-4">
+        <div class="comparativo-card">
+            <h6><i class="bi bi-receipt me-1"></i> TICKET MÉDIO</h6>
+            <div class="valor-periodo p1">R$ {{ stats_p1.ticket_medio|floatformat:2|default:"0,00" }}</div>
+            <div class="vs-divider">vs</div>
+            <div class="valor-periodo p2">R$ {{ stats_p2.ticket_medio|floatformat:2|default:"0,00" }}</div>
+            <div class="variacao {% if variacoes.ticket_medio > 0 %}positiva{% elif variacoes.ticket_medio < 0 %}negativa{% else %}neutra{% endif %}">
+                {% if variacoes.ticket_medio > 0 %}<i class="bi bi-arrow-up"></i>{% elif variacoes.ticket_medio < 0 %}<i class="bi bi-arrow-down"></i>{% else %}<i class="bi bi-dash"></i>{% endif %}
+                {{ variacoes.ticket_medio|floatformat:1 }}%
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico Comparativo -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="comparativo-card">
+            <h6><i class="bi bi-bar-chart me-1"></i> COMPARATIVO VISUAL</h6>
+            <canvas id="graficoComparativo" height="80"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('graficoComparativo').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Total Vendas', 'Qtd. Vendas', 'Ticket Médio'],
+            datasets: [
+                {
+                    label: 'Período 1',
+                    data: [
+                        {{ stats_p1.total|default:0 }},
+                        {{ stats_p1.quantidade|default:0 }} * 100,
+                        {{ stats_p1.ticket_medio|default:0 }}
+                    ],
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderRadius: 5
+                },
+                {
+                    label: 'Período 2',
+                    data: [
+                        {{ stats_p2.total|default:0 }},
+                        {{ stats_p2.quantidade|default:0 }} * 100,
+                        {{ stats_p2.ticket_medio|default:0 }}
+                    ],
+                    backgroundColor: 'rgba(139, 92, 246, 0.7)',
+                    borderRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

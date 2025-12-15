@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from vendas.models import Venda, OrdemServico
 from django.utils import timezone
-from datetime import date
+from datetime import datetime, timedelta, date
+from django.db.models.functions import TruncDate, TruncMonth, TruncWeek
 import json
 from estoque.forms import ProdutoForm
 from django.shortcuts import render, get_object_or_404, redirect
@@ -11,7 +12,6 @@ from decimal import Decimal
 from django.db import transaction
 from django.core.paginator import Paginator
 from django.db.models import Sum, Count, F, Q, Avg, Min, Max, Prefetch
-from datetime import datetime, timedelta
 from clientes.models import Cliente, Veiculo
 from estoque.models import Grupo, Subgrupo
 from estoque.models import AmperagemBateria
@@ -203,39 +203,75 @@ def api_buscar_produtos_pdv(request):
 
 @login_required
 def relatorios(request):
-    """Página de relatórios gerenciais"""
-    # Período padrão: últimos 30 dias
-    data_fim = timezone.now().date()
-    data_inicio = data_fim - timedelta(days=30)
+    """Dashboard principal de relatórios"""
+    from vendas.models import Venda, ItemVenda
+    from financeiro.models import ContaPagar, ContaReceber, MovimentacaoCaixa
     
-    # Vendas no período
-    vendas_periodo = Venda.objects.filter(
-        status='F',
-        data_venda__date__gte=data_inicio,
-        data_venda__date__lte=data_fim
+    hoje = date.today()
+    inicio_mes = hoje.replace(day=1)
+    
+    # Vendas do mês
+    vendas_mes = Venda.objects.filter(
+        data_venda__date__gte=inicio_mes,
+        data_venda__date__lte=hoje,
+        status='F'
     )
     
-    # Top 10 produtos mais vendidos
-    top_produtos = ItemVenda.objects.filter(
-        venda__status='F',
-        venda__data_venda__date__gte=data_inicio
+    total_vendas_mes = vendas_mes.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    qtd_vendas_mes = vendas_mes.count()
+    ticket_medio = total_vendas_mes / qtd_vendas_mes if qtd_vendas_mes > 0 else Decimal('0')
+    
+    # Vendas de hoje
+    vendas_hoje = Venda.objects.filter(
+        data_venda__date=hoje,
+        status='F'
+    )
+    total_vendas_hoje = vendas_hoje.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # Contas a pagar vencidas
+    contas_vencidas = ContaPagar.objects.filter(
+        status__in=['PENDENTE', 'ATRASADO'],
+        data_vencimento__lt=hoje
+    ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    
+    # Contas a receber em atraso
+    receber_atrasado = ContaReceber.objects.filter(
+        status__in=['PENDENTE', 'ATRASADO'],
+        data_vencimento__lt=hoje
+    ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    
+    # Produtos mais vendidos do mês
+    produtos_mais_vendidos = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=inicio_mes,
+        venda__status='F'
     ).values(
+        'produto__codigo',
         'produto__descricao'
     ).annotate(
-        quantidade_total=Sum('quantidade'),
-        valor_total=Sum('total')
-    ).order_by('-quantidade_total')[:10]
+        qtd_vendida=Sum('quantidade'),
+        total_vendido=Sum('total')
+    ).order_by('-qtd_vendida')[:5]
+    
+    # Estoque crítico
+    produtos_criticos = Produto.objects.filter(
+        ativo=True,
+        estoque_atual__lte=F('estoque_minimo')
+    ).count()
     
     context = {
-        'vendas_periodo': vendas_periodo,
-        'total_vendido': vendas_periodo.aggregate(Sum('total'))['total__sum'] or 0,
-        'top_produtos': top_produtos,
-        'data_inicio': data_inicio,
-        'data_fim': data_fim,
+        'total_vendas_mes': total_vendas_mes,
+        'qtd_vendas_mes': qtd_vendas_mes,
+        'ticket_medio': ticket_medio,
+        'total_vendas_hoje': total_vendas_hoje,
+        'contas_vencidas': contas_vencidas,
+        'receber_atrasado': receber_atrasado,
+        'produtos_mais_vendidos': produtos_mais_vendidos,
+        'produtos_criticos': produtos_criticos,
+        'hoje': hoje,
+        'inicio_mes': inicio_mes,
     }
     
-    return render(request, 'core/relatorios.html', context)
-
+    return render(request, 'core/relatorios/dashboard.html', context)
 
 # ============================================
 # VIEWS DE CLIENTES
@@ -3163,3 +3199,1286 @@ def criar_amperagem(request):
         return redirect('controle_cascos')
     
     return JsonResponse({'error': 'M�todo n�o permitido'}, status=405)
+
+
+# ============================================
+# RELATÓRIOS DE VENDAS
+# ============================================
+
+@login_required
+def relatorio_vendas_periodo(request):
+    """Relatório de vendas por período"""
+    from vendas.models import Venda, ItemVenda
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    agrupamento = request.GET.get('agrupamento', 'dia')
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje
+        data_fim = hoje
+    
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    
+    # Totais gerais
+    totais = vendas.aggregate(
+        total_vendas=Sum('total'),
+        total_desconto=Sum('desconto'),
+        qtd_vendas=Count('id')
+    )
+    
+    # Agrupamento
+    if agrupamento == 'dia':
+        vendas_agrupadas = vendas.annotate(
+            periodo=TruncDate('data_venda')
+        ).values('periodo').annotate(
+            total=Sum('total'),
+            quantidade=Count('id')
+        ).order_by('periodo')
+    elif agrupamento == 'semana':
+        vendas_agrupadas = vendas.annotate(
+            periodo=TruncWeek('data_venda')
+        ).values('periodo').annotate(
+            total=Sum('total'),
+            quantidade=Count('id')
+        ).order_by('periodo')
+    else:  # mes
+        vendas_agrupadas = vendas.annotate(
+            periodo=TruncMonth('data_venda')
+        ).values('periodo').annotate(
+            total=Sum('total'),
+            quantidade=Count('id')
+        ).order_by('periodo')
+    
+    # Lista detalhada
+    vendas_lista = vendas.select_related('cliente').order_by('-data_venda')[:100]
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'agrupamento': agrupamento,
+        'totais': totais,
+        'vendas_agrupadas': list(vendas_agrupadas),
+        'vendas_lista': vendas_lista,
+    }
+    
+    return render(request, 'core/relatorios/vendas_periodo.html', context)
+
+
+@login_required
+def relatorio_vendas_pagamento(request):
+    """Relatório de vendas por forma de pagamento"""
+    from vendas.models import Venda
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    
+    # Total geral
+    total_geral = vendas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # Por forma de pagamento
+    formas_pagamento = vendas.values('forma_pagamento').annotate(
+        total=Sum('total'),
+        quantidade=Count('id')
+    ).order_by('-total')
+    
+    # Adicionar percentual e nome legível
+    FORMAS_NOME = {
+        'DI': 'Dinheiro',
+        'CD': 'Cartão de Débito',
+        'CC': 'Cartão de Crédito',
+        'PI': 'PIX',
+        'BO': 'Boleto',
+        'CR': 'Crediário',
+    }
+    
+    for forma in formas_pagamento:
+        forma['nome'] = FORMAS_NOME.get(forma['forma_pagamento'], forma['forma_pagamento'])
+        forma['percentual'] = (forma['total'] / total_geral * 100) if total_geral > 0 else 0
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'total_geral': total_geral,
+        'formas_pagamento': formas_pagamento,
+        'qtd_vendas': vendas.count(),
+    }
+    
+    return render(request, 'core/relatorios/vendas_pagamento.html', context)
+
+
+@login_required
+def relatorio_vendas_cliente(request):
+    """Relatório de vendas por cliente (ranking)"""
+    from vendas.models import Venda
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    
+    # Ranking de clientes
+    clientes_ranking = vendas.values(
+        'cliente__id',
+        'cliente__nome',
+        'cliente__telefone'
+    ).annotate(
+        total_compras=Sum('total'),
+        qtd_compras=Count('id'),
+        ticket_medio=Avg('total')
+    ).order_by('-total_compras')[:50]
+    
+    total_geral = vendas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'clientes_ranking': clientes_ranking,
+        'total_geral': total_geral,
+    }
+    
+    return render(request, 'core/relatorios/vendas_cliente.html', context)
+
+
+@login_required
+def relatorio_ticket_medio(request):
+    """Relatório de ticket médio"""
+    from vendas.models import Venda
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    
+    # Estatísticas gerais
+    stats = vendas.aggregate(
+        total_vendas=Sum('total'),
+        qtd_vendas=Count('id'),
+        maior_venda=Max('total'),
+        menor_venda=Min('total')
+    )
+    
+    # Calcular ticket médio manualmente
+    if stats['qtd_vendas'] and stats['qtd_vendas'] > 0:
+        stats['ticket_medio'] = stats['total_vendas'] / stats['qtd_vendas']
+    else:
+        stats['ticket_medio'] = Decimal('0')
+    
+    # Ticket médio por dia
+    ticket_por_dia_qs = vendas.annotate(
+        dia=TruncDate('data_venda')
+    ).values('dia').annotate(
+        soma_total=Sum('total'),
+        qtd=Count('id')
+    ).order_by('dia')
+    
+    # Calcular ticket manualmente para cada dia
+    ticket_por_dia = []
+    for item in ticket_por_dia_qs:
+        ticket_por_dia.append({
+            'dia': item['dia'].isoformat() if item['dia'] else None,
+            'total': float(item['soma_total'] or 0),
+            'quantidade': item['qtd'],
+            'ticket': float(item['soma_total'] / item['qtd']) if item['qtd'] > 0 else 0
+        })
+    
+    # Ticket médio por forma de pagamento
+    ticket_forma_qs = vendas.values('forma_pagamento').annotate(
+        soma_total=Sum('total'),
+        qtd=Count('id')
+    ).order_by('-soma_total')
+    
+    FORMAS_NOME = {
+        'DI': 'Dinheiro', 'CD': 'Débito', 'CC': 'Crédito',
+        'PI': 'PIX', 'BO': 'Boleto', 'CR': 'Crediário',
+    }
+    
+    ticket_por_forma = []
+    for forma in ticket_forma_qs:
+        ticket_por_forma.append({
+            'forma_pagamento': forma['forma_pagamento'],
+            'nome': FORMAS_NOME.get(forma['forma_pagamento'], forma['forma_pagamento']),
+            'total': forma['soma_total'] or 0,
+            'quantidade': forma['qtd'],
+            'ticket': forma['soma_total'] / forma['qtd'] if forma['qtd'] > 0 else 0
+        })
+    
+    import json
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'stats': stats,
+        'ticket_por_dia': json.dumps(ticket_por_dia),
+        'ticket_por_forma': ticket_por_forma,
+    }
+    
+    return render(request, 'core/relatorios/ticket_medio.html', context)
+
+
+@login_required
+def relatorio_comparativo(request):
+    """Relatório comparativo de períodos"""
+    from vendas.models import Venda
+    
+    hoje = date.today()
+    
+    # Período 1 (padrão: mês atual)
+    p1_inicio = request.GET.get('p1_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    p1_fim = request.GET.get('p1_fim', hoje.strftime('%Y-%m-%d'))
+    
+    # Período 2 (padrão: mês anterior)
+    mes_anterior = hoje.replace(day=1) - timedelta(days=1)
+    p2_inicio = request.GET.get('p2_inicio', mes_anterior.replace(day=1).strftime('%Y-%m-%d'))
+    p2_fim = request.GET.get('p2_fim', mes_anterior.strftime('%Y-%m-%d'))
+    
+    try:
+        p1_inicio = datetime.strptime(p1_inicio, '%Y-%m-%d').date()
+        p1_fim = datetime.strptime(p1_fim, '%Y-%m-%d').date()
+        p2_inicio = datetime.strptime(p2_inicio, '%Y-%m-%d').date()
+        p2_fim = datetime.strptime(p2_fim, '%Y-%m-%d').date()
+    except:
+        pass
+    
+    # Dados período 1
+    vendas_p1 = Venda.objects.filter(
+        data_venda__date__gte=p1_inicio,
+        data_venda__date__lte=p1_fim,
+        status='F'
+    )
+    agg_p1 = vendas_p1.aggregate(
+        soma_total=Sum('total'),
+        qtd=Count('id')
+    )
+    stats_p1 = {
+        'total': agg_p1['soma_total'] or Decimal('0'),
+        'quantidade': agg_p1['qtd'] or 0,
+        'ticket_medio': (agg_p1['soma_total'] / agg_p1['qtd']) if agg_p1['qtd'] and agg_p1['qtd'] > 0 else Decimal('0')
+    }
+    
+    # Dados período 2
+    vendas_p2 = Venda.objects.filter(
+        data_venda__date__gte=p2_inicio,
+        data_venda__date__lte=p2_fim,
+        status='F'
+    )
+    agg_p2 = vendas_p2.aggregate(
+        soma_total=Sum('total'),
+        qtd=Count('id')
+    )
+    stats_p2 = {
+        'total': agg_p2['soma_total'] or Decimal('0'),
+        'quantidade': agg_p2['qtd'] or 0,
+        'ticket_medio': (agg_p2['soma_total'] / agg_p2['qtd']) if agg_p2['qtd'] and agg_p2['qtd'] > 0 else Decimal('0')
+    }
+    
+    # Calcular variações
+    def calc_variacao(atual, anterior):
+        if anterior and anterior > 0:
+            return float(((atual or 0) - anterior) / anterior * 100)
+        return 0.0
+    
+    variacoes = {
+        'total': calc_variacao(stats_p1['total'], stats_p2['total']),
+        'quantidade': calc_variacao(stats_p1['quantidade'], stats_p2['quantidade']),
+        'ticket_medio': calc_variacao(stats_p1['ticket_medio'], stats_p2['ticket_medio']),
+    }
+    
+    context = {
+        'p1_inicio': p1_inicio,
+        'p1_fim': p1_fim,
+        'p2_inicio': p2_inicio,
+        'p2_fim': p2_fim,
+        'stats_p1': stats_p1,
+        'stats_p2': stats_p2,
+        'variacoes': variacoes,
+    }
+    
+    return render(request, 'core/relatorios/comparativo.html', context)
+
+
+# ============================================
+# RELATÓRIOS DE ESTOQUE
+# ============================================
+
+@login_required
+def relatorio_produtos_vendidos(request):
+    """Relatório de produtos mais vendidos"""
+    from vendas.models import ItemVenda
+    from estoque.models import Produto
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    limite = int(request.GET.get('limite', 50))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Produtos mais vendidos
+    produtos_vendidos = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_inicio,
+        venda__data_venda__date__lte=data_fim,
+        venda__status='F'
+    ).values(
+        'produto__id',
+        'produto__codigo',
+        'produto__descricao',
+        'produto__categoria__nome'
+    ).annotate(
+        qtd_vendida=Sum('quantidade'),
+        total_vendido=Sum('total')
+    ).order_by('-qtd_vendida')[:limite]
+    
+    # Totais
+    totais = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_inicio,
+        venda__data_venda__date__lte=data_fim,
+        venda__status='F'
+    ).aggregate(
+        qtd_total=Sum('quantidade'),
+        valor_total=Sum('total')
+    )
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'limite': limite,
+        'produtos': produtos_vendidos,
+        'totais': totais,
+    }
+    
+    return render(request, 'core/relatorios/produtos_vendidos.html', context)
+
+
+@login_required
+def relatorio_produtos_parados(request):
+    """Relatório de produtos sem venda"""
+    from vendas.models import ItemVenda
+    from estoque.models import Produto
+    
+    dias = int(request.GET.get('dias', 90))
+    data_limite = date.today() - timedelta(days=dias)
+    
+    # Produtos vendidos no período
+    produtos_vendidos_ids = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_limite,
+        venda__status='F'
+    ).values_list('produto_id', flat=True).distinct()
+    
+    # Produtos não vendidos (com estoque > 0)
+    produtos_parados = Produto.objects.filter(
+        estoque_atual__gt=0
+    ).exclude(
+        id__in=produtos_vendidos_ids
+    ).select_related('categoria').order_by('-estoque_atual')
+    
+    # Calcular valor parado
+    valor_total_parado = sum(
+        (p.preco_custo or 0) * p.estoque_atual for p in produtos_parados
+    )
+    
+    context = {
+        'dias': dias,
+        'data_limite': data_limite,
+        'produtos': produtos_parados,
+        'qtd_produtos': produtos_parados.count(),
+        'valor_total_parado': valor_total_parado,
+    }
+    
+    return render(request, 'core/relatorios/produtos_parados.html', context)
+
+
+@login_required
+def relatorio_estoque_critico(request):
+    """Relatório de produtos com estoque crítico"""
+    from estoque.models import Produto
+    
+    tipo = request.GET.get('tipo', 'todos')  # todos, zerado, minimo
+    
+    if tipo == 'zerado':
+        produtos = Produto.objects.filter(estoque_atual=0)
+    elif tipo == 'minimo':
+        produtos = Produto.objects.filter(estoque_atual__gt=0, estoque_atual__lte=models.F('estoque_minimo'))
+    else:
+        produtos = Produto.objects.filter(
+            models.Q(estoque_atual=0) | 
+            models.Q(estoque_atual__lte=models.F('estoque_minimo'))
+        )
+    
+    produtos = produtos.select_related('categoria').order_by('estoque_atual')
+    
+    # Estatísticas
+    zerados = Produto.objects.filter(estoque_atual=0).count()
+    no_minimo = Produto.objects.filter(estoque_atual__gt=0, estoque_atual__lte=models.F('estoque_minimo')).count()
+    
+    context = {
+        'tipo': tipo,
+        'produtos': produtos,
+        'qtd_produtos': produtos.count(),
+        'zerados': zerados,
+        'no_minimo': no_minimo,
+    }
+    
+    return render(request, 'core/relatorios/estoque_critico.html', context)
+
+
+@login_required
+def relatorio_curva_abc(request):
+    """Relatório de Curva ABC"""
+    from vendas.models import ItemVenda
+    from estoque.models import Produto
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', (hoje - timedelta(days=90)).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje - timedelta(days=90)
+        data_fim = hoje
+    
+    # Vendas por produto
+    vendas_produto = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_inicio,
+        venda__data_venda__date__lte=data_fim,
+        venda__status='F'
+    ).values(
+        'produto__id',
+        'produto__codigo',
+        'produto__descricao'
+    ).annotate(
+        total_vendido=Sum('total')
+    ).order_by('-total_vendido')
+    
+    # Calcular total geral
+    total_geral = sum(v['total_vendido'] or 0 for v in vendas_produto)
+    
+    # Classificar ABC
+    produtos_abc = []
+    acumulado = Decimal('0')
+    
+    for v in vendas_produto:
+        acumulado += v['total_vendido'] or 0
+        percentual = (acumulado / total_geral * 100) if total_geral > 0 else 0
+        
+        if percentual <= 80:
+            classe = 'A'
+        elif percentual <= 95:
+            classe = 'B'
+        else:
+            classe = 'C'
+        
+        produtos_abc.append({
+            'codigo': v['produto__codigo'],
+            'descricao': v['produto__descricao'],
+            'total_vendido': v['total_vendido'],
+            'percentual': (v['total_vendido'] / total_geral * 100) if total_geral > 0 else 0,
+            'acumulado': percentual,
+            'classe': classe
+        })
+    
+    # Contagem por classe
+    classe_a = len([p for p in produtos_abc if p['classe'] == 'A'])
+    classe_b = len([p for p in produtos_abc if p['classe'] == 'B'])
+    classe_c = len([p for p in produtos_abc if p['classe'] == 'C'])
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'produtos': produtos_abc,
+        'total_geral': total_geral,
+        'classe_a': classe_a,
+        'classe_b': classe_b,
+        'classe_c': classe_c,
+    }
+    
+    return render(request, 'core/relatorios/curva_abc.html', context)
+
+
+@login_required
+def relatorio_giro_estoque(request):
+    """Relatório de giro de estoque"""
+    from vendas.models import ItemVenda
+    from estoque.models import Produto
+    
+    dias = int(request.GET.get('dias', 30))
+    data_inicio = date.today() - timedelta(days=dias)
+    
+    # Vendas por produto no período
+    vendas_produto = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_inicio,
+        venda__status='F'
+    ).values('produto_id').annotate(
+        qtd_vendida=Sum('quantidade')
+    )
+    
+    vendas_dict = {v['produto_id']: v['qtd_vendida'] for v in vendas_produto}
+    
+    # Produtos com estoque
+    produtos = Produto.objects.filter(estoque_atual__gt=0).select_related('categoria')
+    
+    produtos_giro = []
+    for p in produtos:
+        qtd_vendida = vendas_dict.get(p.id, 0)
+        # Giro = vendas / estoque médio (simplificado: estoque atual)
+        giro = (qtd_vendida / p.estoque_atual) if p.estoque_atual > 0 else 0
+        # Cobertura = estoque atual / média de vendas diárias
+        media_diaria = qtd_vendida / dias if dias > 0 else 0
+        cobertura = (p.estoque_atual / media_diaria) if media_diaria > 0 else 999
+        
+        produtos_giro.append({
+            'codigo': p.codigo,
+            'descricao': p.descricao,
+            'categoria': p.categoria.nome if p.categoria else '-',
+            'estoque_atual': p.estoque_atual,
+            'qtd_vendida': qtd_vendida,
+            'giro': round(giro, 2),
+            'cobertura': round(cobertura, 0) if cobertura < 999 else '∞'
+        })
+    
+    # Ordenar por giro decrescente
+    produtos_giro.sort(key=lambda x: x['giro'], reverse=True)
+    
+    context = {
+        'dias': dias,
+        'data_inicio': data_inicio,
+        'produtos': produtos_giro[:100],  # Top 100
+        'total_produtos': len(produtos_giro),
+    }
+    
+    return render(request, 'core/relatorios/giro_estoque.html', context)
+
+
+@login_required
+def relatorio_movimentacao(request):
+    """Relatório de movimentação de estoque"""
+    from estoque.models import MovimentacaoEstoque
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    tipo = request.GET.get('tipo', '')
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Filtrar movimentações - usando data_movimentacao (campo correto do model)
+    movimentacoes = MovimentacaoEstoque.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim
+    ).select_related('produto')
+    
+    if tipo:
+        movimentacoes = movimentacoes.filter(tipo=tipo)
+    
+    movimentacoes = movimentacoes.order_by('-data_movimentacao')[:500]
+    
+    # Totais
+    entradas = MovimentacaoEstoque.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='E'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    saidas = MovimentacaoEstoque.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='S'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'tipo': tipo,
+        'movimentacoes': movimentacoes,
+        'entradas': entradas,
+        'saidas': saidas,
+    }
+    
+    return render(request, 'core/relatorios/movimentacao.html', context)
+
+
+@login_required
+def relatorio_reposicao(request):
+    """Relatório de reposição de estoque"""
+    from vendas.models import ItemVenda
+    from estoque.models import Produto
+    
+    metodo = request.GET.get('metodo', 'minimo')  # minimo, maximo, vendido, media
+    dias = int(request.GET.get('dias', 30))
+    
+    data_inicio = date.today() - timedelta(days=dias)
+    
+    # Vendas por produto no período
+    vendas_produto = ItemVenda.objects.filter(
+        venda__data_venda__date__gte=data_inicio,
+        venda__status='F'
+    ).values('produto_id').annotate(
+        qtd_vendida=Sum('quantidade')
+    )
+    
+    vendas_dict = {v['produto_id']: v['qtd_vendida'] for v in vendas_produto}
+    
+    # Produtos que precisam repor
+    produtos = Produto.objects.select_related('categoria', 'fornecedor_principal')
+    
+    lista_reposicao = []
+    for p in produtos:
+        qtd_vendida = vendas_dict.get(p.id, 0)
+        media_diaria = qtd_vendida / dias if dias > 0 else 0
+        
+        # Calcular quantidade a repor baseado no método
+        if metodo == 'minimo':
+            # Repor até estoque mínimo
+            if p.estoque_atual < p.estoque_minimo:
+                qtd_repor = p.estoque_minimo - p.estoque_atual
+            else:
+                qtd_repor = 0
+        elif metodo == 'maximo':
+            # Repor até estoque máximo
+            if p.estoque_atual < p.estoque_maximo:
+                qtd_repor = p.estoque_maximo - p.estoque_atual
+            else:
+                qtd_repor = 0
+        elif metodo == 'vendido':
+            # Repor o que vendeu
+            qtd_repor = qtd_vendida
+        else:  # media
+            # Baseado na média de vendas (para 30 dias)
+            qtd_repor = max(0, int(media_diaria * 30) - p.estoque_atual)
+        
+        if qtd_repor > 0:
+            lista_reposicao.append({
+                'codigo': p.codigo,
+                'descricao': p.descricao,
+                'categoria': p.categoria.nome if p.categoria else '-',
+                'fornecedor': p.fornecedor_principal.nome if p.fornecedor_principal else '-',
+                'estoque_atual': p.estoque_atual,
+                'estoque_minimo': p.estoque_minimo,
+                'estoque_maximo': p.estoque_maximo,
+                'qtd_vendida': qtd_vendida,
+                'qtd_repor': int(qtd_repor),
+                'custo_reposicao': (p.preco_custo or 0) * qtd_repor
+            })
+    
+    # Ordenar por quantidade a repor
+    lista_reposicao.sort(key=lambda x: x['qtd_repor'], reverse=True)
+    
+    # Total
+    custo_total = sum(p['custo_reposicao'] for p in lista_reposicao)
+    
+    context = {
+        'metodo': metodo,
+        'dias': dias,
+        'produtos': lista_reposicao,
+        'qtd_produtos': len(lista_reposicao),
+        'custo_total': custo_total,
+    }
+    
+    return render(request, 'core/relatorios/reposicao.html', context)
+
+
+# ============================================
+# RELATÓRIOS FINANCEIROS
+# ============================================
+
+@login_required
+def relatorio_fluxo_caixa(request):
+    """Relatório de fluxo de caixa"""
+    from financeiro.models import MovimentacaoCaixa
+    from django.db.models import Q
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Movimentações do período
+    movimentacoes = MovimentacaoCaixa.objects.filter(
+        data__gte=data_inicio,
+        data__lte=data_fim
+    ).order_by('-data', '-id')[:500]
+    
+    # Totais
+    entradas = MovimentacaoCaixa.objects.filter(
+        data__gte=data_inicio,
+        data__lte=data_fim,
+        tipo='E'
+    ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    
+    saidas = MovimentacaoCaixa.objects.filter(
+        data__gte=data_inicio,
+        data__lte=data_fim,
+        tipo='S'
+    ).aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    
+    saldo = entradas - saidas
+    
+    # Fluxo por dia
+    fluxo_diario = MovimentacaoCaixa.objects.filter(
+        data__gte=data_inicio,
+        data__lte=data_fim
+    ).values('data').annotate(
+        entradas=Sum('valor', filter=Q(tipo='E')),
+        saidas=Sum('valor', filter=Q(tipo='S'))
+    ).order_by('data')
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'movimentacoes': movimentacoes,
+        'entradas': entradas,
+        'saidas': saidas,
+        'saldo': saldo,
+        'fluxo_diario': list(fluxo_diario),
+    }
+    
+    return render(request, 'core/relatorios/fluxo_caixa.html', context)
+
+@login_required
+def relatorio_lucro_bruto(request):
+    """Relatório de lucro bruto"""
+    from vendas.models import Venda, ItemVenda
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Vendas finalizadas no período
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    
+    total_vendas = vendas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    qtd_vendas = vendas.count()
+    
+    # Calcular custo dos produtos vendidos
+    itens = ItemVenda.objects.filter(
+        venda__in=vendas
+    ).select_related('produto')
+    
+    custo_total = Decimal('0')
+    for item in itens:
+        custo_unit = item.produto.preco_custo or Decimal('0')
+        custo_total += custo_unit * item.quantidade
+    
+    lucro_bruto = total_vendas - custo_total
+    margem = (lucro_bruto / total_vendas * 100) if total_vendas > 0 else Decimal('0')
+    
+    # Lucro por dia
+    lucro_por_dia = []
+    vendas_por_dia = vendas.annotate(
+        dia=TruncDate('data_venda')
+    ).values('dia').annotate(
+        faturamento=Sum('total')
+    ).order_by('dia')
+    
+    for v in vendas_por_dia:
+        # Calcular custo do dia
+        itens_dia = ItemVenda.objects.filter(
+            venda__data_venda__date=v['dia'],
+            venda__status='F'
+        ).select_related('produto')
+        
+        custo_dia = sum((i.produto.preco_custo or 0) * i.quantidade for i in itens_dia)
+        lucro_dia = (v['faturamento'] or 0) - custo_dia
+        
+        lucro_por_dia.append({
+            'dia': v['dia'].isoformat() if v['dia'] else None,
+            'faturamento': float(v['faturamento'] or 0),
+            'custo': float(custo_dia),
+            'lucro': float(lucro_dia)
+        })
+    
+    import json
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'total_vendas': total_vendas,
+        'custo_total': custo_total,
+        'lucro_bruto': lucro_bruto,
+        'margem': margem,
+        'qtd_vendas': qtd_vendas,
+        'lucro_por_dia': json.dumps(lucro_por_dia),
+    }
+    
+    return render(request, 'core/relatorios/lucro_bruto.html', context)
+
+
+@login_required
+def relatorio_lucro_liquido(request):
+    """Relatório de lucro líquido real"""
+    from vendas.models import Venda, ItemVenda
+    from financeiro.models import ContaPagar, DespesaFixa, TaxaCartao, ConfiguracaoTributo
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # 1. Faturamento
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=data_inicio,
+        data_venda__date__lte=data_fim,
+        status='F'
+    )
+    faturamento = vendas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # 2. Custo das mercadorias
+    itens = ItemVenda.objects.filter(venda__in=vendas).select_related('produto')
+    custo_mercadorias = sum((i.produto.preco_custo or 0) * i.quantidade for i in itens)
+    
+    # 3. Lucro Bruto
+    lucro_bruto = faturamento - Decimal(str(custo_mercadorias))
+    
+    # 4. Taxas de cartão (estimativa por forma de pagamento)
+    taxas_cartao = Decimal('0')
+    vendas_por_forma = vendas.values('forma_pagamento').annotate(total=Sum('total'))
+    
+    for v in vendas_por_forma:
+        forma = v['forma_pagamento']
+        valor = v['total'] or Decimal('0')
+        
+        # Buscar taxa configurada
+        try:
+            if forma == 'CD':  # Débito
+                taxa = TaxaCartao.objects.filter(tipo='DEBITO').first()
+            elif forma == 'CC':  # Crédito
+                taxa = TaxaCartao.objects.filter(tipo='CREDITO').first()
+            elif forma == 'PI':  # PIX
+                taxa = TaxaCartao.objects.filter(tipo='PIX').first()
+            else:
+                taxa = None
+            
+            if taxa:
+                taxas_cartao += valor * (taxa.taxa_percentual / 100)
+        except:
+            pass
+    
+    # 5. Despesas fixas (proporcional ao período)
+    dias_periodo = (data_fim - data_inicio).days + 1
+    dias_mes = 30
+    
+    despesas_fixas_total = Decimal('0')
+    try:
+        despesas_fixas = DespesaFixa.objects.filter(ativo=True)
+        for df in despesas_fixas:
+            despesas_fixas_total += (df.valor / dias_mes) * dias_periodo
+    except:
+        pass
+    
+    # 6. Despesas variáveis (contas pagas no período)
+    despesas_variaveis = Decimal('0')
+    try:
+        contas_pagas = ContaPagar.objects.filter(
+            data_pagamento__gte=data_inicio,
+            data_pagamento__lte=data_fim,
+            status='PG'
+        ).exclude(categoria__icontains='fix')
+        despesas_variaveis = contas_pagas.aggregate(total=Sum('valor'))['total'] or Decimal('0')
+    except:
+        pass
+    
+    # 7. Impostos (Simples Nacional - 4% padrão)
+    aliquota_imposto = Decimal('4.0')
+    try:
+        config_tributo = ConfiguracaoTributo.objects.first()
+        if config_tributo:
+            aliquota_imposto = config_tributo.aliquota
+    except:
+        pass
+    
+    impostos = faturamento * (aliquota_imposto / 100)
+    
+    # 8. Lucro Líquido
+    total_deducoes = taxas_cartao + despesas_fixas_total + despesas_variaveis + impostos
+    lucro_liquido = lucro_bruto - total_deducoes
+    
+    margem_liquida = (lucro_liquido / faturamento * 100) if faturamento > 0 else Decimal('0')
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'faturamento': faturamento,
+        'custo_mercadorias': custo_mercadorias,
+        'lucro_bruto': lucro_bruto,
+        'taxas_cartao': taxas_cartao,
+        'despesas_fixas': despesas_fixas_total,
+        'despesas_variaveis': despesas_variaveis,
+        'aliquota_imposto': aliquota_imposto,
+        'impostos': impostos,
+        'total_deducoes': total_deducoes,
+        'lucro_liquido': lucro_liquido,
+        'margem_liquida': margem_liquida,
+    }
+    
+    return render(request, 'core/relatorios/lucro_liquido.html', context)
+
+
+@login_required
+def relatorio_contas_pagar(request):
+    """Relatório de contas a pagar"""
+    from financeiro.models import ContaPagar
+    from django.db.models import Q
+    
+    hoje = date.today()
+    status = request.GET.get('status', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
+    
+    contas = ContaPagar.objects.all().select_related('categoria', 'fornecedor').order_by('data_vencimento')
+    
+    if status == 'PENDENTE':
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
+            data_vencimento__gte=hoje
+        )
+    elif status == 'ATRASADO':
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
+            data_vencimento__lt=hoje
+        )
+    elif status == 'PAGO':
+        contas = contas.filter(Q(status__iexact='PAGO') | Q(status__iexact='pago'))
+    
+    if data_inicio:
+        try:
+            dt = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            contas = contas.filter(data_vencimento__gte=dt)
+        except:
+            pass
+    
+    if data_fim:
+        try:
+            dt = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            contas = contas.filter(data_vencimento__lte=dt)
+        except:
+            pass
+    
+    contas = contas[:200]
+    
+    # Totais - usando iexact para case-insensitive
+    total_pendente = ContaPagar.objects.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
+        data_vencimento__gte=hoje
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    total_vencido = ContaPagar.objects.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
+        data_vencimento__lt=hoje
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    total_pago_mes = ContaPagar.objects.filter(
+        Q(status__iexact='PAGO') | Q(status__iexact='pago'),
+        data_pagamento__month=hoje.month,
+        data_pagamento__year=hoje.year
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    context = {
+        'contas': contas,
+        'status': status,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'total_pendente': total_pendente,
+        'total_vencido': total_vencido,
+        'total_pago_mes': total_pago_mes,
+        'hoje': hoje,
+    }
+    
+    return render(request, 'core/relatorios/contas_pagar.html', context)
+
+
+@login_required
+def relatorio_contas_receber(request):
+    """Relatório de contas a receber (crediário)"""
+    from financeiro.models import ContaReceber
+    
+    hoje = date.today()
+    status = request.GET.get('status', '')
+    
+    contas = ContaReceber.objects.all().select_related('cliente', 'categoria').order_by('data_vencimento')
+    
+    if status == 'PENDENTE':
+        contas = contas.filter(status='PENDENTE', data_vencimento__gte=hoje)
+    elif status == 'ATRASADO':
+        contas = contas.filter(status__in=['PENDENTE', 'ATRASADO'], data_vencimento__lt=hoje)
+    elif status == 'RECEBIDO':
+        contas = contas.filter(status='RECEBIDO')
+    
+    contas = contas[:200]
+    
+    # Totais
+    total_a_receber = ContaReceber.objects.filter(
+        status='PENDENTE', 
+        data_vencimento__gte=hoje
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    total_vencido = ContaReceber.objects.filter(
+        status__in=['PENDENTE', 'ATRASADO'], 
+        data_vencimento__lt=hoje
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    total_recebido_mes = ContaReceber.objects.filter(
+        status='RECEBIDO',
+        data_recebimento__month=hoje.month,
+        data_recebimento__year=hoje.year
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    context = {
+        'contas': contas,
+        'status': status,
+        'total_a_receber': total_a_receber,
+        'total_vencido': total_vencido,
+        'total_recebido_mes': total_recebido_mes,
+        'hoje': hoje,
+    }
+    
+    return render(request, 'core/relatorios/contas_receber.html', context)
+
+
+@login_required
+def relatorio_dre(request):
+    """DRE Simplificado"""
+    from vendas.models import Venda, ItemVenda
+    from financeiro.models import ContaPagar, DespesaFixa, ConfiguracaoTributo
+    
+    hoje = date.today()
+    mes = int(request.GET.get('mes', hoje.month))
+    ano = int(request.GET.get('ano', hoje.year))
+    
+    # Primeiro e último dia do mês
+    primeiro_dia = date(ano, mes, 1)
+    if mes == 12:
+        ultimo_dia = date(ano + 1, 1, 1) - timedelta(days=1)
+    else:
+        ultimo_dia = date(ano, mes + 1, 1) - timedelta(days=1)
+    
+    # 1. Receita Bruta
+    vendas = Venda.objects.filter(
+        data_venda__date__gte=primeiro_dia,
+        data_venda__date__lte=ultimo_dia,
+        status='F'
+    )
+    receita_bruta = vendas.aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    # 2. Deduções (descontos)
+    descontos = vendas.aggregate(total=Sum('desconto'))['total'] or Decimal('0')
+    
+    # 3. Receita Líquida
+    receita_liquida = receita_bruta - descontos
+    
+    # 4. CMV (Custo das Mercadorias Vendidas)
+    itens = ItemVenda.objects.filter(venda__in=vendas).select_related('produto')
+    cmv = sum((i.produto.preco_custo or 0) * i.quantidade for i in itens)
+    
+    # 5. Lucro Bruto
+    lucro_bruto = receita_liquida - Decimal(str(cmv))
+    
+    # 6. Despesas Operacionais
+    despesas_fixas = DespesaFixa.objects.filter(ativo=True).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    despesas_variaveis = ContaPagar.objects.filter(
+        data_pagamento__gte=primeiro_dia,
+        data_pagamento__lte=ultimo_dia,
+        status='PG'
+    ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    despesas_operacionais = despesas_fixas + despesas_variaveis
+    
+    # 7. Resultado Operacional
+    resultado_operacional = lucro_bruto - despesas_operacionais
+    
+    # 8. Impostos
+    aliquota = Decimal('4.0')
+    try:
+        config = ConfiguracaoTributo.objects.first()
+        if config:
+            aliquota = config.aliquota
+    except:
+        pass
+    
+    impostos = receita_bruta * (aliquota / 100)
+    
+    # 9. Resultado Líquido
+    resultado_liquido = resultado_operacional - impostos
+    
+    # Lista de meses para o select
+    meses = [
+        (1, 'Janeiro'), (2, 'Fevereiro'), (3, 'Março'), (4, 'Abril'),
+        (5, 'Maio'), (6, 'Junho'), (7, 'Julho'), (8, 'Agosto'),
+        (9, 'Setembro'), (10, 'Outubro'), (11, 'Novembro'), (12, 'Dezembro')
+    ]
+    
+    context = {
+        'mes': mes,
+        'ano': ano,
+        'meses': meses,
+        'anos': range(hoje.year - 2, hoje.year + 1),
+        'receita_bruta': receita_bruta,
+        'descontos': descontos,
+        'receita_liquida': receita_liquida,
+        'cmv': cmv,
+        'lucro_bruto': lucro_bruto,
+        'despesas_fixas': despesas_fixas,
+        'despesas_variaveis': despesas_variaveis,
+        'despesas_operacionais': despesas_operacionais,
+        'resultado_operacional': resultado_operacional,
+        'aliquota': aliquota,
+        'impostos': impostos,
+        'resultado_liquido': resultado_liquido,
+    }
+    
+    return render(request, 'core/relatorios/dre.html', context)
+
+
+@login_required
+def relatorio_inadimplencia(request):
+    """Relatório de inadimplência"""
+    from financeiro.models import ContaReceber
+    
+    hoje = date.today()
+    dias_atraso = int(request.GET.get('dias', 0))
+    
+    # Contas vencidas
+    contas_vencidas = ContaReceber.objects.filter(
+        status='PE',
+        data_vencimento__lt=hoje
+    ).select_related('cliente').order_by('data_vencimento')
+    
+    if dias_atraso > 0:
+        data_limite = hoje - timedelta(days=dias_atraso)
+        contas_vencidas = contas_vencidas.filter(data_vencimento__lte=data_limite)
+    
+    # Calcular dias de atraso e agrupar por cliente
+    clientes_inadimplentes = {}
+    total_inadimplente = Decimal('0')
+    
+    for conta in contas_vencidas:
+        dias = (hoje - conta.data_vencimento).days
+        total_inadimplente += conta.valor
+        
+        cliente_id = conta.cliente_id
+        if cliente_id not in clientes_inadimplentes:
+            clientes_inadimplentes[cliente_id] = {
+                'cliente': conta.cliente,
+                'total': Decimal('0'),
+                'qtd_contas': 0,
+                'maior_atraso': 0
+            }
+        
+        clientes_inadimplentes[cliente_id]['total'] += conta.valor
+        clientes_inadimplentes[cliente_id]['qtd_contas'] += 1
+        clientes_inadimplentes[cliente_id]['maior_atraso'] = max(
+            clientes_inadimplentes[cliente_id]['maior_atraso'], dias
+        )
+    
+    # Ordenar por valor
+    clientes_lista = sorted(
+        clientes_inadimplentes.values(),
+        key=lambda x: x['total'],
+        reverse=True
+    )
+    
+    context = {
+        'dias_atraso': dias_atraso,
+        'contas_vencidas': contas_vencidas[:100],
+        'clientes_inadimplentes': clientes_lista,
+        'total_inadimplente': total_inadimplente,
+        'qtd_clientes': len(clientes_lista),
+        'qtd_contas': contas_vencidas.count(),
+        'hoje': hoje,
+    }
+    
+    return render(request, 'core/relatorios/inadimplencia.html', context)
+
+
+
+
+# ============================================
+# RELATÓRIOS DE BATERIAS (temporário)
+# ============================================
+
+@login_required
+def relatorio_cascos(request):
+    return render(request, 'core/relatorios/em_construcao.html', {'titulo': 'Controle de Cascos'})
+
+@login_required
+def relatorio_sucatas(request):
+    return render(request, 'core/relatorios/em_construcao.html', {'titulo': 'Trocas de Sucata'})

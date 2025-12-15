@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Lucro Bruto - Relatórios{% endblock %}
+{% block page_title %}Relatório de Lucro Bruto{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.4rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    .stat-box.vermelho h3 { color: #ef4444; }
+    .stat-box.verde h3 { color: #22c55e; }
+    .stat-box.roxo h3 { color: #8b5cf6; }
+    
+    .grafico-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .grafico-card { background: #2d2d2d; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Calcular
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="stat-box azul">
+            <h3>R$ {{ total_vendas|floatformat:2 }}</h3>
+            <p><i class="bi bi-cash-stack me-1"></i> Faturamento</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-box vermelho">
+            <h3>R$ {{ custo_total|floatformat:2 }}</h3>
+            <p><i class="bi bi-box me-1"></i> Custo (CMV)</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-box verde">
+            <h3>R$ {{ lucro_bruto|floatformat:2 }}</h3>
+            <p><i class="bi bi-graph-up-arrow me-1"></i> Lucro Bruto</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-box roxo">
+            <h3>{{ margem|floatformat:1 }}%</h3>
+            <p><i class="bi bi-percent me-1"></i> Margem Bruta</p>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico -->
+<div class="grafico-card">
+    <h5 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Evolução Diária</h5>
+    <canvas id="graficoLucro" height="100"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const dados = {{ lucro_por_dia|safe }};
+    
+    const labels = dados.map(item => {
+        const d = new Date(item.dia);
+        return d.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'});
+    });
+    
+    const ctx = document.getElementById('graficoLucro').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Faturamento',
+                    data: dados.map(i => i.faturamento),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Custo',
+                    data: dados.map(i => i.custo),
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Lucro',
+                    data: dados.map(i => i.lucro),
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toLocaleString('pt-BR');
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

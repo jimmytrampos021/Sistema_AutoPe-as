@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+
+{% block title %}Produtos Parados - Relatórios{% endblock %}
+{% block page_title %}Produtos Parados (Sem Venda){% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.alerta h3 { color: #ef4444; }
+    .stat-box.info h3 { color: #3b82f6; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label">Sem venda há quantos dias?</label>
+            <select name="dias" class="form-select">
+                <option value="30" {% if dias == 30 %}selected{% endif %}>30 dias</option>
+                <option value="60" {% if dias == 60 %}selected{% endif %}>60 dias</option>
+                <option value="90" {% if dias == 90 %}selected{% endif %}>90 dias</option>
+                <option value="180" {% if dias == 180 %}selected{% endif %}>180 dias</option>
+                <option value="365" {% if dias == 365 %}selected{% endif %}>1 ano</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="stat-box alerta">
+            <h3>{{ qtd_produtos }}</h3>
+            <p>Produtos Parados</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box info">
+            <h3>R$ {{ valor_total_parado|floatformat:2 }}</h3>
+            <p>Capital Parado (Custo)</p>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    Produtos sem nenhuma venda desde <strong>{{ data_limite|date:"d/m/Y" }}</strong>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-center">Estoque</th>
+                    <th class="text-end">Custo Unit.</th>
+                    <th class="text-end">Valor Parado</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td><strong>{{ p.codigo }}</strong></td>
+                    <td>{{ p.descricao }}</td>
+                    <td><span class="badge bg-secondary">{{ p.categoria.nome|default:"-" }}</span></td>
+                    <td class="text-center">{{ p.estoque_atual }}</td>
+                    <td class="text-end">R$ {{ p.preco_custo|floatformat:2|default:"0,00" }}</td>
+                    <td class="text-end text-danger">
+                        <strong>R$ {{ p.preco_custo|default:0|floatformat:2 }}</strong>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: #22c55e;"></i>
+                        <p class="mt-2">Nenhum produto parado no período!</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

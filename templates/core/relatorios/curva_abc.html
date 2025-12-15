@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+
+{% block title %}Curva ABC - Relatórios{% endblock %}
+{% block page_title %}Curva ABC de Produtos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.classe-a h3 { color: #22c55e; }
+    .stat-box.classe-b h3 { color: #f59e0b; }
+    .stat-box.classe-c h3 { color: #ef4444; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .badge-a { background: #22c55e; }
+    .badge-b { background: #f59e0b; }
+    .badge-c { background: #ef4444; }
+    
+    .legenda-abc {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    body.dark-mode .legenda-abc { background: #1e1e1e; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Analisar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Legenda -->
+<div class="legenda-abc">
+    <div class="row text-center">
+        <div class="col-md-4">
+            <span class="badge badge-a me-2">A</span>
+            <strong>80% do faturamento</strong> - Produtos essenciais
+        </div>
+        <div class="col-md-4">
+            <span class="badge badge-b me-2">B</span>
+            <strong>15% do faturamento</strong> - Produtos intermediários
+        </div>
+        <div class="col-md-4">
+            <span class="badge badge-c me-2">C</span>
+            <strong>5% do faturamento</strong> - Produtos de baixa saída
+        </div>
+    </div>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="stat-box">
+            <h3>R$ {{ total_geral|floatformat:2 }}</h3>
+            <p>Total no Período</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box classe-a">
+            <h3>{{ classe_a }}</h3>
+            <p>Produtos Classe A</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box classe-b">
+            <h3>{{ classe_b }}</h3>
+            <p>Produtos Classe B</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box classe-c">
+            <h3>{{ classe_c }}</h3>
+            <p>Produtos Classe C</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th class="text-end">Total Vendido</th>
+                    <th class="text-center">% Individual</th>
+                    <th class="text-center">% Acumulado</th>
+                    <th class="text-center">Classe</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td><strong>{{ p.codigo }}</strong></td>
+                    <td>{{ p.descricao }}</td>
+                    <td class="text-end">R$ {{ p.total_vendido|floatformat:2 }}</td>
+                    <td class="text-center">{{ p.percentual|floatformat:1 }}%</td>
+                    <td class="text-center">{{ p.acumulado|floatformat:1 }}%</td>
+                    <td class="text-center">
+                        <span class="badge badge-{{ p.classe|lower }}">{{ p.classe }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Nenhuma venda no período
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

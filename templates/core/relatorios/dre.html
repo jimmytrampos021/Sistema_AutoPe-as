@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}DRE - Relatórios{% endblock %}
+{% block page_title %}DRE - Demonstrativo de Resultado{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .dre-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        overflow: hidden;
+    }
+    body.dark-mode .dre-card { background: #2d2d2d; }
+    
+    .dre-header {
+        background: #3b82f6;
+        color: white;
+        padding: 15px 25px;
+        font-weight: 600;
+    }
+    
+    .dre-body { padding: 20px 25px; }
+    
+    .dre-linha {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    body.dark-mode .dre-linha { border-bottom-color: #444; }
+    
+    .dre-linha:last-child { border-bottom: none; }
+    
+    .dre-linha.subtotal {
+        background: #f1f5f9;
+        margin: 10px -25px;
+        padding: 12px 25px;
+        font-weight: 600;
+    }
+    body.dark-mode .dre-linha.subtotal { background: #1e1e1e; }
+    
+    .dre-linha.total {
+        background: #22c55e;
+        color: white;
+        margin: 15px -25px -20px -25px;
+        padding: 15px 25px;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    .dre-linha.total.negativo { background: #ef4444; }
+    
+    .dre-sublinha { padding-left: 25px; font-size: 0.95rem; }
+    
+    .valor-positivo { color: #22c55e; }
+    .valor-negativo { color: #ef4444; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Mês</label>
+            <select name="mes" class="form-select">
+                {% for m_num, m_nome in meses %}
+                <option value="{{ m_num }}" {% if mes == m_num %}selected{% endif %}>{{ m_nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Ano</label>
+            <select name="ano" class="form-select">
+                {% for a in anos %}
+                <option value="{{ a }}" {% if ano == a %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-calculator"></i> Gerar DRE
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- DRE -->
+<div class="dre-card">
+    <div class="dre-header">
+        <i class="bi bi-file-earmark-spreadsheet me-2"></i>
+        DRE - {% for m_num, m_nome in meses %}{% if m_num == mes %}{{ m_nome }}{% endif %}{% endfor %}/{{ ano }}
+    </div>
+    
+    <div class="dre-body">
+        <!-- Receitas -->
+        <div class="dre-linha">
+            <span><strong>RECEITA BRUTA</strong></span>
+            <span><strong>R$ {{ receita_bruta|floatformat:2 }}</strong></span>
+        </div>
+        
+        <div class="dre-linha dre-sublinha">
+            <span>(-) Descontos Concedidos</span>
+            <span class="valor-negativo">- R$ {{ descontos|floatformat:2 }}</span>
+        </div>
+        
+        <div class="dre-linha subtotal">
+            <span>= RECEITA LÍQUIDA</span>
+            <span>R$ {{ receita_liquida|floatformat:2 }}</span>
+        </div>
+        
+        <!-- CMV -->
+        <div class="dre-linha dre-sublinha">
+            <span>(-) Custo das Mercadorias Vendidas (CMV)</span>
+            <span class="valor-negativo">- R$ {{ cmv|floatformat:2 }}</span>
+        </div>
+        
+        <div class="dre-linha subtotal">
+            <span>= LUCRO BRUTO</span>
+            <span class="{% if lucro_bruto >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                R$ {{ lucro_bruto|floatformat:2 }}
+            </span>
+        </div>
+        
+        <!-- Despesas -->
+        <div class="dre-linha">
+            <span><strong>DESPESAS OPERACIONAIS</strong></span>
+            <span class="valor-negativo"><strong>- R$ {{ despesas_operacionais|floatformat:2 }}</strong></span>
+        </div>
+        
+        <div class="dre-linha dre-sublinha">
+            <span>Despesas Fixas</span>
+            <span>R$ {{ despesas_fixas|floatformat:2 }}</span>
+        </div>
+        
+        <div class="dre-linha dre-sublinha">
+            <span>Despesas Variáveis</span>
+            <span>R$ {{ despesas_variaveis|floatformat:2 }}</span>
+        </div>
+        
+        <div class="dre-linha subtotal">
+            <span>= RESULTADO OPERACIONAL</span>
+            <span class="{% if resultado_operacional >= 0 %}valor-positivo{% else %}valor-negativo{% endif %}">
+                R$ {{ resultado_operacional|floatformat:2 }}
+            </span>
+        </div>
+        
+        <!-- Impostos -->
+        <div class="dre-linha dre-sublinha">
+            <span>(-) Impostos (Simples Nacional {{ aliquota }}%)</span>
+            <span class="valor-negativo">- R$ {{ impostos|floatformat:2 }}</span>
+        </div>
+        
+        <!-- Resultado -->
+        <div class="dre-linha total {% if resultado_liquido < 0 %}negativo{% endif %}">
+            <span><i class="bi bi-trophy me-2"></i>RESULTADO LÍQUIDO</span>
+            <span>R$ {{ resultado_liquido|floatformat:2 }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -54,12 +54,12 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     path('', core_views.dashboard, name='dashboard'),
     path('pdv/', core_views.pdv, name='pdv'),
-    path('relatorios/', core_views.relatorios, name='relatorios'),
+    # path('relatorios/', core_views.relatorios, name='relatorios'),
     
     path('comparador/', core_views.comparador_precos_fornecedores, name='comparador_precos_fornecedores'),
     path('cotacao/nova/', core_views.cadastrar_cotacao, name='cadastrar_cotacao'),
     path('fornecedores/cotacao/adicionar/', core_views.adicionar_cotacao, name='adicionar_cotacao'),
-    path('relatorio/fornecedores/', core_views.relatorio_melhores_fornecedores, name='relatorio_fornecedores'),
+    # path('relatorio/fornecedores/', core_views.relatorio_melhores_fornecedores, name='relatorio_fornecedores'),
     # path('api/produto/buscar/', core_views.api_buscar_produto, name='api_buscar_produto'),
     path('api/produto/<int:produto_id>/cotacoes/', core_views.api_cotacoes_produto, name='api_cotacoes_produto'),
     
@@ -152,6 +152,38 @@ urlpatterns = [
     path('api/filtros-estoque/', core_views.api_filtros_estoque, name='api_filtros_estoque'),
 
     path('', include('django.contrib.auth.urls')),
+
+    # Relatórios - Dashboard
+    path('relatorios/', core_views.relatorios, name='relatorios'),
+
+    # Relatórios de Vendas
+    path('relatorios/vendas/periodo/', core_views.relatorio_vendas_periodo, name='relatorio_vendas_periodo'),
+    path('relatorios/vendas/pagamento/', core_views.relatorio_vendas_pagamento, name='relatorio_vendas_pagamento'),
+    path('relatorios/vendas/cliente/', core_views.relatorio_vendas_cliente, name='relatorio_vendas_cliente'),
+    path('relatorios/vendas/ticket-medio/', core_views.relatorio_ticket_medio, name='relatorio_ticket_medio'),
+    path('relatorios/vendas/comparativo/', core_views.relatorio_comparativo, name='relatorio_comparativo'),
+
+    # Relatórios de Estoque
+    path('relatorios/estoque/produtos-vendidos/', core_views.relatorio_produtos_vendidos, name='relatorio_produtos_vendidos'),
+    path('relatorios/estoque/produtos-parados/', core_views.relatorio_produtos_parados, name='relatorio_produtos_parados'),
+    path('relatorios/estoque/critico/', core_views.relatorio_estoque_critico, name='relatorio_estoque_critico'),
+    path('relatorios/estoque/curva-abc/', core_views.relatorio_curva_abc, name='relatorio_curva_abc'),
+    path('relatorios/estoque/giro/', core_views.relatorio_giro_estoque, name='relatorio_giro_estoque'),
+    path('relatorios/estoque/movimentacao/', core_views.relatorio_movimentacao, name='relatorio_movimentacao'),
+    path('relatorios/estoque/reposicao/', core_views.relatorio_reposicao, name='relatorio_reposicao'),
+
+    # Relatórios Financeiros
+    path('relatorios/financeiro/fluxo-caixa/', core_views.relatorio_fluxo_caixa, name='relatorio_fluxo_caixa'),
+    path('relatorios/financeiro/lucro-bruto/', core_views.relatorio_lucro_bruto, name='relatorio_lucro_bruto'),
+    path('relatorios/financeiro/lucro-liquido/', core_views.relatorio_lucro_liquido, name='relatorio_lucro_liquido'),
+    path('relatorios/financeiro/contas-pagar/', core_views.relatorio_contas_pagar, name='relatorio_contas_pagar'),
+    path('relatorios/financeiro/contas-receber/', core_views.relatorio_contas_receber, name='relatorio_contas_receber'),
+    path('relatorios/financeiro/dre/', core_views.relatorio_dre, name='relatorio_dre'),
+    path('relatorios/financeiro/inadimplencia/', core_views.relatorio_inadimplencia, name='relatorio_inadimplencia'),
+
+    # Relatórios de Baterias
+    path('relatorios/baterias/cascos/', core_views.relatorio_cascos, name='relatorio_cascos'),
+    path('relatorios/baterias/sucatas/', core_views.relatorio_sucatas, name='relatorio_sucatas'),
 ]
 
    

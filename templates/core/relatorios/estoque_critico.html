@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Estoque Crítico - Relatórios{% endblock %}
+{% block page_title %}Estoque Crítico{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box:hover { transform: translateY(-2px); }
+    .stat-box.active { border-color: #3b82f6; }
+    .stat-box h3 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.vermelho h3 { color: #ef4444; }
+    .stat-box.amarelo h3 { color: #f59e0b; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .badge-zerado { background: #ef4444; }
+    .badge-minimo { background: #f59e0b; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros como Cards Clicáveis -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <a href="?tipo=todos" class="text-decoration-none">
+            <div class="stat-box azul {% if tipo == 'todos' %}active{% endif %}">
+                <h3>{{ zerados|add:no_minimo }}</h3>
+                <p><i class="bi bi-list-ul me-1"></i> Todos os Críticos</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="?tipo=zerado" class="text-decoration-none">
+            <div class="stat-box vermelho {% if tipo == 'zerado' %}active{% endif %}">
+                <h3>{{ zerados }}</h3>
+                <p><i class="bi bi-x-circle me-1"></i> Estoque Zerado</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="?tipo=minimo" class="text-decoration-none">
+            <div class="stat-box amarelo {% if tipo == 'minimo' %}active{% endif %}">
+                <h3>{{ no_minimo }}</h3>
+                <p><i class="bi bi-exclamation-triangle me-1"></i> Abaixo do Mínimo</p>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <h5 class="mb-3">
+        <i class="bi bi-exclamation-diamond me-2 text-danger"></i>
+        {{ qtd_produtos }} produto(s) em situação crítica
+    </h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-center">Estoque Atual</th>
+                    <th class="text-center">Est. Mínimo</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td><strong>{{ p.codigo }}</strong></td>
+                    <td>{{ p.descricao }}</td>
+                    <td><span class="badge bg-secondary">{{ p.categoria.nome|default:"-" }}</span></td>
+                    <td class="text-center">
+                        <strong class="{% if p.estoque_atual == 0 %}text-danger{% else %}text-warning{% endif %}">
+                            {{ p.estoque_atual }}
+                        </strong>
+                    </td>
+                    <td class="text-center">{{ p.estoque_minimo }}</td>
+                    <td class="text-center">
+                        {% if p.estoque_atual == 0 %}
+                            <span class="badge badge-zerado">ZERADO</span>
+                        {% else %}
+                            <span class="badge badge-minimo">BAIXO</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: #22c55e;"></i>
+                        <p class="mt-2">Nenhum produto em situação crítica!</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

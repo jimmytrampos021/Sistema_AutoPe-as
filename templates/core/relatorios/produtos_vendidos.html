@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}Produtos Mais Vendidos - Relatórios{% endblock %}
+{% block page_title %}Produtos Mais Vendidos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; color: #22c55e; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .ranking-medal {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.75rem;
+        color: white;
+    }
+    .medal-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .medal-2 { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+    .medal-3 { background: linear-gradient(135deg, #d97706, #b45309); }
+    .medal-default { background: #3b82f6; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Limite</label>
+            <select name="limite" class="form-select">
+                <option value="20" {% if limite == 20 %}selected{% endif %}>Top 20</option>
+                <option value="50" {% if limite == 50 %}selected{% endif %}>Top 50</option>
+                <option value="100" {% if limite == 100 %}selected{% endif %}>Top 100</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="stat-box">
+            <h3>{{ totais.qtd_total|default:0 }}</h3>
+            <p>Unidades Vendidas</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box">
+            <h3>R$ {{ totais.valor_total|floatformat:2|default:"0,00" }}</h3>
+            <p>Total em Vendas</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-trophy me-2 text-warning"></i>Ranking de Produtos</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Categoria</th>
+                    <th class="text-center">Qtd. Vendida</th>
+                    <th class="text-end">Total Vendido</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in produtos %}
+                <tr>
+                    <td>
+                        <span class="ranking-medal {% if forloop.counter == 1 %}medal-1{% elif forloop.counter == 2 %}medal-2{% elif forloop.counter == 3 %}medal-3{% else %}medal-default{% endif %}">
+                            {{ forloop.counter }}
+                        </span>
+                    </td>
+                    <td><strong>{{ p.produto__codigo }}</strong></td>
+                    <td>{{ p.produto__descricao }}</td>
+                    <td><span class="badge bg-secondary">{{ p.produto__categoria__nome|default:"-" }}</span></td>
+                    <td class="text-center"><strong>{{ p.qtd_vendida }}</strong></td>
+                    <td class="text-end text-success"><strong>R$ {{ p.total_vendido|floatformat:2 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                        <p class="mt-2">Nenhuma venda no período</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

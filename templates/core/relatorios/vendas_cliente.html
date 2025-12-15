@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Vendas por Cliente - Relatórios{% endblock %}
+{% block page_title %}Relatório de Vendas por Cliente{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .ranking-posicao {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #3b82f6;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.85rem;
+    }
+    .ranking-posicao.p1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .ranking-posicao.p2 { background: linear-gradient(135deg, #9ca3af, #6b7280); }
+    .ranking-posicao.p3 { background: linear-gradient(135deg, #d97706, #b45309); }
+    
+    .btn-voltar { margin-bottom: 15px; }
+    
+    .cliente-nome {
+        font-weight: 600;
+    }
+    .cliente-telefone {
+        font-size: 0.85rem;
+        color: #718096;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Tabela Ranking -->
+<div class="tabela-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-trophy me-2 text-warning"></i>Ranking de Clientes</h5>
+        <span class="badge bg-primary">Total: R$ {{ total_geral|floatformat:2 }}</span>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th style="width: 60px;">#</th>
+                    <th>Cliente</th>
+                    <th class="text-center">Compras</th>
+                    <th class="text-end">Ticket Médio</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cliente in clientes_ranking %}
+                <tr>
+                    <td>
+                        <div class="ranking-posicao {% if forloop.counter == 1 %}p1{% elif forloop.counter == 2 %}p2{% elif forloop.counter == 3 %}p3{% endif %}">
+                            {{ forloop.counter }}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="cliente-nome">{{ cliente.cliente__nome }}</div>
+                        <div class="cliente-telefone">{{ cliente.cliente__telefone|default:"-" }}</div>
+                    </td>
+                    <td class="text-center">
+                        <span class="badge bg-secondary">{{ cliente.qtd_compras }}</span>
+                    </td>
+                    <td class="text-end">R$ {{ cliente.ticket_medio|floatformat:2 }}</td>
+                    <td class="text-end">
+                        <strong class="text-success">R$ {{ cliente.total_compras|floatformat:2 }}</strong>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                        <p class="mt-2">Nenhuma venda no período</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

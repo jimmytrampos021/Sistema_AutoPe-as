@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Ticket Médio - Relatórios{% endblock %}
+{% block page_title %}Relatório de Ticket Médio{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        height: 100%;
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.6rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box i { font-size: 2rem; opacity: 0.3; }
+    
+    .stat-box.verde h3 { color: #22c55e; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    .stat-box.roxo h3 { color: #8b5cf6; }
+    .stat-box.amarelo h3 { color: #eab308; }
+    .stat-box.vermelho h3 { color: #ef4444; }
+    
+    .card-grafico {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .card-grafico { background: #2d2d2d; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="stat-box roxo">
+            <i class="bi bi-receipt"></i>
+            <h3>R$ {{ stats.ticket_medio|floatformat:2|default:"0,00" }}</h3>
+            <p>Ticket Médio</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-box verde">
+            <i class="bi bi-graph-up"></i>
+            <h3>R$ {{ stats.total_vendas|floatformat:2|default:"0,00" }}</h3>
+            <p>Total Vendas</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-box azul">
+            <i class="bi bi-cart-check"></i>
+            <h3>{{ stats.qtd_vendas|default:0 }}</h3>
+            <p>Qtd. Vendas</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-box amarelo">
+            <i class="bi bi-arrow-up-circle"></i>
+            <h3>R$ {{ stats.maior_venda|floatformat:2|default:"0,00" }}</h3>
+            <p>Maior Venda</p>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="stat-box vermelho">
+            <i class="bi bi-arrow-down-circle"></i>
+            <h3>R$ {{ stats.menor_venda|floatformat:2|default:"0,00" }}</h3>
+            <p>Menor Venda</p>
+        </div>
+    </div>
+</div>
+
+<!-- Gráfico -->
+<div class="card-grafico">
+    <h5 class="mb-3"><i class="bi bi-graph-up me-2"></i>Evolução do Ticket Médio</h5>
+    <canvas id="graficoTicket" height="100"></canvas>
+</div>
+
+<!-- Tabela por Forma de Pagamento -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-credit-card me-2"></i>Ticket Médio por Forma de Pagamento</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Forma de Pagamento</th>
+                    <th class="text-center">Qtd. Vendas</th>
+                    <th class="text-end">Total</th>
+                    <th class="text-end">Ticket Médio</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for forma in ticket_por_forma %}
+                <tr>
+                    <td><strong>{{ forma.nome }}</strong></td>
+                    <td class="text-center">{{ forma.quantidade }}</td>
+                    <td class="text-end">R$ {{ forma.total|floatformat:2 }}</td>
+                    <td class="text-end"><strong class="text-primary">R$ {{ forma.ticket|floatformat:2 }}</strong></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">Nenhuma venda no período</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const dadosDiarios = {{ ticket_por_dia|safe }};
+    
+    const labels = dadosDiarios.map(item => {
+        const data = new Date(item.dia);
+        return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    });
+    
+    const tickets = dadosDiarios.map(item => parseFloat(item.ticket));
+    
+    const ctx = document.getElementById('graficoTicket').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ticket Médio (R$)',
+                data: tickets,
+                borderColor: '#8b5cf6',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#8b5cf6',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

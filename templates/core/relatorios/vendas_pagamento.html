@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Vendas por Forma de Pagamento - Relatórios{% endblock %}
+{% block page_title %}Relatório de Vendas por Forma de Pagamento{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.8rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; }
+    .stat-box.verde h3 { color: #22c55e; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    
+    .card-pagamento {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .card-pagamento { background: #2d2d2d; }
+    
+    .forma-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    body.dark-mode .forma-item { border-color: #404040; }
+    .forma-item:last-child { border-bottom: none; }
+    
+    .forma-icone {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 15px;
+    }
+    .forma-icone.dinheiro { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .forma-icone.pix { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    .forma-icone.debito { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+    .forma-icone.credito { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+    .forma-icone.boleto { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+    .forma-icone.crediario { background: rgba(249, 115, 22, 0.15); color: #f97316; }
+    
+    .forma-info { flex: 1; }
+    .forma-info h5 { margin: 0; font-weight: 600; }
+    .forma-info small { color: #718096; }
+    
+    .forma-valores { text-align: right; }
+    .forma-valores h4 { margin: 0; color: #22c55e; font-weight: 700; }
+    .forma-valores small { color: #718096; }
+    
+    .progress-forma {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        margin-top: 10px;
+    }
+    body.dark-mode .progress-forma { background: #404040; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="stat-box verde">
+            <h3>R$ {{ total_geral|floatformat:2|default:"0,00" }}</h3>
+            <p>Total em Vendas</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box azul">
+            <h3>{{ qtd_vendas }}</h3>
+            <p>Quantidade de Vendas</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-7">
+        <!-- Lista de Formas de Pagamento -->
+        <div class="card-pagamento">
+            <h5 class="mb-3"><i class="bi bi-credit-card me-2"></i>Detalhamento por Forma de Pagamento</h5>
+            
+            {% for forma in formas_pagamento %}
+            <div class="forma-item">
+                <div class="forma-icone {% if forma.forma_pagamento == 'DI' %}dinheiro{% elif forma.forma_pagamento == 'PI' %}pix{% elif forma.forma_pagamento == 'CD' %}debito{% elif forma.forma_pagamento == 'CC' %}credito{% elif forma.forma_pagamento == 'BO' %}boleto{% else %}crediario{% endif %}">
+                    {% if forma.forma_pagamento == 'DI' %}<i class="bi bi-cash"></i>
+                    {% elif forma.forma_pagamento == 'PI' %}<i class="bi bi-qr-code"></i>
+                    {% elif forma.forma_pagamento == 'CD' %}<i class="bi bi-credit-card"></i>
+                    {% elif forma.forma_pagamento == 'CC' %}<i class="bi bi-credit-card-2-front"></i>
+                    {% elif forma.forma_pagamento == 'BO' %}<i class="bi bi-upc"></i>
+                    {% else %}<i class="bi bi-person-lines-fill"></i>{% endif %}
+                </div>
+                <div class="forma-info">
+                    <h5>{{ forma.nome }}</h5>
+                    <small>{{ forma.quantidade }} venda{{ forma.quantidade|pluralize:"s" }}</small>
+                    <div class="progress-forma">
+                        <div class="progress-bar bg-primary" style="width: {{ forma.percentual|floatformat:0 }}%; height: 100%; border-radius: 4px;"></div>
+                    </div>
+                </div>
+                <div class="forma-valores">
+                    <h4>R$ {{ forma.total|floatformat:2 }}</h4>
+                    <small>{{ forma.percentual|floatformat:1 }}%</small>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-center text-muted py-4">Nenhuma venda no período</p>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="col-lg-5">
+        <!-- Gráfico de Pizza -->
+        <div class="card-pagamento">
+            <h5 class="mb-3"><i class="bi bi-pie-chart me-2"></i>Distribuição</h5>
+            <canvas id="graficoPizza"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const formas = [
+        {% for forma in formas_pagamento %}
+        { nome: '{{ forma.nome }}', total: {{ forma.total|floatformat:2 }} },
+        {% endfor %}
+    ];
+    
+    const cores = ['#22c55e', '#06b6d4', '#3b82f6', '#8b5cf6', '#eab308', '#f97316'];
+    
+    const ctx = document.getElementById('graficoPizza').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: formas.map(f => f.nome),
+            datasets: [{
+                data: formas.map(f => f.total),
+                backgroundColor: cores.slice(0, formas.length),
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

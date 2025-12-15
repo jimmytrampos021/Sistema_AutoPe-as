@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+
+{% block title %}Inadimplência - Relatórios{% endblock %}
+{% block page_title %}Relatório de Inadimplência{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.vermelho h3 { color: #ef4444; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .dias-atraso {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .dias-atraso.leve { background: #fef3c7; color: #d97706; }
+    .dias-atraso.medio { background: #fed7aa; color: #ea580c; }
+    .dias-atraso.grave { background: #fecaca; color: #dc2626; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-6">
+            <label class="form-label">Filtrar por dias de atraso</label>
+            <select name="dias" class="form-select">
+                <option value="0" {% if dias_atraso == 0 %}selected{% endif %}>Todos os vencidos</option>
+                <option value="7" {% if dias_atraso == 7 %}selected{% endif %}>Mais de 7 dias</option>
+                <option value="15" {% if dias_atraso == 15 %}selected{% endif %}>Mais de 15 dias</option>
+                <option value="30" {% if dias_atraso == 30 %}selected{% endif %}>Mais de 30 dias</option>
+                <option value="60" {% if dias_atraso == 60 %}selected{% endif %}>Mais de 60 dias</option>
+                <option value="90" {% if dias_atraso == 90 %}selected{% endif %}>Mais de 90 dias</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="stat-box vermelho">
+            <h3>R$ {{ total_inadimplente|floatformat:2 }}</h3>
+            <p><i class="bi bi-exclamation-triangle me-1"></i> Total Inadimplente</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box azul">
+            <h3>{{ qtd_clientes }}</h3>
+            <p><i class="bi bi-people me-1"></i> Clientes Inadimplentes</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box azul">
+            <h3>{{ qtd_contas }}</h3>
+            <p><i class="bi bi-file-text me-1"></i> Contas Vencidas</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela por Cliente -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-people me-2 text-danger"></i>Clientes Inadimplentes</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Cliente</th>
+                    <th>Telefone</th>
+                    <th class="text-center">Contas</th>
+                    <th class="text-center">Maior Atraso</th>
+                    <th class="text-end">Total Devido</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clientes_inadimplentes %}
+                <tr>
+                    <td><strong>{{ c.cliente.nome }}</strong></td>
+                    <td>{{ c.cliente.telefone|default:"-" }}</td>
+                    <td class="text-center">
+                        <span class="badge bg-secondary">{{ c.qtd_contas }}</span>
+                    </td>
+                    <td class="text-center">
+                        <span class="dias-atraso {% if c.maior_atraso <= 15 %}leve{% elif c.maior_atraso <= 30 %}medio{% else %}grave{% endif %}">
+                            {{ c.maior_atraso }} dias
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <strong class="text-danger">R$ {{ c.total|floatformat:2 }}</strong>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: #22c55e;"></i>
+                        <p class="mt-2">Nenhum cliente inadimplente!</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tabela Detalhada -->
+{% if contas_vencidas %}
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Detalhamento das Contas</h5>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>Vencimento</th>
+                    <th>Cliente</th>
+                    <th>Descrição</th>
+                    <th class="text-center">Atraso</th>
+                    <th class="text-end">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contas_vencidas %}
+                <tr>
+                    <td>{{ c.data_vencimento|date:"d/m/Y" }}</td>
+                    <td>{{ c.cliente.nome|truncatechars:25 }}</td>
+                    <td>{{ c.descricao|default:"-"|truncatechars:30 }}</td>
+                    <td class="text-center">
+                        {% widthratio hoje|date:"U" c.data_vencimento|date:"U" 86400 as dias_calc %}
+                        {{ dias_calc }} dias
+                    </td>
+                    <td class="text-end">R$ {{ c.valor|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
