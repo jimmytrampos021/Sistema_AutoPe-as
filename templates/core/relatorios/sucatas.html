@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Trocas de Bateria - Relatórios{% endblock %}
+{% block page_title %}Trocas de Bateria (Sucatas){% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.roxo h3 { color: #8b5cf6; }
+    .stat-box.verde h3 { color: #22c55e; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .badge-troca { background: #8b5cf6; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-5">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="stat-box roxo">
+            <h3>{{ total_trocas }}</h3>
+            <p><i class="bi bi-arrow-left-right me-1"></i> Total de Trocas</p>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="stat-box verde">
+            <h3>R$ {{ valor_estimado|floatformat:2 }}</h3>
+            <p><i class="bi bi-cash me-1"></i> Valor Estimado</p>
+        </div>
+    </div>
+</div>
+
+<!-- Trocas por Amperagem -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-bar-chart me-2"></i>Trocas por Amperagem</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Amperagem</th>
+                    <th class="text-center">Quantidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in por_amperagem %}
+                <tr>
+                    <td><strong>{{ p.amperagem__amperagem|default:"N/A" }}Ah</strong></td>
+                    <td class="text-center"><span class="badge badge-troca">{{ p.quantidade }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">
+                        Nenhuma troca no período
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lista de Trocas -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Lista de Trocas</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Amperagem</th>
+                    <th class="text-center">Quantidade</th>
+                    <th>Venda</th>
+                    <th>Usuário</th>
+                    <th>Observação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in trocas %}
+                <tr>
+                    <td>{{ t.data_movimentacao|date:"d/m/Y H:i" }}</td>
+                    <td>{{ t.amperagem.amperagem|default:"-" }}Ah</td>
+                    <td class="text-center"><span class="badge badge-troca">{{ t.quantidade }}</span></td>
+                    <td>{{ t.venda.numero|default:"-" }}</td>
+                    <td>{{ t.usuario.username|default:"-" }}</td>
+                    <td>{{ t.observacao|default:"-"|truncatechars:40 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Nenhuma troca no período
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

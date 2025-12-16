@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Controle de Cascos - Relatórios{% endblock %}
+{% block page_title %}Controle de Cascos de Bateria{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .stat-box {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .stat-box { background: #2d2d2d; }
+    .stat-box h3 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+    .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box.verde h3 { color: #22c55e; }
+    .stat-box.vermelho h3 { color: #ef4444; }
+    .stat-box.azul h3 { color: #3b82f6; }
+    .stat-box.roxo h3 { color: #8b5cf6; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-top: 20px;
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .badge-entrada { background: #22c55e; }
+    .badge-saida { background: #ef4444; }
+    .badge-troca { background: #8b5cf6; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{% url 'relatorios' %}" class="btn btn-outline-secondary btn-voltar">
+    <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
+</a>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Tipo</label>
+            <select name="tipo" class="form-select">
+                <option value="">Todos</option>
+                <option value="entrada" {% if tipo == 'entrada' %}selected{% endif %}>Entradas</option>
+                <option value="saida" {% if tipo == 'saida' %}selected{% endif %}>Saídas</option>
+                <option value="troca" {% if tipo == 'troca' %}selected{% endif %}>Trocas</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+    {% if tipo %}
+    <div class="mt-2">
+        <a href="?data_inicio={{ data_inicio|date:'Y-m-d' }}&data_fim={{ data_fim|date:'Y-m-d' }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle"></i> Limpar Filtro de Tipo
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Estatísticas -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="stat-box verde">
+            <h3><i class="bi bi-arrow-down-circle me-2"></i>{{ entradas }}</h3>
+            <p>Entradas no Período</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box vermelho">
+            <h3><i class="bi bi-arrow-up-circle me-2"></i>{{ saidas }}</h3>
+            <p>Saídas no Período</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box roxo">
+            <h3><i class="bi bi-arrow-left-right me-2"></i>{{ trocas }}</h3>
+            <p>Trocas no Período</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-box azul">
+            <h3><i class="bi bi-box me-2"></i>{{ total_estoque }}</h3>
+            <p>Estoque Atual</p>
+        </div>
+    </div>
+</div>
+
+<!-- Estoque Atual -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-boxes me-2"></i>Estoque Atual de Cascos</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Amperagem</th>
+                    <th class="text-center">Quantidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in estoque_cascos %}
+                <tr>
+                    <td><strong>{{ e.amperagem.amperagem }}Ah</strong></td>
+                    <td class="text-center"><span class="badge bg-primary">{{ e.quantidade }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="text-center text-muted py-4">
+                        Nenhum casco em estoque
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Movimentações -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Movimentações</h5>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Amperagem</th>
+                    <th class="text-center">Quantidade</th>
+                    <th>Venda</th>
+                    <th>Usuário</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in movimentacoes %}
+                <tr>
+                    <td>{{ m.data_movimentacao|date:"d/m/Y H:i" }}</td>
+                    <td>
+                        {% if m.tipo == 'entrada' %}
+                            <span class="badge badge-entrada">ENTRADA</span>
+                        {% elif m.tipo == 'saida' %}
+                            <span class="badge badge-saida">SAÍDA</span>
+                        {% else %}
+                            <span class="badge badge-troca">TROCA</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ m.amperagem.amperagem|default:"-" }}Ah</td>
+                    <td class="text-center"><strong>{{ m.quantidade }}</strong></td>
+                    <td>{{ m.venda.numero|default:"-" }}</td>
+                    <td>{{ m.usuario.username|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Nenhuma movimentação no período
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

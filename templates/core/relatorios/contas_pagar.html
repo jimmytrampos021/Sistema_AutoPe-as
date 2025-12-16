@@ -20,15 +20,11 @@
         padding: 20px;
         text-align: center;
         box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 2px solid transparent;
     }
     body.dark-mode .stat-box { background: #2d2d2d; }
-    .stat-box:hover { transform: translateY(-2px); }
-    .stat-box.active { border-color: #3b82f6; }
     .stat-box h3 { font-size: 1.4rem; font-weight: 700; margin: 0; }
     .stat-box p { color: #718096; margin: 5px 0 0 0; font-size: 0.85rem; }
+    .stat-box .qtd { font-size: 0.75rem; color: #a0aec0; margin-top: 5px; }
     .stat-box.amarelo h3 { color: #f59e0b; }
     .stat-box.vermelho h3 { color: #ef4444; }
     .stat-box.verde h3 { color: #22c55e; }
@@ -55,62 +51,69 @@
     <i class="bi bi-arrow-left"></i> Voltar aos Relatórios
 </a>
 
-<!-- Cards Filtro -->
-<div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <a href="?status=PENDENTE" class="text-decoration-none">
-            <div class="stat-box amarelo {% if status == 'PENDENTE' %}active{% endif %}">
-                <h3>R$ {{ total_pendente|floatformat:2 }}</h3>
-                <p><i class="bi bi-clock me-1"></i> Pendentes</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-4">
-        <a href="?status=ATRASADO" class="text-decoration-none">
-            <div class="stat-box vermelho {% if status == 'ATRASADO' %}active{% endif %}">
-                <h3>R$ {{ total_vencido|floatformat:2 }}</h3>
-                <p><i class="bi bi-exclamation-triangle me-1"></i> Vencidas</p>
-            </div>
-        </a>
-    </div>
-    <div class="col-md-4">
-        <a href="?status=PAGO" class="text-decoration-none">
-            <div class="stat-box verde {% if status == 'PAGO' %}active{% endif %}">
-                <h3>R$ {{ total_pago_mes|floatformat:2 }}</h3>
-                <p><i class="bi bi-check-circle me-1"></i> Pago este Mês</p>
-            </div>
-        </a>
-    </div>
-</div>
-
-<!-- Filtros Adicionais -->
+<!-- Filtros -->
 <div class="filtros-card">
     <form method="get" class="row g-3 align-items-end">
-        <input type="hidden" name="status" value="{{ status }}">
-        <div class="col-md-4">
-            <label class="form-label">Vencimento Início</label>
+        <div class="col-md-3">
+            <label class="form-label">Data Início</label>
             <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
         </div>
-        <div class="col-md-4">
-            <label class="form-label">Vencimento Fim</label>
+        <div class="col-md-3">
+            <label class="form-label">Data Fim</label>
             <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">Todos</option>
+                <option value="PENDENTE" {% if status == 'PENDENTE' %}selected{% endif %}>Pendentes</option>
+                <option value="ATRASADO" {% if status == 'ATRASADO' %}selected{% endif %}>Atrasadas</option>
+                <option value="PAGO" {% if status == 'PAGO' %}selected{% endif %}>Pagas</option>
+            </select>
+        </div>
+        <div class="col-md-3">
             <button type="submit" class="btn btn-primary w-100">
                 <i class="bi bi-funnel"></i> Filtrar
             </button>
         </div>
     </form>
-</div>
-
-<!-- Tabela -->
-<div class="tabela-card">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Lista de Contas</h5>
+    {% if data_inicio or data_fim or status %}
+    <div class="mt-2">
         <a href="?" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-x-circle"></i> Limpar Filtros
         </a>
     </div>
+    {% endif %}
+</div>
+
+<!-- Cards Informativos -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="stat-box amarelo">
+            <h3>R$ {{ total_pendente|floatformat:2 }}</h3>
+            <p><i class="bi bi-clock me-1"></i> Pendentes</p>
+            <div class="qtd">{{ qtd_pendente }} conta{{ qtd_pendente|pluralize:"s" }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box vermelho">
+            <h3>R$ {{ total_vencido|floatformat:2 }}</h3>
+            <p><i class="bi bi-exclamation-triangle me-1"></i> Atrasadas</p>
+            <div class="qtd">{{ qtd_vencido }} conta{{ qtd_vencido|pluralize:"s" }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="stat-box verde">
+            <h3>R$ {{ total_pago|floatformat:2 }}</h3>
+            <p><i class="bi bi-check-circle me-1"></i> Pagas</p>
+            <div class="qtd">{{ qtd_pago }} conta{{ qtd_pago|pluralize:"s" }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>Lista de Contas</h5>
     <div class="table-responsive">
         <table class="table table-hover">
             <thead>
@@ -127,7 +130,7 @@
                 {% for c in contas %}
                 <tr>
                     <td>
-                        <span class="{% if c.data_vencimento < hoje and c.status != 'PAGO' %}text-danger fw-bold{% endif %}">
+                        <span class="{% if c.data_vencimento < hoje and c.status|lower != 'pago' %}text-danger fw-bold{% endif %}">
                             {{ c.data_vencimento|date:"d/m/Y" }}
                         </span>
                     </td>
@@ -138,8 +141,8 @@
                     <td class="text-center">
                         {% if c.status|lower == 'pago' %}
                             <span class="badge badge-pago">PAGO</span>
-                        {% elif c.status|lower == 'atrasado' or c.data_vencimento < hoje %}
-                            <span class="badge badge-vencido">VENCIDA</span>
+                        {% elif c.data_vencimento < hoje %}
+                            <span class="badge badge-vencido">ATRASADA</span>
                         {% else %}
                             <span class="badge badge-pendente">PENDENTE</span>
                         {% endif %}

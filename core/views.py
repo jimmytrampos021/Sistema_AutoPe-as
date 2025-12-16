@@ -3997,6 +3997,7 @@ def relatorio_fluxo_caixa(request):
     
     return render(request, 'core/relatorios/fluxo_caixa.html', context)
 
+
 @login_required
 def relatorio_lucro_bruto(request):
     """Relatório de lucro bruto"""
@@ -4203,21 +4204,10 @@ def relatorio_contas_pagar(request):
     data_inicio = request.GET.get('data_inicio', '')
     data_fim = request.GET.get('data_fim', '')
     
+    # Query base
     contas = ContaPagar.objects.all().select_related('categoria', 'fornecedor').order_by('data_vencimento')
     
-    if status == 'PENDENTE':
-        contas = contas.filter(
-            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
-            data_vencimento__gte=hoje
-        )
-    elif status == 'ATRASADO':
-        contas = contas.filter(
-            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
-            data_vencimento__lt=hoje
-        )
-    elif status == 'PAGO':
-        contas = contas.filter(Q(status__iexact='PAGO') | Q(status__iexact='pago'))
-    
+    # Aplicar filtros de data primeiro (afeta tudo)
     if data_inicio:
         try:
             dt = datetime.strptime(data_inicio, '%Y-%m-%d').date()
@@ -4232,24 +4222,57 @@ def relatorio_contas_pagar(request):
         except:
             pass
     
+    # Guardar queryset filtrado por data para calcular os cards
+    contas_filtradas = contas
+    
+    # Aplicar filtro de status
+    if status == 'PENDENTE':
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente')
+        ).filter(data_vencimento__gte=hoje)
+    elif status == 'ATRASADO':
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+            Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado')
+        ).filter(data_vencimento__lt=hoje)
+    elif status == 'PAGO':
+        contas = contas.filter(
+            Q(status__iexact='PAGO') | Q(status__iexact='pago')
+        )
+    
     contas = contas[:200]
     
-    # Totais - usando iexact para case-insensitive
-    total_pendente = ContaPagar.objects.filter(
+    # Calcular totais dos cards baseados nos filtros de DATA aplicados
+    total_pendente = contas_filtradas.filter(
         Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
         data_vencimento__gte=hoje
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
     
-    total_vencido = ContaPagar.objects.filter(
-        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
+    total_vencido = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+        Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
         data_vencimento__lt=hoje
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
     
-    total_pago_mes = ContaPagar.objects.filter(
-        Q(status__iexact='PAGO') | Q(status__iexact='pago'),
-        data_pagamento__month=hoje.month,
-        data_pagamento__year=hoje.year
+    total_pago = contas_filtradas.filter(
+        Q(status__iexact='PAGO') | Q(status__iexact='pago')
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    # Contadores
+    qtd_pendente = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
+        data_vencimento__gte=hoje
+    ).count()
+    
+    qtd_vencido = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+        Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
+        data_vencimento__lt=hoje
+    ).count()
+    
+    qtd_pago = contas_filtradas.filter(
+        Q(status__iexact='PAGO') | Q(status__iexact='pago')
+    ).count()
     
     context = {
         'contas': contas,
@@ -4258,7 +4281,10 @@ def relatorio_contas_pagar(request):
         'data_fim': data_fim,
         'total_pendente': total_pendente,
         'total_vencido': total_vencido,
-        'total_pago_mes': total_pago_mes,
+        'total_pago': total_pago,
+        'qtd_pendente': qtd_pendente,
+        'qtd_vencido': qtd_vencido,
+        'qtd_pago': qtd_pago,
         'hoje': hoje,
     }
     
@@ -4269,44 +4295,94 @@ def relatorio_contas_pagar(request):
 def relatorio_contas_receber(request):
     """Relatório de contas a receber (crediário)"""
     from financeiro.models import ContaReceber
+    from django.db.models import Q
     
     hoje = date.today()
     status = request.GET.get('status', '')
+    data_inicio = request.GET.get('data_inicio', '')
+    data_fim = request.GET.get('data_fim', '')
     
+    # Query base
     contas = ContaReceber.objects.all().select_related('cliente', 'categoria').order_by('data_vencimento')
     
+    # Aplicar filtros de data primeiro (afeta tudo)
+    if data_inicio:
+        try:
+            dt = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+            contas = contas.filter(data_vencimento__gte=dt)
+        except:
+            pass
+    
+    if data_fim:
+        try:
+            dt = datetime.strptime(data_fim, '%Y-%m-%d').date()
+            contas = contas.filter(data_vencimento__lte=dt)
+        except:
+            pass
+    
+    # Guardar queryset filtrado por data para calcular os cards
+    contas_filtradas = contas
+    
+    # Aplicar filtro de status
     if status == 'PENDENTE':
-        contas = contas.filter(status='PENDENTE', data_vencimento__gte=hoje)
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente')
+        ).filter(data_vencimento__gte=hoje)
     elif status == 'ATRASADO':
-        contas = contas.filter(status__in=['PENDENTE', 'ATRASADO'], data_vencimento__lt=hoje)
+        contas = contas.filter(
+            Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+            Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado')
+        ).filter(data_vencimento__lt=hoje)
     elif status == 'RECEBIDO':
-        contas = contas.filter(status='RECEBIDO')
+        contas = contas.filter(
+            Q(status__iexact='RECEBIDO') | Q(status__iexact='recebido')
+        )
     
     contas = contas[:200]
     
-    # Totais
-    total_a_receber = ContaReceber.objects.filter(
-        status='PENDENTE', 
+    # Calcular totais dos cards baseados nos filtros de DATA aplicados
+    total_a_receber = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
         data_vencimento__gte=hoje
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
     
-    total_vencido = ContaReceber.objects.filter(
-        status__in=['PENDENTE', 'ATRASADO'], 
+    total_vencido = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+        Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
         data_vencimento__lt=hoje
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
     
-    total_recebido_mes = ContaReceber.objects.filter(
-        status='RECEBIDO',
-        data_recebimento__month=hoje.month,
-        data_recebimento__year=hoje.year
+    total_recebido = contas_filtradas.filter(
+        Q(status__iexact='RECEBIDO') | Q(status__iexact='recebido')
     ).aggregate(t=Sum('valor'))['t'] or Decimal('0')
+    
+    # Contadores
+    qtd_a_receber = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente'),
+        data_vencimento__gte=hoje
+    ).count()
+    
+    qtd_vencido = contas_filtradas.filter(
+        Q(status__iexact='PENDENTE') | Q(status__iexact='pendente') | 
+        Q(status__iexact='ATRASADO') | Q(status__iexact='atrasado'),
+        data_vencimento__lt=hoje
+    ).count()
+    
+    qtd_recebido = contas_filtradas.filter(
+        Q(status__iexact='RECEBIDO') | Q(status__iexact='recebido')
+    ).count()
     
     context = {
         'contas': contas,
         'status': status,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
         'total_a_receber': total_a_receber,
         'total_vencido': total_vencido,
-        'total_recebido_mes': total_recebido_mes,
+        'total_recebido': total_recebido,
+        'qtd_a_receber': qtd_a_receber,
+        'qtd_vencido': qtd_vencido,
+        'qtd_recebido': qtd_recebido,
         'hoje': hoje,
     }
     
@@ -4469,16 +4545,146 @@ def relatorio_inadimplencia(request):
     return render(request, 'core/relatorios/inadimplencia.html', context)
 
 
-
-
 # ============================================
-# RELATÓRIOS DE BATERIAS (temporário)
+# RELATÓRIOS DE BATERIAS
 # ============================================
 
 @login_required
 def relatorio_cascos(request):
-    return render(request, 'core/relatorios/em_construcao.html', {'titulo': 'Controle de Cascos'})
+    """Relatório de controle de cascos de bateria"""
+    from estoque.models import MovimentacaoCasco, EstoqueCasco
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    tipo = request.GET.get('tipo', '')  # entrada, saida, troca
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Movimentações - campos corretos: data_movimentacao, amperagem, venda
+    movimentacoes = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim
+    ).select_related('amperagem', 'venda', 'usuario').order_by('-data_movimentacao', '-id')
+    
+    if tipo:
+        movimentacoes = movimentacoes.filter(tipo=tipo)
+    
+    movimentacoes = movimentacoes[:500]
+    
+    # Totais por tipo
+    entradas = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='entrada'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    saidas = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='saida'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    trocas = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='troca'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    # Estoque atual - não tem relacionamento com produto, apenas amperagem
+    estoque_cascos = EstoqueCasco.objects.select_related('amperagem').filter(
+        quantidade__gt=0
+    ).order_by('amperagem__amperagem')
+    
+    total_estoque = estoque_cascos.aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'tipo': tipo,
+        'movimentacoes': movimentacoes,
+        'entradas': entradas,
+        'saidas': saidas,
+        'trocas': trocas,
+        'estoque_cascos': estoque_cascos,
+        'total_estoque': total_estoque,
+    }
+    
+    return render(request, 'core/relatorios/cascos.html', context)
+
 
 @login_required
 def relatorio_sucatas(request):
-    return render(request, 'core/relatorios/em_construcao.html', {'titulo': 'Trocas de Sucata'})
+    """Relatório de trocas de bateria (sucatas)"""
+    from estoque.models import MovimentacaoCasco
+    
+    hoje = date.today()
+    data_inicio = request.GET.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-d'))
+    data_fim = request.GET.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    
+    try:
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+    except:
+        data_inicio = hoje.replace(day=1)
+        data_fim = hoje
+    
+    # Buscar apenas trocas (que são as sucatas)
+    trocas = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='troca'
+    ).select_related('amperagem', 'venda', 'usuario').order_by('-data_movimentacao', '-id')
+    
+    trocas = trocas[:500]
+    
+    # Totais
+    total_trocas = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='troca'
+    ).aggregate(total=Sum('quantidade'))['total'] or 0
+    
+    # Valor estimado (R$ 15,00 por kg, ~15kg por bateria)
+    peso_medio_kg = 15
+    valor_por_kg = Decimal('15.00')
+    valor_estimado = total_trocas * peso_medio_kg * valor_por_kg
+    
+    # Trocas por amperagem
+    por_amperagem = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='troca'
+    ).values(
+        'amperagem__amperagem'
+    ).annotate(
+        quantidade=Sum('quantidade')
+    ).order_by('-quantidade')
+    
+    # Trocas por mês
+    por_mes = MovimentacaoCasco.objects.filter(
+        data_movimentacao__gte=data_inicio,
+        data_movimentacao__lte=data_fim,
+        tipo='troca'
+    ).annotate(
+        mes=TruncMonth('data_movimentacao')
+    ).values('mes').annotate(
+        quantidade=Sum('quantidade')
+    ).order_by('mes')
+    
+    context = {
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
+        'trocas': trocas,
+        'total_trocas': total_trocas,
+        'valor_estimado': valor_estimado,
+        'por_amperagem': por_amperagem,
+        'por_mes': por_mes,
+    }
+    
+    return render(request, 'core/relatorios/sucatas.html', context)
