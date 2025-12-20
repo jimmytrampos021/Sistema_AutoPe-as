@@ -184,6 +184,12 @@ urlpatterns = [
     # Relatórios de Baterias
     path('relatorios/baterias/cascos/', core_views.relatorio_cascos, name='relatorio_cascos'),
     path('relatorios/baterias/sucatas/', core_views.relatorio_sucatas, name='relatorio_sucatas'),
+    
+    # Compras
+    path('compras/', include('compras.urls', namespace='compras')),
+
+    # Fiscal
+    path('fiscal/', include('fiscal.urls')),
 ]
 
    

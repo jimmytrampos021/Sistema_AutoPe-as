@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Notas Fiscais{% endblock %}
+{% block page_title %}Notas Fiscais Emitidas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filtros-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .filtros-card { background: #2d2d2d; }
+    
+    .tabela-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    body.dark-mode .tabela-card { background: #2d2d2d; }
+    
+    .badge-autorizada { background: #22c55e; }
+    .badge-rejeitada { background: #ef4444; }
+    .badge-cancelada { background: #6b7280; }
+    .badge-pendente { background: #f59e0b; }
+    .badge-processando { background: #3b82f6; }
+    
+    .badge-nfce { background: #22c55e; }
+    .badge-nfe { background: #3b82f6; }
+    
+    .btn-voltar { margin-bottom: 15px; }
+    
+    .chave-acesso {
+        font-family: monospace;
+        font-size: 0.75rem;
+        color: #718096;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="{% url 'fiscal:dashboard' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+    <div>
+        <a href="{% url 'fiscal:emitir_nfce' %}" class="btn btn-success">
+            <i class="bi bi-receipt"></i> Emitir NFC-e
+        </a>
+        <a href="{% url 'fiscal:emitir_nfe' %}" class="btn btn-primary">
+            <i class="bi bi-file-earmark-text"></i> Emitir NF-e
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filtros-card">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-2">
+            <label class="form-label">Modelo</label>
+            <select name="modelo" class="form-select">
+                <option value="">Todos</option>
+                <option value="65" {% if modelo == '65' %}selected{% endif %}>NFC-e</option>
+                <option value="55" {% if modelo == '55' %}selected{% endif %}>NF-e</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">Todos</option>
+                <option value="AUTORIZADA" {% if status == 'AUTORIZADA' %}selected{% endif %}>Autorizada</option>
+                <option value="REJEITADA" {% if status == 'REJEITADA' %}selected{% endif %}>Rejeitada</option>
+                <option value="CANCELADA" {% if status == 'CANCELADA' %}selected{% endif %}>Cancelada</option>
+                <option value="PENDENTE" {% if status == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Data Início</label>
+            <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Data Fim</label>
+            <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Busca</label>
+            <input type="text" name="busca" class="form-control" value="{{ busca }}" placeholder="Nº, chave, nome...">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-funnel"></i> Filtrar
+            </button>
+        </div>
+    </form>
+    {% if modelo or status or data_inicio or data_fim or busca %}
+    <div class="mt-2">
+        <a href="?" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle"></i> Limpar Filtros
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tabela -->
+<div class="tabela-card">
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Número</th>
+                    <th>Modelo</th>
+                    <th>Destinatário</th>
+                    <th>Chave de Acesso</th>
+                    <th class="text-end">Valor</th>
+                    <th class="text-center">Status</th>
+                    <th>Data</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nota in notas %}
+                <tr>
+                    <td><strong>{{ nota.numero }}</strong></td>
+                    <td>
+                        {% if nota.modelo == '65' %}
+                        <span class="badge badge-nfce">NFC-e</span>
+                        {% else %}
+                        <span class="badge badge-nfe">NF-e</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ nota.dest_nome|default:"Consumidor"|truncatechars:25 }}
+                        {% if nota.dest_cpf_cnpj %}
+                        <br><small class="text-muted">{{ nota.dest_cpf_cnpj }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if nota.chave_acesso %}
+                        <span class="chave-acesso">{{ nota.chave_acesso|truncatechars:20 }}...</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end"><strong>R$ {{ nota.valor_total|floatformat:2 }}</strong></td>
+                    <td class="text-center">
+                        {% if nota.status == 'AUTORIZADA' %}
+                        <span class="badge badge-autorizada">Autorizada</span>
+                        {% elif nota.status == 'REJEITADA' %}
+                        <span class="badge badge-rejeitada">Rejeitada</span>
+                        {% elif nota.status == 'CANCELADA' %}
+                        <span class="badge badge-cancelada">Cancelada</span>
+                        {% elif nota.status == 'PROCESSANDO' %}
+                        <span class="badge badge-processando">Processando</span>
+                        {% else %}
+                        <span class="badge badge-pendente">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ nota.data_emissao|date:"d/m/Y H:i" }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'fiscal:detalhe_nota' nota.pk %}" class="btn btn-sm btn-outline-primary" title="Ver detalhes">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if nota.status == 'AUTORIZADA' %}
+                        <a href="{% url 'fiscal:download_danfe' nota.pk %}" class="btn btn-sm btn-outline-success" title="DANFE" target="_blank">
+                            <i class="bi bi-file-pdf"></i>
+                        </a>
+                        <a href="{% url 'fiscal:download_xml' nota.pk %}" class="btn btn-sm btn-outline-secondary" title="XML">
+                            <i class="bi bi-file-code"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Nenhuma nota fiscal encontrada
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Paginação -->
+    {% if notas.has_other_pages %}
+    <nav aria-label="Paginação">
+        <ul class="pagination justify-content-center mb-0">
+            {% if notas.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ notas.previous_page_number }}&modelo={{ modelo }}&status={{ status }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&busca={{ busca }}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="page-item disabled">
+                <span class="page-link">{{ notas.number }} de {{ notas.paginator.num_pages }}</span>
+            </li>
+            
+            {% if notas.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ notas.next_page_number }}&modelo={{ modelo }}&status={{ status }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&busca={{ busca }}">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

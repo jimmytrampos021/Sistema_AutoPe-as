@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}Importar PDF - Sistema AutoPeças{% endblock %}
+{% block page_title %}Importar PDF de Pedido{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'compras:lista_entradas' %}">Entradas</a></li>
+            <li class="breadcrumb-item active">Importar PDF</li>
+        </ol>
+    </nav>
+
+    <!-- Tabs de importação -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'compras:importar_xml' %}">
+                <i class="bi bi-file-earmark-code me-1"></i> Importar XML
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" href="{% url 'compras:importar_pdf' %}">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Importar PDF
+            </a>
+        </li>
+    </ul>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="table-card">
+                <form method="post" enctype="multipart/form-data" id="formImportarPDF">
+                    {% csrf_token %}
+                    
+                    <!-- Upload do Arquivo -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-file-earmark-pdf me-1 text-danger"></i> Arquivo PDF do Pedido
+                        </label>
+                        <div class="p-4 border border-2 border-dashed rounded text-center bg-light" 
+                             id="uploadArea" style="cursor: pointer; position: relative;">
+                            <i class="bi bi-file-earmark-pdf display-4 text-danger mb-3 d-block"></i>
+                            <p class="mb-2">Arraste o arquivo PDF aqui ou clique para selecionar</p>
+                            <small class="text-muted">Máximo 10MB - Formatos suportados: Conexão Distribuidora, AC Araujo</small>
+                            <input type="file" name="arquivo_pdf" id="id_arquivo_pdf" 
+                                   class="form-control" accept=".pdf"
+                                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                        </div>
+                        <div id="fileInfo" class="mt-2 d-none">
+                            <span class="badge bg-danger fs-6">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>
+                                <span id="fileName"></span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-link text-danger" id="removeFile">
+                                <i class="bi bi-x-circle"></i> Remover
+                            </button>
+                        </div>
+                        {% if form.arquivo_pdf.errors %}
+                        <div class="text-danger mt-2">{{ form.arquivo_pdf.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Configurações de Entrada -->
+                    <h5 class="mb-3"><i class="bi bi-gear me-1"></i> Configurações de Entrada</h5>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_preco_custo" id="id_atualizar_preco_custo" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_atualizar_preco_custo">
+                                    Atualizar preço de custo dos produtos
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="ratear_frete" id="id_ratear_frete" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_ratear_frete">
+                                    Ratear frete no custo dos produtos
+                                </label>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_cotacao" id="id_atualizar_cotacao" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_atualizar_cotacao">
+                                    Atualizar cotação do fornecedor
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_preco_venda" id="id_atualizar_preco_venda" 
+                                       class="form-check-input">
+                                <label class="form-check-label" for="id_atualizar_preco_venda">
+                                    Recalcular preço de venda (baseado na margem)
+                                </label>
+                            </div>
+
+                            <div class="mb-3" id="margemContainer" style="display: none;">
+                                <label class="form-label" for="id_margem_padrao">Margem de lucro (%)</label>
+                                <div class="input-group" style="width: 150px;">
+                                    <input type="number" name="margem_padrao" id="id_margem_padrao" 
+                                           class="form-control" value="50" step="0.01" min="0" max="500">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'compras:lista_entradas' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-danger btn-lg" id="btnImportar">
+                            <i class="bi bi-file-earmark-pdf me-1"></i> Importar PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Formatos Suportados -->
+            <div class="table-card mb-4">
+                <h5 class="text-danger mb-3"><i class="bi bi-file-earmark-pdf me-1"></i> Formatos Suportados</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        <strong>Conexão Distribuidora</strong>
+                        <br><small class="text-muted ms-4">Listagem de Pedidos (CM Sistemas)</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle text-success me-2"></i>
+                        <strong>AC Araujo Distribuidora</strong>
+                        <br><small class="text-muted ms-4">Pedido de Venda</small>
+                    </li>
+                    <li>
+                        <i class="bi bi-check-circle text-warning me-2"></i>
+                        <strong>Outros formatos</strong>
+                        <br><small class="text-muted ms-4">Tentativa de extração automática</small>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- O que será extraído -->
+            <div class="table-card mb-4">
+                <h5 class="mb-3"><i class="bi bi-list-check me-1"></i> O que será extraído</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Nome do Fornecedor</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Número do Pedido</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Data de Emissão</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Código dos Produtos</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Descrição dos Produtos</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Quantidades</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Valores Unitários</li>
+                    <li><i class="bi bi-check text-success me-2"></i>Valor Total</li>
+                </ul>
+            </div>
+
+            <!-- Dicas -->
+            <div class="table-card">
+                <h5 class="text-info mb-3"><i class="bi bi-lightbulb me-1"></i> Dicas</h5>
+                <ul class="small mb-0">
+                    <li class="mb-2">O PDF deve ser de texto (não escaneado)</li>
+                    <li class="mb-2">PDFs de imagem precisam de OCR</li>
+                    <li class="mb-2">Confira os produtos após importar</li>
+                    <li>Vincule os produtos não encontrados</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-dashed { border-style: dashed !important; }
+#uploadArea:hover { background-color: #e9ecef !important; border-color: #dc3545 !important; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('id_arquivo_pdf');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const removeFile = document.getElementById('removeFile');
+    const margemContainer = document.getElementById('margemContainer');
+    const checkPrecoVenda = document.getElementById('id_atualizar_preco_venda');
+
+    // Toggle margem
+    checkPrecoVenda.addEventListener('change', function() {
+        margemContainer.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // File input
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            fileName.textContent = this.files[0].name;
+            fileInfo.classList.remove('d-none');
+        }
+    });
+
+    // Remove file
+    removeFile.addEventListener('click', function() {
+        fileInput.value = '';
+        fileInfo.classList.add('d-none');
+    });
+
+    // Form submit loading
+    document.getElementById('formImportarPDF').addEventListener('submit', function() {
+        const btn = document.getElementById('btnImportar');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Importando...';
+    });
+});
+</script>
+{% endblock %}

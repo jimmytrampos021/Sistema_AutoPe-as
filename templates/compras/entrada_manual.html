@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Entrada Manual - Sistema AutoPeças{% endblock %}
+{% block page_title %}Entrada Manual de Mercadoria{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'compras:lista_entradas' %}">Entradas</a></li>
+            <li class="breadcrumb-item active">Entrada Manual</li>
+        </ol>
+    </nav>
+
+    <div class="table-card">
+        <form method="post">
+            {% csrf_token %}
+            
+            <h5 class="mb-3"><i class="bi bi-file-text me-1"></i> Dados da Nota Fiscal</h5>
+            
+            <div class="row">
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Número da NF *</label>
+                    {{ form.numero_nf }}
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Série</label>
+                    {{ form.serie }}
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">Chave de Acesso (44 dígitos)</label>
+                    {{ form.chave_acesso }}
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Natureza da Operação</label>
+                    {{ form.natureza_operacao }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Fornecedor *</label>
+                    {{ form.fornecedor }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Data Emissão *</label>
+                    {{ form.data_emissao }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Data Entrada *</label>
+                    {{ form.data_entrada }}
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-currency-dollar me-1"></i> Valores</h5>
+            
+            <div class="row">
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Valor Produtos *</label>
+                    {{ form.valor_produtos }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Frete</label>
+                    {{ form.valor_frete }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Seguro</label>
+                    {{ form.valor_seguro }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Desconto</label>
+                    {{ form.valor_desconto }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">IPI</label>
+                    {{ form.valor_ipi }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">ICMS ST</label>
+                    {{ form.valor_icms_st }}
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Outras Despesas</label>
+                    {{ form.valor_outras_despesas }}
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label fw-bold">TOTAL *</label>
+                    {{ form.valor_total }}
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <h5 class="mb-3"><i class="bi bi-gear me-1"></i> Configurações de Entrada</h5>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-check mb-2">
+                        {{ form.atualizar_preco_custo }}
+                        <label class="form-check-label" for="{{ form.atualizar_preco_custo.id_for_label }}">
+                            Atualizar preço de custo dos produtos
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        {{ form.ratear_frete }}
+                        <label class="form-check-label" for="{{ form.ratear_frete.id_for_label }}">
+                            Ratear frete no custo dos produtos
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        {{ form.atualizar_cotacao }}
+                        <label class="form-check-label" for="{{ form.atualizar_cotacao.id_for_label }}">
+                            Atualizar cotação do fornecedor
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-check mb-2">
+                        {{ form.atualizar_preco_venda }}
+                        <label class="form-check-label" for="{{ form.atualizar_preco_venda.id_for_label }}">
+                            Recalcular preço de venda
+                        </label>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Margem (%)</label>
+                            {{ form.margem_padrao }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label class="form-label">Observações</label>
+                {{ form.observacoes }}
+            </div>
+
+            <hr class="my-4">
+
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'compras:lista_entradas' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Voltar
+                </a>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-save me-1"></i> Criar Nota Fiscal
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -6,7 +6,6 @@
     <title>{% block title %}Sistema Autopeças{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #0d6efd;
@@ -108,23 +107,6 @@
         body.dark-mode .alert {
             background-color: #3d3d3d;
             border-color: #555;
-        }
-
-        body.dark-mode .card {
-            background: #2d2d2d;
-            color: #e0e0e0;
-            border-color: #444;
-        }
-
-        body.dark-mode .card-header {
-            background: #3d3d3d;
-            border-color: #444;
-        }
-
-        body.dark-mode .list-group-item {
-            background: #2d2d2d;
-            color: #e0e0e0;
-            border-color: #444;
         }
         
         /* Botão de tema */
@@ -368,30 +350,6 @@
             <a class="nav-link {% if 'estoque' in request.path %}active{% endif %}" href="{% url 'lista_estoque' %}">
                 <i class="bi bi-box-seam"></i> Estoque
             </a>
-
-            <!-- COMPRAS - NOVO MÓDULO -->
-            <a class="nav-link d-flex justify-content-between align-items-center {% if 'compras' in request.path %}active{% endif %}" 
-               data-bs-toggle="collapse" href="#menuCompras" role="button" 
-               aria-expanded="{% if 'compras' in request.path %}true{% else %}false{% endif %}">
-                <span><i class="bi bi-truck"></i> Compras</span>
-                <i class="bi bi-chevron-down small"></i>
-            </a>
-            <div class="collapse {% if 'compras' in request.path %}show{% endif %}" id="menuCompras">
-                <nav class="nav flex-column ms-3" style="font-size: 0.9rem;">
-                    <a class="nav-link py-2" href="{% url 'compras:lista_entradas' %}">
-                        <i class="bi bi-list-ul"></i> Entradas
-                    </a>
-                    <a class="nav-link py-2" href="{% url 'compras:importar_xml' %}">
-                        <i class="bi bi-file-earmark-code text-success"></i> Importar XML
-                    </a>
-                    <a class="nav-link py-2" href="{% url 'compras:importar_pdf' %}">
-                        <i class="bi bi-file-earmark-pdf text-danger"></i> Importar PDF
-                    </a>
-                    <a class="nav-link py-2" href="{% url 'compras:entrada_manual' %}">
-                        <i class="bi bi-pencil-square text-info"></i> Entrada Manual
-                    </a>
-                </nav>
-            </div>
             
             <a class="nav-link {% if 'pdv' in request.path %}active{% endif %}" href="{% url 'pdv' %}">
                 <i class="bi bi-cart3"></i> PDV - Vendas
@@ -487,18 +445,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Mensagens de feedback -->
-        {% if messages %}
-        <div class="container-fluid mb-3">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
 
         {% block content %}{% endblock %}
     </div>

@@ -614,6 +614,11 @@ class Produto(models.Model):
         default='',
         verbose_name='NCM'
     )
+    tem_st = models.BooleanField(
+        default=False,
+        verbose_name='Tem Substituição Tributária',
+        help_text='Marque se este produto tem ICMS-ST (maioria das autopeças tem)'
+    )
     
     UNIDADE_CHOICES = [
         ('UN', 'Unidade'),

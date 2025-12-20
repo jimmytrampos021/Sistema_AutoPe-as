@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'estoque',
     'vendas',
     'financeiro',
+    'compras',
+    'fiscal',
     
 ]
 

@@ -1,0 +1,1023 @@
+{% extends 'base.html' %}
+
+{% block title %}NF {{ nota.numero_nf }} - Sistema AutoPeças{% endblock %}
+{% block page_title %}NF {{ nota.numero_nf }}/{{ nota.serie }} - {{ nota.fornecedor.nome_fantasia }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb e Status -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{% url 'compras:lista_entradas' %}">Entradas</a></li>
+                <li class="breadcrumb-item active">NF {{ nota.numero_nf }}</li>
+            </ol>
+        </nav>
+        <div>
+            {% if nota.status == 'P' %}
+            <span class="badge bg-warning text-dark fs-6">Pendente</span>
+            {% elif nota.status == 'E' %}
+            <span class="badge bg-info fs-6">Em Conferência</span>
+            {% elif nota.status == 'C' %}
+            <span class="badge bg-success fs-6">Conferida</span>
+            {% elif nota.status == 'F' %}
+            <span class="badge bg-secondary fs-6">Finalizada</span>
+            {% else %}
+            <span class="badge bg-danger fs-6">Cancelada</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Ações -->
+    {% if nota.status not in 'FX' %}
+    <div class="mb-4">
+        <div class="btn-group">
+            <button class="btn btn-success" id="btnVincularAuto">
+                <i class="bi bi-lightning me-1"></i> Vincular Automático
+            </button>
+            <button class="btn btn-info" id="btnConferirTodos">
+                <i class="bi bi-check-all me-1"></i> Conferir Todos
+            </button>
+            {% if nota.pode_finalizar %}
+            <button class="btn btn-primary" id="btnFinalizar">
+                <i class="bi bi-check-circle me-1"></i> Finalizar Entrada
+            </button>
+            {% endif %}
+            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
+                <i class="bi bi-x-circle me-1"></i> Cancelar
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Coluna Principal -->
+        <div class="col-lg-9">
+            <!-- Info da Nota -->
+            <div class="table-card mb-4">
+                <div class="row text-center">
+                    <div class="col">
+                        <small class="text-muted d-block">Fornecedor</small>
+                        <strong>{{ nota.fornecedor.nome_fantasia }}</strong>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block">Valor Produtos</small>
+                        <strong>R$ {{ nota.valor_produtos|floatformat:2 }}</strong>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block">Frete</small>
+                        <strong>R$ {{ nota.valor_frete|floatformat:2 }}</strong>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block">Itens</small>
+                        <strong>{{ nota.itens_vinculados }}/{{ nota.total_itens }}</strong>
+                        {% if nota.itens_pendentes > 0 %}
+                        <span class="text-danger">({{ nota.itens_pendentes }} pendentes)</span>
+                        {% endif %}
+                    </div>
+                    <div class="col">
+                        <small class="text-muted d-block">TOTAL</small>
+                        <strong class="text-primary fs-5">R$ {{ nota.valor_total|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra de Progresso -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between mb-1">
+                    <small>Conferência: {{ nota.percentual_conferencia }}%</small>
+                    <small>{{ nota.itens_conferidos }}/{{ nota.total_itens }} itens</small>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar bg-success" style="width: {{ nota.percentual_conferencia }}%"></div>
+                </div>
+            </div>
+
+            <!-- Itens -->
+            <div class="table-card">
+                <h5 class="mb-3"><i class="bi bi-list-ul me-1"></i> Itens da Nota ({{ nota.total_itens }})</h5>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40">#</th>
+                                <th>Produto NF</th>
+                                <th>Vinculado</th>
+                                <th class="text-center">Qtd</th>
+                                <th class="text-end">Unitário</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-center" width="140">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens %}
+                            <tr class="{% if item.conferido %}table-success{% elif not item.produto %}table-warning{% endif %}">
+                                <td class="text-center">
+                                    {{ item.numero_item }}
+                                    {% if item.conferido %}
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ item.descricao_nf|truncatechars:40 }}</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Cód: {{ item.codigo_produto_fornecedor }}
+                                        {% if item.codigo_barras_nf %}| EAN: {{ item.codigo_barras_nf }}{% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    {% if item.produto %}
+                                    <span class="badge bg-success">{{ item.produto.codigo }}</span>
+                                    <br><small>{{ item.produto.descricao|truncatechars:30 }}</small>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Pendente
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {{ item.quantidade|floatformat:0 }}
+                                    {% if item.conferido and item.quantidade_conferida != item.quantidade %}
+                                    <br><small class="text-danger">Conf: {{ item.quantidade_conferida|floatformat:0 }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">R$ {{ item.valor_unitario|floatformat:2 }}</td>
+                                <td class="text-end fw-bold">R$ {{ item.valor_total|floatformat:2 }}</td>
+                                <td class="text-center">
+                                    {% if nota.status not in 'FX' %}
+                                    <div class="btn-group btn-group-sm">
+                                        {% if not item.produto %}
+                                        <button class="btn btn-outline-primary btn-vincular"
+                                                data-item-id="{{ item.id }}"
+                                                data-descricao="{{ item.descricao_nf }}"
+                                                title="Vincular Produto">
+                                            <i class="bi bi-link-45deg"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success btn-cadastrar"
+                                                data-item-id="{{ item.id }}"
+                                                data-codigo="{{ item.codigo_produto_fornecedor }}"
+                                                data-descricao="{{ item.descricao_nf }}"
+                                                data-codigobarras="{{ item.codigo_barras_nf }}"
+                                                data-ncm="{{ item.ncm }}"
+                                                data-unidade="{{ item.unidade }}"
+                                                data-preco="{{ item.valor_unitario }}"
+                                                title="Cadastrar Novo">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-outline-warning btn-desvincular"
+                                                data-item-id="{{ item.id }}"
+                                                title="Desvincular">
+                                            <i class="bi bi-link-break"></i>
+                                        </button>
+                                        {% if not item.conferido %}
+                                        <button class="btn btn-outline-success btn-conferir"
+                                                data-item-id="{{ item.id }}"
+                                                data-quantidade="{{ item.quantidade }}"
+                                                title="Conferir">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    Nenhum item na nota
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral -->
+        <div class="col-lg-3">
+            <!-- Configurações -->
+            <div class="table-card mb-4">
+                <h6 class="mb-3"><i class="bi bi-gear me-1"></i> Configurações</h6>
+                <ul class="list-unstyled mb-0 small">
+                    <li class="mb-2">
+                        <i class="bi {% if nota.atualizar_preco_custo %}bi-check-circle text-success{% else %}bi-x-circle text-muted{% endif %} me-1"></i>
+                        Atualizar preço de custo
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi {% if nota.atualizar_preco_venda %}bi-check-circle text-success{% else %}bi-x-circle text-muted{% endif %} me-1"></i>
+                        Recalcular preço de venda
+                        {% if nota.atualizar_preco_venda %}<small>({{ nota.margem_padrao }}%)</small>{% endif %}
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi {% if nota.ratear_frete %}bi-check-circle text-success{% else %}bi-x-circle text-muted{% endif %} me-1"></i>
+                        Ratear frete no custo
+                    </li>
+                    <li>
+                        <i class="bi {% if nota.atualizar_cotacao %}bi-check-circle text-success{% else %}bi-x-circle text-muted{% endif %} me-1"></i>
+                        Atualizar cotação
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Log de Atividades -->
+            <div class="table-card">
+                <h6 class="mb-3"><i class="bi bi-clock-history me-1"></i> Atividades</h6>
+                <div style="max-height: 350px; overflow-y: auto;">
+                    {% for log in logs %}
+                    <div class="border-bottom pb-2 mb-2">
+                        <small class="text-muted d-block">
+                            {{ log.created_at|date:"d/m H:i" }} - {{ log.usuario.username|default:"Sistema" }}
+                        </small>
+                        <small>{{ log.descricao|truncatechars:60 }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center small">Nenhuma atividade</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Vincular -->
+<div class="modal fade" id="modalVincular" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-link-45deg me-1"></i> Vincular Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3"><strong>Item:</strong> <span id="vincularDescricao"></span></p>
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="buscaProduto" 
+                           placeholder="Digite código, código de barras ou descrição..." autocomplete="off">
+                </div>
+                <div id="searchResults" class="list-group" style="max-height: 300px; overflow-y: auto;"></div>
+                <input type="hidden" id="vincularItemId">
+                <input type="hidden" id="vincularProdutoId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-primary" id="confirmarVinculo" disabled>
+                    <i class="bi bi-link-45deg me-1"></i> Vincular
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cadastrar -->
+<div class="modal fade" id="modalCadastrar" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-lg me-1"></i> Cadastrar Novo Produto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Dados da Nota (readonly) -->
+                <div class="alert alert-info mb-3">
+                    <small><strong>Item da NF:</strong> <span id="cadastrarDescricaoNF"></span></small>
+                </div>
+                
+                <div class="row">
+                    <!-- Coluna 1: Dados Básicos -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-info-circle me-1"></i> Dados do Produto</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Código do Sistema</label>
+                            <input type="text" class="form-control bg-light" id="cadastrarCodigo" maxlength="50" placeholder="Gerado automaticamente" readonly>
+                            <small class="text-muted">Deixe em branco para gerar automaticamente</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Descrição *</label>
+                            <input type="text" class="form-control" id="cadastrarDescricao" maxlength="200">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Referência/Código do Fabricante</label>
+                            <input type="text" class="form-control" id="cadastrarReferencia" maxlength="100" placeholder="Código do fornecedor/fabricante">
+                            <small class="text-muted">Código que veio na nota fiscal</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Código de Barras (EAN)</label>
+                                <input type="text" class="form-control" id="cadastrarCodigoBarras" maxlength="50">
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">NCM</label>
+                                <input type="text" class="form-control" id="cadastrarNCM" maxlength="10" placeholder="Ex: 8708.29.99">
+                                <small class="text-muted">Classificação fiscal</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Unidade</label>
+                            <select class="form-select" id="cadastrarUnidade">
+                                <option value="UN">UN - Unidade</option>
+                                <option value="PC">PC - Peça</option>
+                                <option value="CX">CX - Caixa</option>
+                                <option value="KG">KG - Quilo</option>
+                                <option value="LT">LT - Litro</option>
+                                <option value="MT">MT - Metro</option>
+                                <option value="PR">PR - Par</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Coluna 2: Preços e Classificação -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-currency-dollar me-1"></i> Preços</h6>
+                        
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Preço de Custo</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" class="form-control" id="cadastrarPrecoCusto" step="0.01" min="0">
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Margem (%)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="cadastrarMargem" step="0.1" min="0" max="99" value="30">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Preço de Venda (Dinheiro)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="number" class="form-control" id="cadastrarPrecoVenda" step="0.01" min="0">
+                            </div>
+                            <small class="text-muted">Margem = (Venda - Custo) / Venda × 100</small>
+                        </div>
+                        
+                        <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-tags me-1"></i> Classificação</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Categoria</label>
+                            <select class="form-select" id="cadastrarCategoria">
+                                <option value="">Selecione...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Subcategoria</label>
+                            <select class="form-select" id="cadastrarSubcategoria" disabled>
+                                <option value="">Selecione categoria primeiro...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Grupo</label>
+                                <select class="form-select" id="cadastrarGrupo" disabled>
+                                    <option value="">Selecione subcategoria...</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Subgrupo</label>
+                                <select class="form-select" id="cadastrarSubgrupo" disabled>
+                                    <option value="">Selecione grupo...</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Fabricante</label>
+                            <div class="input-group">
+                                <select class="form-select" id="cadastrarFabricante">
+                                    <option value="">Selecione...</option>
+                                </select>
+                                <button type="button" class="btn btn-outline-success" id="btnNovoFabricante" title="Cadastrar novo fabricante">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <input type="hidden" id="cadastrarItemId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success" id="confirmarCadastro">
+                    <i class="bi bi-save me-1"></i> Cadastrar e Vincular
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Fabricante -->
+<div class="modal fade" id="modalNovoFabricante" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-building me-1"></i> Novo Fabricante</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome do Fabricante *</label>
+                    <input type="text" class="form-control" id="novoFabricanteNome" maxlength="100" placeholder="Ex: BOSCH, NGK, COFAP...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-info" id="confirmarNovoFabricante">
+                    <i class="bi bi-check-lg me-1"></i> Criar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Conferir -->
+<div class="modal fade" id="modalConferir" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-check-lg me-1"></i> Conferir Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Quantidade Conferida</label>
+                    <input type="number" class="form-control form-control-lg" id="conferirQuantidade" step="1" min="0">
+                </div>
+                <input type="hidden" id="conferirItemId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="confirmarConferencia">
+                    <i class="bi bi-check-lg me-1"></i> Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cancelar -->
+<div class="modal fade" id="modalCancelar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-1"></i> Cancelar Entrada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja cancelar esta entrada?</p>
+                <p class="text-danger fw-bold">Esta ação não pode ser desfeita!</p>
+                <div class="mb-3">
+                    <label class="form-label">Motivo do Cancelamento</label>
+                    <textarea class="form-control" id="motivoCancelamento" rows="3" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Não, voltar</button>
+                <button class="btn btn-danger" id="confirmarCancelamento">
+                    <i class="bi bi-x-circle me-1"></i> Sim, Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+const csrf = '{{ csrf_token }}';
+const notaId = {{ nota.pk }};
+
+// URLs base
+const urlVincular = '{% url "compras:vincular_produto" 0 %}'.replace('0', '');
+const urlCadastrar = '{% url "compras:cadastrar_produto" 0 %}'.replace('0', '');
+const urlConferir = '{% url "compras:conferir_item" 0 %}'.replace('0', '');
+const urlDesvincular = '{% url "compras:desvincular_produto" 0 %}'.replace('0', '');
+const urlVincularAuto = '{% url "compras:vincular_automatico" nota.pk %}';
+const urlConferirTodos = '{% url "compras:conferir_todos" nota.pk %}';
+const urlFinalizar = '{% url "compras:finalizar_entrada" nota.pk %}';
+const urlCancelar = '{% url "compras:cancelar_entrada" nota.pk %}';
+
+// ===== VINCULAR PRODUTO =====
+const modalVincular = new bootstrap.Modal(document.getElementById('modalVincular'));
+let searchTimeout;
+
+document.querySelectorAll('.btn-vincular').forEach(btn => {
+    btn.onclick = function() {
+        document.getElementById('vincularItemId').value = this.dataset.itemId;
+        document.getElementById('vincularDescricao').textContent = this.dataset.descricao;
+        document.getElementById('vincularProdutoId').value = '';
+        document.getElementById('buscaProduto').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        document.getElementById('confirmarVinculo').disabled = true;
+        modalVincular.show();
+        setTimeout(() => document.getElementById('buscaProduto').focus(), 500);
+    };
+});
+
+document.getElementById('buscaProduto').oninput = function() {
+    clearTimeout(searchTimeout);
+    const q = this.value.trim();
+    if (q.length < 2) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`{% url 'compras:buscar_produtos' %}?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(data => {
+                const div = document.getElementById('searchResults');
+                div.innerHTML = '';
+                
+                if (data.produtos.length === 0) {
+                    div.innerHTML = '<div class="list-group-item text-muted">Nenhum produto encontrado</div>';
+                    return;
+                }
+                
+                data.produtos.forEach(p => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${p.codigo}</strong> - ${p.descricao.substring(0, 45)}
+                                <br><small class="text-muted">EAN: ${p.codigo_barras || '-'} | Estoque: ${p.estoque_atual}</small>
+                            </div>
+                            <div class="text-end">
+                                <small>R$ ${p.preco_custo}</small>
+                            </div>
+                        </div>
+                    `;
+                    item.onclick = (e) => {
+                        e.preventDefault();
+                        document.getElementById('vincularProdutoId').value = p.id;
+                        document.getElementById('buscaProduto').value = `${p.codigo} - ${p.descricao}`;
+                        document.getElementById('searchResults').innerHTML = '';
+                        document.getElementById('confirmarVinculo').disabled = false;
+                    };
+                    div.appendChild(item);
+                });
+            })
+            .catch(err => {
+                console.error('Erro ao buscar produtos:', err);
+                document.getElementById('searchResults').innerHTML = '<div class="list-group-item text-danger">Erro ao buscar produtos</div>';
+            });
+    }, 300);
+};
+
+document.getElementById('confirmarVinculo').onclick = function() {
+    const itemId = document.getElementById('vincularItemId').value;
+    const produtoId = document.getElementById('vincularProdutoId').value;
+    
+    if (!produtoId) {
+        alert('Selecione um produto primeiro');
+        return;
+    }
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    fetch(urlVincular + itemId + '/vincular/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({produto_id: produtoId})
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Erro na requisição: ' + r.status);
+        return r.json();
+    })
+    .then(d => {
+        if (d.success) location.reload();
+        else { alert(d.message || 'Erro ao vincular'); this.disabled = false; this.innerHTML = '<i class="bi bi-link-45deg me-1"></i> Vincular'; }
+    })
+    .catch(err => {
+        console.error('Erro:', err);
+        alert('Erro ao vincular produto: ' + err.message);
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-link-45deg me-1"></i> Vincular';
+    });
+};
+
+// ===== CADASTRAR PRODUTO =====
+const modalCadastrar = new bootstrap.Modal(document.getElementById('modalCadastrar'));
+const modalNovoFabricante = new bootstrap.Modal(document.getElementById('modalNovoFabricante'));
+let dadosCatalogos = null;
+let itemAtualCadastro = null;
+
+// Função para calcular preço de venda com MARGEM
+function calcularPrecoVenda() {
+    const custo = parseFloat(document.getElementById('cadastrarPrecoCusto').value) || 0;
+    const margem = parseFloat(document.getElementById('cadastrarMargem').value) || 0;
+    
+    if (custo > 0 && margem > 0 && margem < 100) {
+        // Margem: Preço Venda = Custo / (1 - Margem/100)
+        const precoVenda = custo / (1 - margem / 100);
+        document.getElementById('cadastrarPrecoVenda').value = precoVenda.toFixed(2);
+    }
+}
+
+// Função para calcular margem baseado no preço de venda
+function calcularMargem() {
+    const custo = parseFloat(document.getElementById('cadastrarPrecoCusto').value) || 0;
+    const venda = parseFloat(document.getElementById('cadastrarPrecoVenda').value) || 0;
+    
+    if (custo > 0 && venda > custo) {
+        // Margem = (Venda - Custo) / Venda * 100
+        const margem = ((venda - custo) / venda) * 100;
+        document.getElementById('cadastrarMargem').value = margem.toFixed(1);
+    }
+}
+
+// Listeners para cálculo automático
+document.getElementById('cadastrarPrecoCusto').addEventListener('input', calcularPrecoVenda);
+document.getElementById('cadastrarMargem').addEventListener('input', calcularPrecoVenda);
+document.getElementById('cadastrarPrecoVenda').addEventListener('input', calcularMargem);
+
+// Carregar dados dos catálogos
+function carregarCatalogos() {
+    return fetch('{% url "compras:get_categorias_fabricantes" %}')
+        .then(r => r.json())
+        .then(d => {
+            dadosCatalogos = d;
+            
+            // Popular categorias
+            const selCat = document.getElementById('cadastrarCategoria');
+            selCat.innerHTML = '<option value="">Selecione...</option>';
+            d.categorias.forEach(c => selCat.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+            
+            // Popular fabricantes
+            const selFab = document.getElementById('cadastrarFabricante');
+            selFab.innerHTML = '<option value="">Selecione...</option>';
+            d.fabricantes.forEach(f => selFab.innerHTML += `<option value="${f.id}">${f.nome}</option>`);
+            
+            return d;
+        });
+}
+
+// Cascata: Categoria -> Subcategoria
+document.getElementById('cadastrarCategoria').addEventListener('change', function() {
+    const categoriaId = this.value;
+    const selSub = document.getElementById('cadastrarSubcategoria');
+    const selGrupo = document.getElementById('cadastrarGrupo');
+    const selSubgrupo = document.getElementById('cadastrarSubgrupo');
+    
+    // Reset
+    selSub.innerHTML = '<option value="">Selecione...</option>';
+    selSub.disabled = !categoriaId;
+    selGrupo.innerHTML = '<option value="">Selecione subcategoria...</option>';
+    selGrupo.disabled = true;
+    selSubgrupo.innerHTML = '<option value="">Selecione grupo...</option>';
+    selSubgrupo.disabled = true;
+    
+    if (categoriaId && dadosCatalogos) {
+        const subs = dadosCatalogos.subcategorias.filter(s => s.categoria_id == categoriaId);
+        subs.forEach(s => selSub.innerHTML += `<option value="${s.id}">${s.nome}</option>`);
+    }
+});
+
+// Cascata: Subcategoria -> Grupo
+document.getElementById('cadastrarSubcategoria').addEventListener('change', function() {
+    const subcategoriaId = this.value;
+    const selGrupo = document.getElementById('cadastrarGrupo');
+    const selSubgrupo = document.getElementById('cadastrarSubgrupo');
+    
+    // Reset
+    selGrupo.innerHTML = '<option value="">Selecione...</option>';
+    selGrupo.disabled = !subcategoriaId;
+    selSubgrupo.innerHTML = '<option value="">Selecione grupo...</option>';
+    selSubgrupo.disabled = true;
+    
+    if (subcategoriaId && dadosCatalogos) {
+        const grupos = dadosCatalogos.grupos.filter(g => g.subcategoria_id == subcategoriaId);
+        grupos.forEach(g => selGrupo.innerHTML += `<option value="${g.id}">${g.nome}</option>`);
+    }
+});
+
+// Cascata: Grupo -> Subgrupo
+document.getElementById('cadastrarGrupo').addEventListener('change', function() {
+    const grupoId = this.value;
+    const selSubgrupo = document.getElementById('cadastrarSubgrupo');
+    
+    // Reset
+    selSubgrupo.innerHTML = '<option value="">Selecione...</option>';
+    selSubgrupo.disabled = !grupoId;
+    
+    if (grupoId && dadosCatalogos) {
+        const subgrupos = dadosCatalogos.subgrupos.filter(sg => sg.grupo_id == grupoId);
+        subgrupos.forEach(sg => selSubgrupo.innerHTML += `<option value="${sg.id}">${sg.nome}</option>`);
+    }
+});
+
+// Abrir modal de cadastrar
+document.querySelectorAll('.btn-cadastrar').forEach(btn => {
+    btn.onclick = function() {
+        itemAtualCadastro = {
+            id: this.dataset.itemId,
+            codigo: this.dataset.codigo || '',
+            descricao: this.dataset.descricao || '',
+            codigoBarras: this.dataset.codigobarras || '',
+            ncm: this.dataset.ncm || '',
+            unidade: this.dataset.unidade || 'UN',
+            precoCusto: parseFloat(this.dataset.preco) || 0
+        };
+        
+        // Preencher campos com dados da NF
+        document.getElementById('cadastrarItemId').value = itemAtualCadastro.id;
+        document.getElementById('cadastrarDescricaoNF').textContent = itemAtualCadastro.descricao;
+        document.getElementById('cadastrarCodigo').value = '';  // Deixa em branco para gerar automático
+        document.getElementById('cadastrarDescricao').value = itemAtualCadastro.descricao;
+        document.getElementById('cadastrarCodigoBarras').value = itemAtualCadastro.codigoBarras;
+        document.getElementById('cadastrarNCM').value = itemAtualCadastro.ncm;
+        document.getElementById('cadastrarReferencia').value = itemAtualCadastro.codigo;  // Código da NF vai para referência
+        document.getElementById('cadastrarPrecoCusto').value = itemAtualCadastro.precoCusto.toFixed(2);
+        document.getElementById('cadastrarMargem').value = '30';
+        
+        // Selecionar unidade
+        const selUnidade = document.getElementById('cadastrarUnidade');
+        for (let opt of selUnidade.options) {
+            if (opt.value === itemAtualCadastro.unidade) {
+                opt.selected = true;
+                break;
+            }
+        }
+        
+        // Calcular preço de venda
+        calcularPrecoVenda();
+        
+        // Carregar catálogos se ainda não carregou
+        if (!dadosCatalogos) {
+            carregarCatalogos().then(() => {
+                modalCadastrar.show();
+            }).catch(err => {
+                console.error('Erro ao carregar catálogos:', err);
+                alert('Erro ao carregar catálogos');
+            });
+        } else {
+            modalCadastrar.show();
+        }
+    };
+});
+
+// Botão Novo Fabricante
+document.getElementById('btnNovoFabricante').onclick = function() {
+    document.getElementById('novoFabricanteNome').value = '';
+    modalNovoFabricante.show();
+};
+
+// Confirmar Novo Fabricante
+document.getElementById('confirmarNovoFabricante').onclick = function() {
+    const nome = document.getElementById('novoFabricanteNome').value.trim();
+    if (!nome) {
+        alert('Digite o nome do fabricante');
+        return;
+    }
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    fetch('{% url "compras:criar_fabricante" %}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({nome: nome})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            // Adicionar à lista e selecionar
+            const selFab = document.getElementById('cadastrarFabricante');
+            const option = document.createElement('option');
+            option.value = d.id;
+            option.text = d.nome;
+            option.selected = true;
+            selFab.appendChild(option);
+            
+            // Atualizar cache
+            if (dadosCatalogos) {
+                dadosCatalogos.fabricantes.push({id: d.id, nome: d.nome});
+            }
+            
+            modalNovoFabricante.hide();
+            alert(d.message);
+        } else {
+            alert(d.message);
+        }
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Criar';
+    })
+    .catch(err => {
+        alert('Erro ao criar fabricante');
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Criar';
+    });
+};
+
+// Confirmar Cadastro de Produto
+document.getElementById('confirmarCadastro').onclick = function() {
+    const itemId = document.getElementById('cadastrarItemId').value;
+    const codigo = document.getElementById('cadastrarCodigo').value.trim();  // Pode ser vazio (automático)
+    const descricao = document.getElementById('cadastrarDescricao').value.trim();
+    
+    if (!descricao) {
+        alert('A descrição é obrigatória');
+        return;
+    }
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';
+    
+    const dados = {
+        codigo: codigo,  // Se vazio, será gerado automaticamente no backend
+        descricao: descricao,
+        codigo_barras: document.getElementById('cadastrarCodigoBarras').value.trim(),
+        ncm: document.getElementById('cadastrarNCM').value.trim(),
+        referencia_fabricante: document.getElementById('cadastrarReferencia').value.trim(),
+        unidade_medida: document.getElementById('cadastrarUnidade').value,
+        preco_custo: parseFloat(document.getElementById('cadastrarPrecoCusto').value) || 0,
+        preco_venda: parseFloat(document.getElementById('cadastrarPrecoVenda').value) || 0,
+        margem: parseFloat(document.getElementById('cadastrarMargem').value) || 30,
+        categoria_id: document.getElementById('cadastrarCategoria').value || null,
+        subcategoria_id: document.getElementById('cadastrarSubcategoria').value || null,
+        grupo_id: document.getElementById('cadastrarGrupo').value || null,
+        subgrupo_id: document.getElementById('cadastrarSubgrupo').value || null,
+        fabricante_id: document.getElementById('cadastrarFabricante').value || null
+    };
+    
+    fetch(urlCadastrar + itemId + '/cadastrar-produto/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify(dados)
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Erro na requisição: ' + r.status);
+        return r.json();
+    })
+    .then(d => {
+        if (d.success) {
+            alert(d.message);
+            location.reload();
+        } else {
+            alert(d.message || 'Erro ao cadastrar');
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-save me-1"></i> Cadastrar e Vincular';
+        }
+    })
+    .catch(err => {
+        console.error('Erro:', err);
+        alert('Erro ao cadastrar produto: ' + err.message);
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-save me-1"></i> Cadastrar e Vincular';
+    });
+};
+
+// ===== CONFERIR ITEM =====
+const modalConferir = new bootstrap.Modal(document.getElementById('modalConferir'));
+
+document.querySelectorAll('.btn-conferir').forEach(btn => {
+    btn.onclick = function() {
+        document.getElementById('conferirItemId').value = this.dataset.itemId;
+        document.getElementById('conferirQuantidade').value = parseInt(this.dataset.quantidade);
+        modalConferir.show();
+        setTimeout(() => document.getElementById('conferirQuantidade').select(), 500);
+    };
+});
+
+document.getElementById('confirmarConferencia').onclick = function() {
+    const itemId = document.getElementById('conferirItemId').value;
+    
+    fetch(urlConferir + itemId + '/conferir/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({quantidade: document.getElementById('conferirQuantidade').value})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert(d.message || 'Erro ao conferir');
+    })
+    .catch(err => {
+        console.error('Erro:', err);
+        alert('Erro ao conferir item');
+    });
+};
+
+// ===== DESVINCULAR =====
+document.querySelectorAll('.btn-desvincular').forEach(btn => {
+    btn.onclick = function() {
+        if (!confirm('Desvincular este produto?')) return;
+        
+        fetch(urlDesvincular + this.dataset.itemId + '/desvincular/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrf}
+        })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else alert(d.message); })
+        .catch(err => alert('Erro ao desvincular'));
+    };
+});
+
+// ===== VINCULAR AUTOMÁTICO =====
+document.getElementById('btnVincularAuto')?.addEventListener('click', function() {
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Vinculando...';
+    
+    fetch(urlVincularAuto, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf}
+    })
+    .then(r => r.json())
+    .then(d => {
+        alert(d.message);
+        location.reload();
+    })
+    .catch(err => {
+        alert('Erro ao vincular automaticamente');
+        location.reload();
+    });
+});
+
+// ===== CONFERIR TODOS =====
+document.getElementById('btnConferirTodos')?.addEventListener('click', function() {
+    if (!confirm('Conferir todos os itens com a quantidade da NF?')) return;
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Conferindo...';
+    
+    fetch(urlConferirTodos, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf}
+    })
+    .then(r => r.json())
+    .then(d => {
+        alert(d.message);
+        location.reload();
+    })
+    .catch(err => {
+        alert('Erro ao conferir todos');
+        location.reload();
+    });
+});
+
+// ===== FINALIZAR =====
+document.getElementById('btnFinalizar')?.addEventListener('click', function() {
+    if (!confirm('Finalizar entrada e atualizar estoque?\n\nEsta ação não pode ser desfeita.')) return;
+    
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Finalizando...';
+    
+    fetch(urlFinalizar, {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(d => {
+        alert(d.message);
+        location.reload();
+    })
+    .catch(err => {
+        alert('Erro ao finalizar');
+        location.reload();
+    });
+});
+
+// ===== CANCELAR =====
+document.getElementById('confirmarCancelamento').onclick = function() {
+    const motivo = document.getElementById('motivoCancelamento').value.trim();
+    if (!motivo) {
+        alert('Informe o motivo do cancelamento');
+        return;
+    }
+    
+    this.disabled = true;
+    
+    fetch(urlCancelar, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+        body: JSON.stringify({motivo: motivo})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else { alert(d.message); this.disabled = false; }
+    })
+    .catch(err => {
+        alert('Erro ao cancelar');
+        this.disabled = false;
+    });
+};
+</script>
+{% endblock extra_js %}

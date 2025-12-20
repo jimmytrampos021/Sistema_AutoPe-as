@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+
+{% block title %}Importar XML - Sistema AutoPeças{% endblock %}
+{% block page_title %}Importar XML de NF-e{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'compras:lista_entradas' %}">Entradas</a></li>
+            <li class="breadcrumb-item active">Importar XML</li>
+        </ol>
+    </nav>
+
+    <!-- Tabs de importação -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link active" href="{% url 'compras:importar_xml' %}">
+                <i class="bi bi-file-earmark-code me-1"></i> Importar XML
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'compras:importar_pdf' %}">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Importar PDF
+            </a>
+        </li>
+    </ul>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="table-card">
+                <form method="post" enctype="multipart/form-data" id="formImportarXML">
+                    {% csrf_token %}
+                    
+                    <!-- Upload do Arquivo -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">
+                            <i class="bi bi-cloud-upload me-1"></i> Arquivo XML da NF-e
+                        </label>
+                        <div class="p-4 border border-2 border-dashed rounded text-center bg-light" 
+                             id="uploadArea" style="cursor: pointer; position: relative;">
+                            <i class="bi bi-file-earmark-code display-4 text-muted mb-3 d-block"></i>
+                            <p class="mb-2">Arraste o arquivo XML aqui ou clique para selecionar</p>
+                            <small class="text-muted">Máximo 5MB</small>
+                            <input type="file" name="arquivo_xml" id="id_arquivo_xml" 
+                                   class="form-control" accept=".xml"
+                                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+                        </div>
+                        <div id="fileInfo" class="mt-2 d-none">
+                            <span class="badge bg-success fs-6">
+                                <i class="bi bi-file-earmark-code me-1"></i>
+                                <span id="fileName"></span>
+                            </span>
+                            <button type="button" class="btn btn-sm btn-link text-danger" id="removeFile">
+                                <i class="bi bi-x-circle"></i> Remover
+                            </button>
+                        </div>
+                        {% if form.arquivo_xml.errors %}
+                        <div class="text-danger mt-2">{{ form.arquivo_xml.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Configurações de Entrada -->
+                    <h5 class="mb-3"><i class="bi bi-gear me-1"></i> Configurações de Entrada</h5>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_preco_custo" id="id_atualizar_preco_custo" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_atualizar_preco_custo">
+                                    Atualizar preço de custo dos produtos
+                                </label>
+                                <div class="form-text">Atualiza o preço de custo com o valor da NF</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="ratear_frete" id="id_ratear_frete" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_ratear_frete">
+                                    Ratear frete no custo dos produtos
+                                </label>
+                                <div class="form-text">Distribui o frete proporcionalmente</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_cotacao" id="id_atualizar_cotacao" 
+                                       class="form-check-input" checked>
+                                <label class="form-check-label" for="id_atualizar_cotacao">
+                                    Atualizar cotação do fornecedor
+                                </label>
+                                <div class="form-text">Cria/atualiza cotação com os preços da NF</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input type="checkbox" name="atualizar_preco_venda" id="id_atualizar_preco_venda" 
+                                       class="form-check-input">
+                                <label class="form-check-label" for="id_atualizar_preco_venda">
+                                    Recalcular preço de venda (baseado na margem)
+                                </label>
+                                <div class="form-text">Recalcula automaticamente o preço de venda</div>
+                            </div>
+
+                            <div class="mb-3" id="margemContainer" style="display: none;">
+                                <label class="form-label" for="id_margem_padrao">Margem de lucro (%)</label>
+                                <div class="input-group" style="width: 150px;">
+                                    <input type="number" name="margem_padrao" id="id_margem_padrao" 
+                                           class="form-control" value="50" step="0.01" min="0" max="500">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Margem para calcular preço de venda</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'compras:lista_entradas' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg" id="btnImportar">
+                            <i class="bi bi-cloud-upload me-1"></i> Importar XML
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Instruções -->
+            <div class="table-card mb-4">
+                <h5 class="text-info mb-3"><i class="bi bi-info-circle me-1"></i> Instruções</h5>
+                <ol class="mb-0">
+                    <li class="mb-2">Selecione o arquivo XML da NF-e</li>
+                    <li class="mb-2">Configure as opções de entrada</li>
+                    <li class="mb-2">Clique em "Importar XML"</li>
+                    <li class="mb-2">Vincule os produtos aos itens</li>
+                    <li class="mb-2">Confira as quantidades</li>
+                    <li>Finalize a entrada</li>
+                </ol>
+            </div>
+
+            <!-- O que será importado -->
+            <div class="table-card">
+                <h5 class="mb-3"><i class="bi bi-check2-square me-1"></i> O que será importado</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Dados da Nota Fiscal</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Dados do Fornecedor</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Produtos e Quantidades</li>
+                    <li class="mb-2"><i class="bi bi-check text-success me-2"></i>Valores e Impostos</li>
+                    <li><i class="bi bi-check text-success me-2"></i>Chave de Acesso</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-dashed { border-style: dashed !important; }
+#uploadArea:hover { background-color: #e9ecef !important; border-color: #0d6efd !important; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('id_arquivo_xml');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const removeFile = document.getElementById('removeFile');
+    const margemContainer = document.getElementById('margemContainer');
+    const checkPrecoVenda = document.getElementById('id_atualizar_preco_venda');
+
+    // Toggle margem
+    checkPrecoVenda.addEventListener('change', function() {
+        margemContainer.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // File input
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            fileName.textContent = this.files[0].name;
+            fileInfo.classList.remove('d-none');
+        }
+    });
+
+    // Remove file
+    removeFile.addEventListener('click', function() {
+        fileInput.value = '';
+        fileInfo.classList.add('d-none');
+    });
+
+    // Form submit loading
+    document.getElementById('formImportarXML').addEventListener('submit', function() {
+        const btn = document.getElementById('btnImportar');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Importando...';
+    });
+});
+</script>
+{% endblock %}
