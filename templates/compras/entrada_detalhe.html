@@ -501,11 +501,10 @@
 const csrf = '{{ csrf_token }}';
 const notaId = {{ nota.pk }};
 
-// URLs base
-const urlVincular = '{% url "compras:vincular_produto" 0 %}'.replace('0', '');
-const urlCadastrar = '{% url "compras:cadastrar_produto" 0 %}'.replace('0', '');
-const urlConferir = '{% url "compras:conferir_item" 0 %}'.replace('0', '');
-const urlDesvincular = '{% url "compras:desvincular_produto" 0 %}'.replace('0', '');
+// URLs base - função para montar URL corretamente
+function montarUrlItem(acao, itemId) {
+    return '/compras/item/' + itemId + '/' + acao + '/';
+}
 const urlVincularAuto = '{% url "compras:vincular_automatico" nota.pk %}';
 const urlConferirTodos = '{% url "compras:conferir_todos" nota.pk %}';
 const urlFinalizar = '{% url "compras:finalizar_entrada" nota.pk %}';
@@ -592,7 +591,7 @@ document.getElementById('confirmarVinculo').onclick = function() {
     this.disabled = true;
     this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
     
-    fetch(urlVincular + itemId + '/vincular/', {
+    fetch(montarUrlItem('vincular', itemId), {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
         body: JSON.stringify({produto_id: produtoId})
@@ -857,7 +856,7 @@ document.getElementById('confirmarCadastro').onclick = function() {
         fabricante_id: document.getElementById('cadastrarFabricante').value || null
     };
     
-    fetch(urlCadastrar + itemId + '/cadastrar-produto/', {
+    fetch(montarUrlItem('cadastrar-produto', itemId), {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
         body: JSON.stringify(dados)
@@ -899,7 +898,7 @@ document.querySelectorAll('.btn-conferir').forEach(btn => {
 document.getElementById('confirmarConferencia').onclick = function() {
     const itemId = document.getElementById('conferirItemId').value;
     
-    fetch(urlConferir + itemId + '/conferir/', {
+    fetch(montarUrlItem('conferir', itemId), {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
         body: JSON.stringify({quantidade: document.getElementById('conferirQuantidade').value})
@@ -920,7 +919,7 @@ document.querySelectorAll('.btn-desvincular').forEach(btn => {
     btn.onclick = function() {
         if (!confirm('Desvincular este produto?')) return;
         
-        fetch(urlDesvincular + this.dataset.itemId + '/desvincular/', {
+        fetch(montarUrlItem('desvincular', this.dataset.itemId), {
             method: 'POST',
             headers: {'X-CSRFToken': csrf}
         })
